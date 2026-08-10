@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>DATA LAB | 作品データ分析</title>
+  <meta name="description" content="作品の価格・人気・トレンドをデータから分析する情報サイトです。">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+        "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      background: #0b0d10;
+      color: #f5f5f5;
+      line-height: 1.7;
+    }
+
+    header {
+      border-bottom: 1px solid #24272c;
+      background: #0b0d10;
+    }
+
+    .nav {
+      max-width: 1100px;
+      margin: auto;
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+
+    .status {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: auto;
+      padding: 0 24px;
+    }
+
+    .hero {
+      padding: 100px 0 80px;
+      max-width: 760px;
+    }
+
+    .label {
+      color: #9ca3af;
+      font-size: 13px;
+      letter-spacing: 2px;
+    }
+
+    h1 {
+      font-size: clamp(38px, 8vw, 72px);
+      line-height: 1.1;
+      margin: 20px 0;
+      letter-spacing: -2px;
+    }
+
+    .hero p {
+      color: #aeb4bd;
+      font-size: 17px;
+      max-width: 650px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-bottom: 80px;
+    }
+
+    .card {
+      border: 1px solid #292d33;
+      background: #111419;
+      padding: 28px;
+      border-radius: 12px;
+    }
+
+    .card h2 {
+      font-size: 18px;
+      margin-top: 0;
+    }
+
+    .card p {
+      color: #969da7;
+      font-size: 14px;
+    }
+
+    .coming {
+      display: inline-block;
+      margin-top: 14px;
+      font-size: 11px;
+      letter-spacing: 1px;
+      padding: 5px 9px;
+      border: 1px solid #343941;
+      border-radius: 20px;
+      color: #aab0b8;
+    }
+
+    section {
+      padding: 60px 0;
+      border-top: 1px solid #24272c;
+    }
+
+    section h2 {
+      font-size: 28px;
+    }
+
+    section p {
+      max-width: 720px;
+      color: #aeb4bd;
+    }
+
+    footer {
+      border-top: 1px solid #24272c;
+      margin-top: 60px;
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: auto;
+      padding: 40px 24px;
+      color: #777f89;
+      font-size: 12px;
+    }
+
+    .notice {
+      font-size: 12px;
+      color: #777f89;
+      margin-top: 25px;
+    }
+
+    @media (max-width: 700px) {
+      .hero {
+        padding: 70px 0 50px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        padding: 16px 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="nav">
+    <div class="logo">DATA LAB</div>
+    <div class="status">BETA</div>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="label">DATA × PRICE × TREND</div>
+
+    <h1>
+      作品選びを、<br>
+      データでもっと合理的に。
+    </h1>
+
+    <p>
+      DATA LABは、作品の価格・人気・レビュー・ランキングなどの
+      公開情報を整理し、比較・分析するためのデータサイトです。
+    </p>
+
+    <p class="notice">
+      現在ベータ版を開発中です。分析データは順次公開予定です。
+    </p>
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <h2>PRICE ANALYSIS</h2>
+      <p>
+        通常価格やセール情報などを整理し、
+        価格面から作品を比較できる仕組みを開発しています。
+      </p>
+      <span class="coming">COMING SOON</span>
+    </div>
+
+    <div class="card">
+      <h2>TREND</h2>
+      <p>
+        ランキングなどの変化を記録し、
+        注目度の推移を分析する仕組みを構築予定です。
+      </p>
+      <span class="coming">COMING SOON</span>
+    </div>
+
+    <div class="card">
+      <h2>DATA SCORE</h2>
+      <p>
+        複数の指標を組み合わせ、
+        作品を比較しやすくする独自指標を研究しています。
+      </p>
+      <span class="coming">IN DEVELOPMENT</span>
+    </div>
+
+  </div>
+
+  <section>
+    <h2>About DATA LAB</h2>
+
+    <p>
+      DATA LABは、作品に関する公開データを収集・整理し、
+      「価格」「人気」「評価」「トレンド」など複数の観点から
+      比較できる情報サイトを目指しています。
+    </p>
+
+    <p>
+      単純なランキングだけではなく、時系列データや複数指標を
+      組み合わせることで、ユーザーの作品選びに役立つ
+      情報提供を目指します。
+    </p>
+  </section>
+
+  <section>
+    <h2>運営について</h2>
+
+    <p>
+      当サイトは個人が運営するデータ分析・情報提供サイトです。
+      掲載内容の正確性には配慮していますが、
+      最新情報については各公式サービスをご確認ください。
+    </p>
+  </section>
+
+  <section>
+    <h2>プライバシーポリシー</h2>
+
+    <p>
+      当サイトでは、サービス改善やアクセス状況の把握のため、
+      アクセス解析ツール等を利用する場合があります。
+      取得される情報は個人を直接特定するものではありません。
+    </p>
+
+    <p>
+      また、今後アフィリエイトプログラムを利用し、
+      商品・サービスを紹介する場合があります。
+    </p>
+  </section>
+
+
+
+<section>
+  <h2>データ表示サンプル</h2>
+
+  <p>
+    実データ取得前の表示確認用です。API接続後、この部分に実際の作品情報を表示します。
+  </p>
+
+  <div class="grid">
+
+    <div class="card">
+      <h2>作品データ A</h2>
+      <p>価格：未取得</p>
+      <p>評価：未取得</p>
+      <p>レビュー数：未取得</p>
+      <p>トレンド：未取得</p>
+      <span class="coming">API接続待ち</span>
+    </div>
+
+    <div class="card">
+      <h2>作品データ B</h2>
+      <p>価格：未取得</p>
+      <p>評価：未取得</p>
+      <p>レビュー数：未取得</p>
+      <p>トレンド：未取得</p>
+      <span class="coming">API接続待ち</span>
+    </div>
+
+    <div class="card">
+      <h2>作品データ C</h2>
+      <p>価格：未取得</p>
+      <p>評価：未取得</p>
+      <p>レビュー数：未取得</p>
+      <p>トレンド：未取得</p>
+      <span class="coming">API接続待ち</span>
+    </div>
+
+  </div>
+</section></main>
+
+<footer>
+  <div class="footer-inner">
+    © 2026 DATA LAB
+  </div>
+</footer>
+
+</body>
+</html>
