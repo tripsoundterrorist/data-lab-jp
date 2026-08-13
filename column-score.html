@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>DATA LABが目指すデータスコアの考え方 | DATA LAB</title>
+
+  <meta
+    name="description"
+    content="価格・人気・評価・トレンドなど複数の要素をどう組み合わせて作品を比較するのか。DATA LABが将来的に目指す独自指標DATA SCOREの基本的な考え方を解説します。"
+  >
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #090b0e;
+      color: #f2f2f2;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Helvetica Neue",
+        "Hiragino Kaku Gothic ProN",
+        "Yu Gothic",
+        sans-serif;
+      line-height: 1.9;
+    }
+
+    .container {
+      width: min(900px, 90%);
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 28px 0;
+      border-bottom: 1px solid #2b3037;
+    }
+
+    .logo {
+      color: #ffffff;
+      font-size: 22px;
+      font-weight: 700;
+      text-decoration: none;
+      letter-spacing: 0.08em;
+    }
+
+    main {
+      padding: 70px 0 90px;
+    }
+
+    .category {
+      color: #9ca3af;
+      font-size: 14px;
+      letter-spacing: 0.12em;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: clamp(30px, 7vw, 48px);
+      line-height: 1.35;
+      margin: 0 0 28px;
+    }
+
+    .lead {
+      color: #b7bdc7;
+      font-size: 18px;
+      margin-bottom: 60px;
+    }
+
+    article {
+      max-width: 760px;
+    }
+
+    h2 {
+      font-size: 26px;
+      margin-top: 60px;
+      margin-bottom: 18px;
+    }
+
+    p {
+      color: #c1c6ce;
+      margin: 0 0 24px;
+    }
+
+    .point {
+      border: 1px solid #30353d;
+      border-radius: 16px;
+      padding: 28px;
+      margin: 32px 0;
+      background: #101318;
+    }
+
+    .point-number {
+      color: #8e96a3;
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      margin-bottom: 8px;
+    }
+
+    .point h2 {
+      margin: 0 0 14px;
+      font-size: 24px;
+    }
+
+    .formula {
+      margin: 35px 0;
+      padding: 30px;
+      border: 1px solid #30353d;
+      border-radius: 16px;
+      background: #101318;
+      text-align: center;
+    }
+
+    .formula-title {
+      color: #ffffff;
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .formula-text {
+      color: #9fa6b0;
+      font-size: 15px;
+    }
+
+    .note {
+      margin-top: 55px;
+      padding: 28px;
+      border-left: 3px solid #707784;
+      background: #101318;
+      color: #b8bec7;
+    }
+
+    .back {
+      display: inline-block;
+      margin-top: 60px;
+      padding: 14px 22px;
+      border: 1px solid #3a4049;
+      border-radius: 999px;
+      color: #f2f2f2;
+      text-decoration: none;
+    }
+
+    .back:hover {
+      background: #171b21;
+    }
+
+    footer {
+      border-top: 1px solid #2b3037;
+      padding: 32px 0 45px;
+      color: #777f8b;
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="container">
+      <a class="logo" href="index.html">DATA LAB</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+
+      <article>
+
+        <div class="category">DATA LAB COLUMN / DATA SCORE</div>
+
+        <h1>
+          DATA LABが目指す<br>
+          データスコアの考え方
+        </h1>
+
+        <p class="lead">
+          価格が安い作品、ランキング上位の作品、評価が高い作品。
+          それぞれ魅力的に見えますが、一つの指標だけで作品を比較すると、
+          情報の一部分しか見えないことがあります。
+          DATA LABでは、複数の要素を整理して比較するための
+          独自指標「DATA SCORE」の構築を目指しています。
+        </p>
+
+
+        <div class="point">
+          <div class="point-number">POINT 01</div>
+
+          <h2>なぜ一つの数字にまとめるのか</h2>
+
+          <p>
+            作品を比較するときには、
+            価格、人気、評価、ランキングなど、
+            確認すべき情報が複数存在する場合があります。
+          </p>
+
+          <p>
+            しかし、情報が増えるほど、
+            どの作品をどの観点から比較すればよいのか分かりにくくなることもあります。
+          </p>
+
+          <p>
+            そこでDATA LABでは、
+            複数の指標を整理したうえで、
+            全体的な特徴を把握しやすくするための補助指標として
+            DATA SCOREを検討しています。
+          </p>
+        </div>
+
+
+        <div class="point">
+          <div class="point-number">POINT 02</div>
+
+          <h2>価格だけを高く評価しない</h2>
+
+          <p>
+            単純に価格が安い作品ほど高得点になる仕組みにすると、
+            スコアは「安さランキング」に近いものになってしまいます。
+          </p>
+
+          <p>
+            DATA LABが目指しているのは、
+            最安の商品を探すことだけではありません。
+          </p>
+
+          <p>
+            現在価格や割引状況など、
+            公式に取得・利用可能な価格情報が存在する場合には、
+            他の指標と組み合わせながら評価することを想定しています。
+          </p>
+        </div>
+
+
+        <div class="point">
+          <div class="point-number">POINT 03</div>
+
+          <h2>人気の「量」と「変化」を分ける</h2>
+
+          <p>
+            現在ランキング上位にいることと、
+            最近急速に注目度が高まっていることは同じではありません。
+          </p>
+
+          <p>
+            たとえば、
+            長期間安定して支持されている作品と、
+            短期間で急上昇している作品には、
+            それぞれ異なる特徴があります。
+          </p>
+
+          <p>
+            DATA SCOREでは、
+            利用可能なデータが十分に蓄積できた場合、
+            現在の人気と人気の変化を別の要素として扱うことを検討します。
+          </p>
+        </div>
+
+
+        <div class="point">
+          <div class="point-number">POINT 04</div>
+
+          <h2>評価データは件数も重要</h2>
+
+          <p>
+            同じ評価値でも、
+            少数の評価から算出された数字と、
+            多くの評価が蓄積された数字では、
+            データとしての性質が異なります。
+          </p>
+
+          <p>
+            そのため、公式に利用可能な評価関連データが存在する場合には、
+            評価値だけを見るのではなく、
+            その背景にあるデータ量についても考慮する必要があります。
+          </p>
+
+          <p>
+            DATA LABでは、
+            一つの数値だけを切り取らず、
+            その数字がどのような条件で成立しているのかも確認する方針です。
+          </p>
+        </div>
+
+
+        <div class="point">
+          <div class="point-number">POINT 05</div>
+
+          <h2>スコアの根拠を説明できるようにする</h2>
+
+          <p>
+            独自スコアを作るだけであれば、
+            任意の数字を組み合わせることでも作成できます。
+          </p>
+
+          <p>
+            しかし、それでは
+            「なぜこの作品が80点なのか」
+            「なぜ別の作品より評価が高いのか」
+            が分かりません。
+          </p>
+
+          <p>
+            DATA LABでは、
+            将来的にDATA SCOREを公開する場合、
+            可能な限り各評価要素や計算方法の考え方を明示し、
+            スコアの意味を確認できる設計を目指します。
+          </p>
+        </div>
+
+
+        <h2>現時点ではスコアを表示しない理由</h2>
+
+        <p>
+          DATA SCOREを成立させるためには、
+          実際のデータを一定期間蓄積し、
+          それぞれの指標がどのように変化するのかを確認する必要があります。
+        </p>
+
+        <p>
+          データが十分にない段階で計算式だけを作ってしまうと、
+          見た目は精密でも根拠の弱い数字になる可能性があります。
+        </p>
+
+        <p>
+          そのためDATA LABでは、
+          データ取得環境が整い、
+          分析に必要な情報が蓄積されるまでは、
+          仮のDATA SCOREを作品に付与しません。
+        </p>
+
+
+        <div class="formula">
+
+          <div class="formula-title">
+            DATA SCORE
+          </div>
+
+          <div class="formula-text">
+            PRICE × POPULARITY × EVALUATION × TREND
+            <br>
+            ※構成要素は今後の実データ検証により決定
+          </div>
+
+        </div>
+
+
+        <h2>最終的に目指すもの</h2>
+
+        <p>
+          DATA SCOREそのものが、
+          「この作品を買うべき」という結論を出すことが目的ではありません。
+        </p>
+
+        <p>
+          価格を重視する人もいれば、
+          人気や評価を重視する人もいます。
+          作品を選ぶ基準は人によって異なります。
+        </p>
+
+        <p>
+          DATA LABが目指しているのは、
+          作品を選ぶ人が判断するための材料を整理し、
+          比較をしやすくすることです。
+        </p>
+
+        <p>
+          DATA SCOREは、
+          そのための一つの補助指標として設計・検証していきます。
+        </p>
+
+
+        <div class="note">
+          DATA LABでは、実際に取得できない情報を推測してスコア化しません。
+          公式に確認でき、利用が認められているデータのみを使用し、
+          十分な検証を行ったうえで分析機能を公開する方針です。
+        </div>
+
+
+        <a class="back" href="index.html">
+          ← DATA LAB トップへ戻る
+        </a>
+
+      </article>
+
+    </div>
+  </main>
+
+
+  <footer>
+    <div class="container">
+      © DATA LAB
+    </div>
+  </footer>
+
+</body>
+</html>
