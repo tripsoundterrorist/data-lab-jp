@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import sqlite3
@@ -56,6 +57,35 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace(
         "+00:00", "Z"
     )
+
+
+def positive_integer(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be a positive integer") from error
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Collect DMM items using bounded automatic pagination."
+    )
+    parser.add_argument(
+        "--max-items",
+        type=positive_integer,
+        default=MAX_ITEMS,
+        help=f"maximum items to collect (default: {MAX_ITEMS})",
+    )
+    parser.add_argument(
+        "--max-pages",
+        type=positive_integer,
+        default=MAX_PAGES,
+        help=f"maximum pages to collect (default: {MAX_PAGES})",
+    )
+    return parser.parse_args()
 
 
 def load_env_value(name: str) -> str | None:
@@ -174,6 +204,10 @@ def mark_run_failed(
 
 
 def main() -> int:
+    args = parse_args()
+    max_items = args.max_items
+    max_pages = args.max_pages
+
     if not DATABASE_PATH.is_file():
         safe_error("not requested", "先に init-db.py を実行してください。")
         return 1
@@ -229,8 +263,8 @@ def main() -> int:
                     BASE_QUERY_CONTEXT["floor"],
                     BASE_QUERY_CONTEXT["sort"],
                     HITS,
-                    MAX_ITEMS,
-                    MAX_PAGES,
+                    max_items,
+                    max_pages,
                 ),
             )
         run_registered = True
@@ -373,11 +407,11 @@ def main() -> int:
             )
             api_result_count += page_result_count
 
-            if api_result_count >= MAX_ITEMS:
+            if api_result_count >= max_items:
                 collection_complete = False
                 stop_reason = "max_items"
                 break
-            if len(pages) >= MAX_PAGES:
+            if len(pages) >= max_pages:
                 collection_complete = False
                 stop_reason = "max_pages"
                 break
