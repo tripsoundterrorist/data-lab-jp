@@ -29,7 +29,6 @@ BASE_QUERY_CONTEXT = {
     "service": "digital",
     "floor": "videoa",
     "sort": "date",
-    "hits": HITS,
 }
 
 
@@ -274,7 +273,18 @@ def main() -> int:
         seen_content_ids: set[str] = set()
 
         while True:
-            query_context = {**BASE_QUERY_CONTEXT, "offset": offset}
+            remaining_items = max_items - api_result_count
+            request_hits = min(HITS, remaining_items)
+            if request_hits <= 0:
+                collection_complete = False
+                stop_reason = "max_items"
+                break
+
+            query_context = {
+                **BASE_QUERY_CONTEXT,
+                "hits": request_hits,
+                "offset": offset,
+            }
             request_parameters = {
                 "api_id": api_id,
                 "affiliate_id": affiliate_id,
@@ -353,7 +363,7 @@ def main() -> int:
                 page_result_count is None
                 or page_result_count < 0
                 or page_result_count != len(response_items)
-                or page_result_count > BASE_QUERY_CONTEXT["hits"]
+                or page_result_count > request_hits
             ):
                 raise CollectionFailure(
                     "validation_error",
@@ -415,12 +425,15 @@ def main() -> int:
                 collection_complete = False
                 stop_reason = "max_pages"
                 break
-            if page_result_count < HITS:
+            if page_result_count < request_hits:
                 collection_complete = True
                 stop_reason = "api_end"
                 break
 
-            next_offset = offset + HITS
+            # DMM offset is the one-based result start position. Because this
+            # branch is reached only for a full page, advancing by the actual
+            # requested page size starts immediately after the current page.
+            next_offset = offset + request_hits
             if next_offset > page_total_count:
                 collection_complete = True
                 stop_reason = "api_end"
