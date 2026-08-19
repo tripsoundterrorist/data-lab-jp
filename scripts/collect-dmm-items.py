@@ -18,14 +18,16 @@ ENV_PATH = ROOT / ".env"
 DATABASE_PATH = ROOT / "data" / "data-lab.db"
 TIMEOUT_SECONDS = 15
 
-QUERY_CONTEXT = {
+BASE_QUERY_CONTEXT = {
     "site": "FANZA",
     "service": "digital",
     "floor": "videoa",
     "sort": "date",
-    "hits": 10,
-    "offset": 1,
+    "hits": 50,
 }
+OFFSETS = (1, 51)
+# Future automatic paging: after the first response supplies total_count,
+# generate subsequent offsets with range(1, total_count + 1, hits).
 
 
 def safe_error(http_status: str, summary: str) -> None:
@@ -119,17 +121,6 @@ def main() -> int:
     observed_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace(
         "+00:00", "Z"
     )
-    request_parameters = {
-        "api_id": api_id,
-        "affiliate_id": affiliate_id,
-        **QUERY_CONTEXT,
-        "output": "json",
-    }
-    request_url = (
-        "https://api.dmm.com/affiliate/v3/ItemList?"
-        + urllib.parse.urlencode(request_parameters)
-    )
-
     connection = sqlite3.connect(DATABASE_PATH)
     connection.row_factory = sqlite3.Row
 
@@ -139,48 +130,114 @@ def main() -> int:
             safe_error("not requested", "先に init-db.py を実行してください。")
             return 1
 
-        request = urllib.request.Request(
-            request_url,
-            headers={"Accept": "application/json"},
-            method="GET",
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
-                http_status = response.status
-                payload = json.load(response)
-        except urllib.error.HTTPError as error:
-            safe_error(str(error.code), "The API returned a non-success response.")
-            return 1
-        except (urllib.error.URLError, TimeoutError):
-            safe_error("unavailable", "The API request failed or timed out.")
-            return 1
-        except json.JSONDecodeError:
-            safe_error("unavailable", "The API response was not valid JSON.")
-            return 1
+        # Complete and validate every HTTP request before starting database writes.
+        pages: list[dict[str, Any]] = []
+        total_count: int | None = None
+        api_request_count = 0
+        api_result_count = 0
 
-        result = payload.get("result") if isinstance(payload, dict) else None
-        if not isinstance(result, dict) or str(result.get("status")) != "200":
-            safe_error(str(http_status), "The API reported an unsuccessful status.")
-            return 1
+        for offset in OFFSETS:
+            if total_count is not None and offset > total_count:
+                break
 
-        response_items = result.get("items")
-        if not isinstance(response_items, list) or not response_items:
-            safe_error(str(http_status), "The API returned no usable items.")
-            return 1
+            query_context = {**BASE_QUERY_CONTEXT, "offset": offset}
+            request_parameters = {
+                "api_id": api_id,
+                "affiliate_id": affiliate_id,
+                **query_context,
+                "output": "json",
+            }
+            request_url = (
+                "https://api.dmm.com/affiliate/v3/ItemList?"
+                + urllib.parse.urlencode(request_parameters)
+            )
+            request = urllib.request.Request(
+                request_url,
+                headers={"Accept": "application/json"},
+                method="GET",
+            )
 
-        if any(not isinstance(item, dict) for item in response_items):
-            safe_error(str(http_status), "The API returned an invalid item structure.")
+            try:
+                api_request_count += 1
+                with urllib.request.urlopen(
+                    request, timeout=TIMEOUT_SECONDS
+                ) as response:
+                    http_status = response.status
+                    payload = json.load(response)
+            except urllib.error.HTTPError as error:
+                safe_error(str(error.code), "The API returned a non-success response.")
+                return 1
+            except (urllib.error.URLError, TimeoutError):
+                safe_error("unavailable", "The API request failed or timed out.")
+                return 1
+            except json.JSONDecodeError:
+                safe_error("unavailable", "The API response was not valid JSON.")
+                return 1
+
+            result = payload.get("result") if isinstance(payload, dict) else None
+            if not isinstance(result, dict) or str(result.get("status")) != "200":
+                safe_error(str(http_status), "The API reported an unsuccessful status.")
+                return 1
+
+            response_items = result.get("items")
+            if not isinstance(response_items, list):
+                safe_error(str(http_status), "The API did not return an items array.")
+                return 1
+            if any(not isinstance(item, dict) for item in response_items):
+                safe_error(str(http_status), "The API returned an invalid item structure.")
+                return 1
+
+            page_result_count = parse_optional_int(result.get("result_count"))
+            page_total_count = parse_optional_int(result.get("total_count"))
+            if (
+                page_result_count is None
+                or page_result_count < 0
+                or page_result_count != len(response_items)
+                or page_result_count > BASE_QUERY_CONTEXT["hits"]
+            ):
+                safe_error(str(http_status), "The API returned an invalid result count.")
+                return 1
+            if page_total_count is None or page_total_count < 0:
+                safe_error(str(http_status), "The API returned an invalid total count.")
+                return 1
+
+            if total_count is None:
+                total_count = page_total_count
+
+            pages.append(
+                {
+                    "offset": offset,
+                    "items": response_items,
+                    "query_context_json": json.dumps(
+                        query_context, ensure_ascii=False, separators=(",", ":")
+                    ),
+                }
+            )
+            api_result_count += page_result_count
+
+            if page_result_count < BASE_QUERY_CONTEXT["hits"]:
+                break
+
+        if not pages or api_result_count == 0:
+            safe_error("200", "The API returned no usable items.")
             return 1
 
         processed_count = 0
         upsert_count = 0
         snapshot_count = 0
-        query_context_json = json.dumps(
-            QUERY_CONTEXT, ensure_ascii=False, separators=(",", ":")
-        )
 
         with connection:
-            for source_position, item in enumerate(response_items, start=1):
+            work_items = (
+                (
+                    page["offset"],
+                    page["query_context_json"],
+                    source_position,
+                    item,
+                )
+                for page in pages
+                for source_position, item in enumerate(page["items"], start=1)
+            )
+            for source_offset, query_context_json, source_position, item in work_items:
                 content_id = item.get("content_id")
                 if not isinstance(content_id, str) or not content_id.strip():
                     raise ValueError("An item did not contain a usable content_id.")
@@ -237,9 +294,9 @@ def main() -> int:
                       last_observed_at = excluded.last_observed_at
                     """,
                     (
-                        QUERY_CONTEXT["site"],
-                        QUERY_CONTEXT["service"],
-                        QUERY_CONTEXT["floor"],
+                        BASE_QUERY_CONTEXT["site"],
+                        BASE_QUERY_CONTEXT["service"],
+                        BASE_QUERY_CONTEXT["floor"],
                         content_id,
                         item.get("product_id"),
                         item.get("title"),
@@ -263,9 +320,9 @@ def main() -> int:
                     WHERE site = ? AND service = ? AND floor = ? AND content_id = ?
                     """,
                     (
-                        QUERY_CONTEXT["site"],
-                        QUERY_CONTEXT["service"],
-                        QUERY_CONTEXT["floor"],
+                        BASE_QUERY_CONTEXT["site"],
+                        BASE_QUERY_CONTEXT["service"],
+                        BASE_QUERY_CONTEXT["floor"],
                         content_id,
                     ),
                 ).fetchone()
@@ -284,8 +341,8 @@ def main() -> int:
                         item_row["id"],
                         collection_run_id,
                         observed_at,
-                        QUERY_CONTEXT["sort"],
-                        QUERY_CONTEXT["offset"],
+                        BASE_QUERY_CONTEXT["sort"],
+                        source_offset,
                         source_position,
                         price_raw,
                         parse_price_min(price_raw),
@@ -297,8 +354,10 @@ def main() -> int:
                 snapshot_count += 1
                 processed_count += 1
 
-        print(f"api_status: {result.get('status')}")
-        print(f"api_result_count: {result.get('result_count')}")
+        print("api_status: 200")
+        print(f"api_request_count: {api_request_count}")
+        print(f"api_total_count: {total_count}")
+        print(f"api_result_count: {api_result_count}")
         print(f"processed_count: {processed_count}")
         print(f"items_upserted: {upsert_count}")
         print(f"snapshots_inserted: {snapshot_count}")
