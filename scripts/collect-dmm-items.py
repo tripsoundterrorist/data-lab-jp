@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from collector_preflight import NativeRunClaim, claim_native_run, run_preflight
+
 
 ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = ROOT / ".env"
@@ -157,17 +159,6 @@ def parse_optional_int(value: Any) -> int | None:
     return parsed if str(parsed) == str(value).strip() else None
 
 
-def validate_database(connection: sqlite3.Connection) -> bool:
-    required_tables = {"items", "item_snapshots", "collection_runs"}
-    existing_tables = {
-        row[0]
-        for row in connection.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table'"
-        )
-    }
-    return required_tables.issubset(existing_tables)
-
-
 def mark_run_failed(
     connection: sqlite3.Connection,
     collection_run_id: str,
@@ -221,25 +212,20 @@ def main() -> int:
     max_items = args.max_items
     max_pages = args.max_pages
 
-    if not DATABASE_PATH.is_file():
-        safe_error("not requested", "先に init-db.py を実行してください。")
-        return 1
-
-    if not ENV_PATH.is_file():
-        safe_error("not requested", ".env was not found.")
-        return 1
+    preflight = run_preflight(DATABASE_PATH, ENV_PATH)
+    if not preflight.ready:
+        safe_error("not requested", f"Collector preflight failed: {preflight.error_code}")
+        return preflight.exit_code
 
     api_id = load_env_value("DMM_API_ID")
     affiliate_id = load_env_value("DMM_AFFILIATE_ID")
     if not api_id or not affiliate_id:
         safe_error("not requested", "Required environment values are not configured.")
-        return 1
+        return 7
 
     collection_run_id = str(uuid.uuid4())
     started_at = utc_now()
     observed_at = started_at
-    connection = sqlite3.connect(DATABASE_PATH)
-    connection.row_factory = sqlite3.Row
     run_registered = False
     pages: list[dict[str, Any]] = []
     page_metrics: list[dict[str, int]] = []
@@ -255,31 +241,34 @@ def main() -> int:
     duplicate_content_ids: set[str] = set()
 
     try:
-        connection.execute("PRAGMA foreign_keys = ON")
-        if not validate_database(connection):
-            safe_error("not requested", "先に init-db.py を実行してください。")
-            return 1
+        connection = sqlite3.connect(DATABASE_PATH)
+        connection.row_factory = sqlite3.Row
+    except sqlite3.Error:
+        safe_error("not requested", "Collector database claim failed.")
+        return 6
 
-        with connection:
-            connection.execute(
-                """
-                INSERT INTO collection_runs (
-                  collection_run_id, run_type, started_at, site, service, floor,
-                  source_sort, hits, max_items, max_pages, status
-                ) VALUES (?, 'native', ?, ?, ?, ?, ?, ?, ?, ?, 'running')
-                """,
-                (
-                    collection_run_id,
-                    started_at,
-                    BASE_QUERY_CONTEXT["site"],
-                    BASE_QUERY_CONTEXT["service"],
-                    BASE_QUERY_CONTEXT["floor"],
-                    BASE_QUERY_CONTEXT["sort"],
-                    HITS,
-                    max_items,
-                    max_pages,
-                ),
+    try:
+        connection.execute("PRAGMA foreign_keys = ON")
+        claim_result = claim_native_run(
+            connection,
+            NativeRunClaim(
+                collection_run_id=collection_run_id,
+                started_at=started_at,
+                site=BASE_QUERY_CONTEXT["site"],
+                service=BASE_QUERY_CONTEXT["service"],
+                floor=BASE_QUERY_CONTEXT["floor"],
+                source_sort=BASE_QUERY_CONTEXT["sort"],
+                hits=HITS,
+                max_items=max_items,
+                max_pages=max_pages,
             )
+        )
+        if not claim_result.claimed:
+            safe_error(
+                "not requested",
+                f"Collector claim failed: {claim_result.error_code}",
+            )
+            return claim_result.exit_code
         run_registered = True
 
         # Complete and validate every HTTP request before starting database writes.
