@@ -20,8 +20,10 @@ ENV_PATH = ROOT / ".env"
 DATABASE_PATH = ROOT / "data" / "data-lab.db"
 TIMEOUT_SECONDS = 15
 HITS = 50
-MAX_ITEMS = 500
-MAX_PAGES = 10
+DEFAULT_MAX_ITEMS = 500
+DEFAULT_MAX_PAGES = 10
+MAX_ALLOWED_ITEMS = 5000
+MAX_ALLOWED_PAGES = 100
 REQUEST_INTERVAL_SECONDS = 1.0
 
 BASE_QUERY_CONTEXT = {
@@ -58,33 +60,45 @@ def utc_now() -> str:
     )
 
 
-def positive_integer(value: str) -> int:
+def bounded_positive_integer(value: str, maximum: int) -> int:
     try:
         parsed = int(value)
     except ValueError as error:
-        raise argparse.ArgumentTypeError("must be a positive integer") from error
-    if parsed <= 0:
-        raise argparse.ArgumentTypeError("must be a positive integer")
+        raise argparse.ArgumentTypeError(
+            f"must be an integer from 1 to {maximum}"
+        ) from error
+    if parsed < 1 or parsed > maximum:
+        raise argparse.ArgumentTypeError(
+            f"must be an integer from 1 to {maximum}"
+        )
     return parsed
 
 
-def parse_args() -> argparse.Namespace:
+def item_limit(value: str) -> int:
+    return bounded_positive_integer(value, MAX_ALLOWED_ITEMS)
+
+
+def page_limit(value: str) -> int:
+    return bounded_positive_integer(value, MAX_ALLOWED_PAGES)
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Collect DMM items using bounded automatic pagination."
     )
     parser.add_argument(
         "--max-items",
-        type=positive_integer,
-        default=MAX_ITEMS,
-        help=f"maximum items to collect (default: {MAX_ITEMS})",
+        type=item_limit,
+        default=DEFAULT_MAX_ITEMS,
+        help=f"maximum items to collect (default: {DEFAULT_MAX_ITEMS})",
     )
     parser.add_argument(
         "--max-pages",
-        type=positive_integer,
-        default=MAX_PAGES,
-        help=f"maximum pages to collect (default: {MAX_PAGES})",
+        type=page_limit,
+        default=DEFAULT_MAX_PAGES,
+        help=f"maximum pages to collect (default: {DEFAULT_MAX_PAGES})",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def load_env_value(name: str) -> str | None:
