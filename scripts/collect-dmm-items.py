@@ -37,6 +37,27 @@ def safe_error(http_status: str, summary: str) -> None:
     print(f"Error: {summary}", file=sys.stderr)
 
 
+class CollectionFailure(Exception):
+    def __init__(
+        self,
+        stop_reason: str,
+        error_code: str,
+        http_status: str,
+        summary: str,
+    ) -> None:
+        super().__init__(summary)
+        self.stop_reason = stop_reason
+        self.error_code = error_code
+        self.http_status = http_status
+        self.summary = summary
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace(
+        "+00:00", "Z"
+    )
+
+
 def load_env_value(name: str) -> str | None:
     prefix = f"{name}="
     for line in ENV_PATH.read_text(encoding="utf-8-sig").splitlines():
@@ -94,7 +115,7 @@ def parse_optional_int(value: Any) -> int | None:
 
 
 def validate_database(connection: sqlite3.Connection) -> bool:
-    required_tables = {"items", "item_snapshots"}
+    required_tables = {"items", "item_snapshots", "collection_runs"}
     existing_tables = {
         row[0]
         for row in connection.execute(
@@ -102,6 +123,54 @@ def validate_database(connection: sqlite3.Connection) -> bool:
         )
     }
     return required_tables.issubset(existing_tables)
+
+
+def mark_run_failed(
+    connection: sqlite3.Connection,
+    collection_run_id: str,
+    stop_reason: str,
+    error_code: str,
+    api_calls: int,
+    pages_fetched: int,
+    api_total_count_initial: int | None,
+    total_count_changed: bool,
+    fetched_items: int,
+    duplicate_content_ids: int,
+) -> None:
+    try:
+        with connection:
+            connection.execute(
+                """
+                UPDATE collection_runs SET
+                  finished_at = ?,
+                  api_calls = ?,
+                  pages_fetched = ?,
+                  api_total_count_initial = ?,
+                  total_count_changed = ?,
+                  fetched_items = ?,
+                  duplicate_content_ids_across_pages = ?,
+                  collection_complete = 0,
+                  status = 'failed',
+                  stop_reason = ?,
+                  error_code = ?
+                WHERE collection_run_id = ?
+                """,
+                (
+                    utc_now(),
+                    api_calls,
+                    pages_fetched,
+                    api_total_count_initial,
+                    int(total_count_changed),
+                    fetched_items,
+                    duplicate_content_ids,
+                    stop_reason,
+                    error_code,
+                    collection_run_id,
+                ),
+            )
+    except sqlite3.Error:
+        # Do not expose database exception text or a traceback.
+        pass
 
 
 def main() -> int:
@@ -120,11 +189,23 @@ def main() -> int:
         return 1
 
     collection_run_id = str(uuid.uuid4())
-    observed_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace(
-        "+00:00", "Z"
-    )
+    started_at = utc_now()
+    observed_at = started_at
     connection = sqlite3.connect(DATABASE_PATH)
     connection.row_factory = sqlite3.Row
+    run_registered = False
+    pages: list[dict[str, Any]] = []
+    page_metrics: list[dict[str, int]] = []
+    total_count_initial: int | None = None
+    total_count_changed = False
+    collection_complete = False
+    stop_reason: str | None = None
+    api_request_count = 0
+    api_result_count = 0
+    processed_count = 0
+    upsert_count = 0
+    snapshot_count = 0
+    duplicate_content_ids: set[str] = set()
 
     try:
         connection.execute("PRAGMA foreign_keys = ON")
@@ -132,17 +213,31 @@ def main() -> int:
             safe_error("not requested", "先に init-db.py を実行してください。")
             return 1
 
+        with connection:
+            connection.execute(
+                """
+                INSERT INTO collection_runs (
+                  collection_run_id, run_type, started_at, site, service, floor,
+                  source_sort, hits, max_items, max_pages, status
+                ) VALUES (?, 'native', ?, ?, ?, ?, ?, ?, ?, ?, 'running')
+                """,
+                (
+                    collection_run_id,
+                    started_at,
+                    BASE_QUERY_CONTEXT["site"],
+                    BASE_QUERY_CONTEXT["service"],
+                    BASE_QUERY_CONTEXT["floor"],
+                    BASE_QUERY_CONTEXT["sort"],
+                    HITS,
+                    MAX_ITEMS,
+                    MAX_PAGES,
+                ),
+            )
+        run_registered = True
+
         # Complete and validate every HTTP request before starting database writes.
-        pages: list[dict[str, Any]] = []
-        page_metrics: list[dict[str, int]] = []
-        total_count_initial: int | None = None
-        total_count_changed = False
-        collection_complete = False
-        api_request_count = 0
-        api_result_count = 0
         offset = 1
         seen_content_ids: set[str] = set()
-        duplicate_content_ids: set[str] = set()
 
         while True:
             query_context = {**BASE_QUERY_CONTEXT, "offset": offset}
@@ -172,27 +267,51 @@ def main() -> int:
                     http_status = response.status
                     payload = json.load(response)
             except urllib.error.HTTPError as error:
-                safe_error(str(error.code), "The API returned a non-success response.")
-                return 1
+                raise CollectionFailure(
+                    "api_error",
+                    "HTTP_ERROR",
+                    str(error.code),
+                    "The API returned a non-success response.",
+                ) from None
             except (urllib.error.URLError, TimeoutError):
-                safe_error("unavailable", "The API request failed or timed out.")
-                return 1
+                raise CollectionFailure(
+                    "api_error",
+                    "API_REQUEST_FAILED",
+                    "unavailable",
+                    "The API request failed or timed out.",
+                ) from None
             except json.JSONDecodeError:
-                safe_error("unavailable", "The API response was not valid JSON.")
-                return 1
+                raise CollectionFailure(
+                    "validation_error",
+                    "INVALID_JSON",
+                    "unavailable",
+                    "The API response was not valid JSON.",
+                ) from None
 
             result = payload.get("result") if isinstance(payload, dict) else None
             if not isinstance(result, dict) or str(result.get("status")) != "200":
-                safe_error(str(http_status), "The API reported an unsuccessful status.")
-                return 1
+                raise CollectionFailure(
+                    "validation_error",
+                    "INVALID_API_STATUS",
+                    str(http_status),
+                    "The API reported an unsuccessful status.",
+                )
 
             response_items = result.get("items")
             if not isinstance(response_items, list):
-                safe_error(str(http_status), "The API did not return an items array.")
-                return 1
+                raise CollectionFailure(
+                    "validation_error",
+                    "INVALID_ITEMS",
+                    str(http_status),
+                    "The API did not return an items array.",
+                )
             if any(not isinstance(item, dict) for item in response_items):
-                safe_error(str(http_status), "The API returned an invalid item structure.")
-                return 1
+                raise CollectionFailure(
+                    "validation_error",
+                    "INVALID_ITEM_STRUCTURE",
+                    str(http_status),
+                    "The API returned an invalid item structure.",
+                )
 
             page_result_count = parse_optional_int(result.get("result_count"))
             page_total_count = parse_optional_int(result.get("total_count"))
@@ -202,18 +321,30 @@ def main() -> int:
                 or page_result_count != len(response_items)
                 or page_result_count > BASE_QUERY_CONTEXT["hits"]
             ):
-                safe_error(str(http_status), "The API returned an invalid result count.")
-                return 1
+                raise CollectionFailure(
+                    "validation_error",
+                    "INVALID_RESULT_COUNT",
+                    str(http_status),
+                    "The API returned an invalid result count.",
+                )
             if page_total_count is None or page_total_count < 0:
-                safe_error(str(http_status), "The API returned an invalid total count.")
-                return 1
+                raise CollectionFailure(
+                    "validation_error",
+                    "INVALID_TOTAL_COUNT",
+                    str(http_status),
+                    "The API returned an invalid total count.",
+                )
 
             page_content_ids: list[str] = []
             for item in response_items:
                 content_id = item.get("content_id")
                 if not isinstance(content_id, str) or not content_id.strip():
-                    safe_error(str(http_status), "An item did not contain a usable content_id.")
-                    return 1
+                    raise CollectionFailure(
+                        "validation_error",
+                        "INVALID_CONTENT_ID",
+                        str(http_status),
+                        "An item did not contain a usable content_id.",
+                    )
                 page_content_ids.append(content_id)
 
             if total_count_initial is None:
@@ -244,17 +375,21 @@ def main() -> int:
 
             if api_result_count >= MAX_ITEMS:
                 collection_complete = False
+                stop_reason = "max_items"
                 break
             if len(pages) >= MAX_PAGES:
                 collection_complete = False
+                stop_reason = "max_pages"
                 break
             if page_result_count < HITS:
                 collection_complete = True
+                stop_reason = "api_end"
                 break
 
             next_offset = offset + HITS
             if next_offset > page_total_count:
                 collection_complete = True
+                stop_reason = "api_end"
                 break
             offset = next_offset
 
@@ -390,6 +525,49 @@ def main() -> int:
                 snapshot_count += 1
                 processed_count += 1
 
+            if stop_reason is None:
+                raise RuntimeError("The collection stop reason was not determined.")
+
+            connection.execute(
+                """
+                UPDATE collection_runs SET
+                  finished_at = ?,
+                  first_observed_at = ?,
+                  last_observed_at = ?,
+                  api_calls = ?,
+                  pages_fetched = ?,
+                  api_total_count_initial = ?,
+                  total_count_changed = ?,
+                  fetched_items = ?,
+                  processed_items = ?,
+                  duplicate_content_ids_across_pages = ?,
+                  items_upserted = ?,
+                  snapshots_inserted = ?,
+                  collection_complete = ?,
+                  status = 'success',
+                  stop_reason = ?,
+                  error_code = NULL
+                WHERE collection_run_id = ?
+                """,
+                (
+                    utc_now(),
+                    observed_at,
+                    observed_at,
+                    api_request_count,
+                    len(page_metrics),
+                    total_count_initial,
+                    int(total_count_changed),
+                    api_result_count,
+                    processed_count,
+                    len(duplicate_content_ids),
+                    upsert_count,
+                    snapshot_count,
+                    int(collection_complete),
+                    stop_reason,
+                    collection_run_id,
+                ),
+            )
+
         print("api_status: 200")
         print(f"api_calls: {api_request_count}")
         print(f"pages_fetched: {len(page_metrics)}")
@@ -404,6 +582,54 @@ def main() -> int:
         print(f"observed_at: {observed_at}")
         print(f"collection_complete: {json.dumps(collection_complete)}")
         return 0
+    except CollectionFailure as failure:
+        if run_registered:
+            mark_run_failed(
+                connection,
+                collection_run_id,
+                failure.stop_reason,
+                failure.error_code,
+                api_request_count,
+                len(page_metrics),
+                total_count_initial,
+                total_count_changed,
+                api_result_count,
+                len(duplicate_content_ids),
+            )
+        safe_error(failure.http_status, failure.summary)
+        return 1
+    except sqlite3.Error:
+        if run_registered:
+            mark_run_failed(
+                connection,
+                collection_run_id,
+                "db_error",
+                "DB_OPERATION_FAILED",
+                api_request_count,
+                len(page_metrics),
+                total_count_initial,
+                total_count_changed,
+                api_result_count,
+                len(duplicate_content_ids),
+            )
+        safe_error("unavailable", "A database operation failed.")
+        return 1
+    except Exception:
+        if run_registered:
+            mark_run_failed(
+                connection,
+                collection_run_id,
+                "unexpected_error",
+                "UNEXPECTED_ERROR",
+                api_request_count,
+                len(page_metrics),
+                total_count_initial,
+                total_count_changed,
+                api_result_count,
+                len(duplicate_content_ids),
+            )
+        safe_error("unavailable", "An unexpected error occurred.")
+        return 1
     finally:
         connection.close()
 
