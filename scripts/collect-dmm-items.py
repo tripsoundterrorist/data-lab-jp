@@ -4,6 +4,7 @@ import json
 import re
 import sqlite3
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -17,17 +18,18 @@ ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = ROOT / ".env"
 DATABASE_PATH = ROOT / "data" / "data-lab.db"
 TIMEOUT_SECONDS = 15
+HITS = 50
+MAX_ITEMS = 500
+MAX_PAGES = 10
+REQUEST_INTERVAL_SECONDS = 1.0
 
 BASE_QUERY_CONTEXT = {
     "site": "FANZA",
     "service": "digital",
     "floor": "videoa",
     "sort": "date",
-    "hits": 50,
+    "hits": HITS,
 }
-OFFSETS = (1, 51)
-# Future automatic paging: after the first response supplies total_count,
-# generate subsequent offsets with range(1, total_count + 1, hits).
 
 
 def safe_error(http_status: str, summary: str) -> None:
@@ -132,14 +134,17 @@ def main() -> int:
 
         # Complete and validate every HTTP request before starting database writes.
         pages: list[dict[str, Any]] = []
-        total_count: int | None = None
+        page_metrics: list[dict[str, int]] = []
+        total_count_initial: int | None = None
+        total_count_changed = False
+        collection_complete = False
         api_request_count = 0
         api_result_count = 0
+        offset = 1
+        seen_content_ids: set[str] = set()
+        duplicate_content_ids: set[str] = set()
 
-        for offset in OFFSETS:
-            if total_count is not None and offset > total_count:
-                break
-
+        while True:
             query_context = {**BASE_QUERY_CONTEXT, "offset": offset}
             request_parameters = {
                 "api_id": api_id,
@@ -158,6 +163,8 @@ def main() -> int:
             )
 
             try:
+                if api_request_count > 0:
+                    time.sleep(REQUEST_INTERVAL_SECONDS)
                 api_request_count += 1
                 with urllib.request.urlopen(
                     request, timeout=TIMEOUT_SECONDS
@@ -201,8 +208,21 @@ def main() -> int:
                 safe_error(str(http_status), "The API returned an invalid total count.")
                 return 1
 
-            if total_count is None:
-                total_count = page_total_count
+            page_content_ids: list[str] = []
+            for item in response_items:
+                content_id = item.get("content_id")
+                if not isinstance(content_id, str) or not content_id.strip():
+                    safe_error(str(http_status), "An item did not contain a usable content_id.")
+                    return 1
+                page_content_ids.append(content_id)
+
+            if total_count_initial is None:
+                total_count_initial = page_total_count
+            elif page_total_count != total_count_initial:
+                total_count_changed = True
+
+            duplicate_content_ids.update(set(page_content_ids) & seen_content_ids)
+            seen_content_ids.update(page_content_ids)
 
             pages.append(
                 {
@@ -213,14 +233,30 @@ def main() -> int:
                     ),
                 }
             )
+            page_metrics.append(
+                {
+                    "offset": offset,
+                    "result_count": page_result_count,
+                    "total_count": page_total_count,
+                }
+            )
             api_result_count += page_result_count
 
-            if page_result_count < BASE_QUERY_CONTEXT["hits"]:
+            if api_result_count >= MAX_ITEMS:
+                collection_complete = False
+                break
+            if len(pages) >= MAX_PAGES:
+                collection_complete = False
+                break
+            if page_result_count < HITS:
+                collection_complete = True
                 break
 
-        if not pages or api_result_count == 0:
-            safe_error("200", "The API returned no usable items.")
-            return 1
+            next_offset = offset + HITS
+            if next_offset > page_total_count:
+                collection_complete = True
+                break
+            offset = next_offset
 
         processed_count = 0
         upsert_count = 0
@@ -355,15 +391,18 @@ def main() -> int:
                 processed_count += 1
 
         print("api_status: 200")
-        print(f"api_request_count: {api_request_count}")
-        print(f"api_total_count: {total_count}")
-        print(f"api_result_count: {api_result_count}")
-        print(f"processed_count: {processed_count}")
+        print(f"api_calls: {api_request_count}")
+        print(f"pages_fetched: {len(page_metrics)}")
+        print(f"api_total_count_initial: {total_count_initial}")
+        print(f"total_count_changed: {json.dumps(total_count_changed)}")
+        print(f"fetched_items: {api_result_count}")
+        print(f"processed_items: {processed_count}")
+        print(f"duplicate_content_ids_across_pages: {len(duplicate_content_ids)}")
         print(f"items_upserted: {upsert_count}")
         print(f"snapshots_inserted: {snapshot_count}")
         print(f"collection_run_id: {collection_run_id}")
         print(f"observed_at: {observed_at}")
-        print("error: none")
+        print(f"collection_complete: {json.dumps(collection_complete)}")
         return 0
     finally:
         connection.close()
