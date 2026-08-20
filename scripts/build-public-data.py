@@ -23,8 +23,158 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATABASE_PATH = ROOT / "data" / "data-lab.db"
 DEFAULT_OUTPUT_PATH = Path(tempfile.gettempdir()) / "data-lab-public-data-v0.1"
 PUBLIC_SCHEMA_VERSION = "0.1"
+PUBLIC_POLICY_VERSION = "0.1"
 PUBLIC_ID_NAMESPACE = "data-lab-public-item-v0.1"
 PUBLIC_ENTITY_NAMESPACE = "data-lab-public-entity-v0.1"
+
+# Public-field policy is the single source of truth for every emitted object.
+# Validators consume these exact sets, so adding a field to a builder without
+# explicitly updating this policy fails closed. Text values remain JSON text;
+# a future UI must render them as text (for example with textContent), not HTML.
+PUBLIC_ALLOWED_FIELDS = {
+    "manifest": frozenset(
+        {
+            "public_schema_version",
+            "public_policy_version",
+            "generated_at",
+            "as_of",
+            "item_count",
+            "data_confidence_version",
+            "price_analysis_version",
+            "publication_status",
+            "rights_review_required",
+            "price_analysis_scope",
+            "price_analysis_caveats",
+            "index_path",
+            "item_detail_pattern",
+            "index_sha256",
+            "detail_aggregate_sha256",
+        }
+    ),
+    "index_document": frozenset(
+        {"public_schema_version", "generated_at", "as_of", "items"}
+    ),
+    "detail_document": frozenset(
+        {"public_schema_version", "generated_at", "as_of", "item"}
+    ),
+    "index_item": frozenset(
+        {
+            "public_id",
+            "title",
+            "image_url",
+            "current_price",
+            "data_confidence",
+            "price_analysis",
+            "last_observed_at",
+        }
+    ),
+    "detail_item": frozenset(
+        {
+            "public_id",
+            "title",
+            "image_url",
+            "item_url",
+            "metadata",
+            "current_price",
+            "price_observed_at",
+            "last_observed_at",
+            "data_confidence",
+            "price_analysis",
+        }
+    ),
+    "metadata": frozenset({"maker", "series", "actress", "genre"}),
+    "metadata_entity": frozenset({"public_id", "name"}),
+    "confidence_summary": frozenset({"score", "label", "version"}),
+    "confidence_detail": frozenset(
+        {"score", "label", "version", "components", "warnings"}
+    ),
+    "confidence_label": frozenset({"code", "en", "ja"}),
+    "confidence_components": frozenset(
+        {
+            "freshness",
+            "observation_depth",
+            "metadata_completeness",
+            "price_data",
+            "temporal_confidence",
+        }
+    ),
+    "price_summary": frozenset(
+        {"version", "observed_set_percentile", "percentile_method", "price_band"}
+    ),
+    "price_detail": frozenset(
+        {
+            "version",
+            "observed_set_percentile",
+            "percentile_method",
+            "price_band",
+            "genre_comparisons",
+            "maker_comparison",
+            "price_history",
+            "warnings",
+        }
+    ),
+    "price_band": frozenset({"code", "en", "ja"}),
+    "comparison": frozenset(
+        {
+            "public_group_id",
+            "status",
+            "sample_size",
+            "minimum_sample_size",
+            "median",
+            "percentile",
+            "percentile_method",
+        }
+    ),
+    "maker_comparison": frozenset({"available", "comparisons"}),
+    "price_history": frozenset(
+        {
+            "first_observed_price",
+            "first_price_observed_at",
+            "latest_observed_price",
+            "latest_price_observed_at",
+            "min_observed_price",
+            "max_observed_price",
+            "price_observation_count",
+            "distinct_price_observation_dates",
+            "price_observation_span_days",
+        }
+    ),
+}
+
+RIGHTS_REVIEW_REQUIRED = (
+    "title",
+    "image_url",
+    "item_url",
+    "maker",
+    "series",
+    "actress",
+    "genre",
+)
+
+PUBLIC_FORBIDDEN_FIELDS = frozenset(
+    {
+        "api_id",
+        "affiliate_id",
+        "affiliate_url",
+        "affiliateURL",
+        "raw_api_response",
+        "query_context_json",
+        "collection_run_id",
+        "source_offset",
+        "source_position",
+        "item_id",
+        "content_id",
+        "product_id",
+        "filesystem_path",
+        "sqlite_path",
+        "traceback",
+        "debug",
+        "description",
+        "review_text",
+        "sample_movie_url",
+        "actress_image_url",
+    }
+)
 
 FORBIDDEN_TEXT_PATTERNS = {
     "API_ID_PARAMETER": re.compile(r"api_id\s*=", re.IGNORECASE),
@@ -37,27 +187,8 @@ FORBIDDEN_TEXT_PATTERNS = {
     "TRACEBACK": re.compile(r"traceback", re.IGNORECASE),
 }
 
-INDEX_ITEM_KEYS = {
-    "public_id",
-    "title",
-    "image_url",
-    "current_price",
-    "data_confidence",
-    "price_analysis",
-    "last_observed_at",
-}
-DETAIL_ITEM_KEYS = {
-    "public_id",
-    "title",
-    "image_url",
-    "item_url",
-    "metadata",
-    "current_price",
-    "price_observed_at",
-    "last_observed_at",
-    "data_confidence",
-    "price_analysis",
-}
+INDEX_ITEM_KEYS = PUBLIC_ALLOWED_FIELDS["index_item"]
+DETAIL_ITEM_KEYS = PUBLIC_ALLOWED_FIELDS["detail_item"]
 
 
 class PublicDataError(Exception):
@@ -155,6 +286,10 @@ def parse_public_entities(value: Any, entity_type: str) -> tuple[list[dict[str, 
     return public, identifier_map
 
 
+# Image policy: image_url is sourced only from image_url_large. This builder
+# never stores, transforms, or generates image binaries, and exposes no person
+# or actress image field. Affiliate routing is a future UI/routing-layer concern;
+# affiliate URLs and identifiers must never enter these analysis JSON files.
 MASTER_SQL = """
 SELECT id, site, service, floor, content_id, title,
        maker_json, series_json, actress_json, genre_json,
@@ -224,9 +359,8 @@ def transform_comparison(
         "minimum_sample_size": comparison["minimum_sample_size"],
         "median": comparison["median"],
         "percentile": comparison["percentile"],
+        "percentile_method": comparison.get("percentile_method"),
     }
-    if comparison.get("percentile_method") is not None:
-        result["percentile_method"] = comparison["percentile_method"]
     return result
 
 
@@ -286,24 +420,15 @@ def validate_score(value: Any, code: str) -> None:
 
 
 def validate_comparison(value: dict[str, Any]) -> None:
-    allowed = {
-        "public_group_id",
-        "status",
-        "sample_size",
-        "minimum_sample_size",
-        "median",
-        "percentile",
-        "percentile_method",
-    }
-    if not set(value) <= allowed or not {
-        "public_group_id",
-        "status",
-        "sample_size",
-        "minimum_sample_size",
-        "median",
-        "percentile",
-    } <= set(value):
-        raise PublicDataError("INVALID_PUBLIC_COMPARISON_KEYS")
+    require_exact_keys(
+        value,
+        PUBLIC_ALLOWED_FIELDS["comparison"],
+        "INVALID_PUBLIC_COMPARISON_KEYS",
+    )
+    if not isinstance(value["public_group_id"], str) or re.fullmatch(
+        r"(?:gen|mak)_[0-9a-f]{16}", value["public_group_id"]
+    ) is None:
+        raise PublicDataError("INVALID_PUBLIC_GROUP_ID")
     if not isinstance(value["sample_size"], int) or value["sample_size"] < 0:
         raise PublicDataError("INVALID_PUBLIC_SAMPLE_SIZE")
     if not isinstance(value["minimum_sample_size"], int) or value[
@@ -314,9 +439,10 @@ def validate_comparison(value: dict[str, Any]) -> None:
         validate_score(value["percentile"], "INVALID_PUBLIC_PERCENTILE")
 
 
-def validate_index_item(item: dict[str, Any]) -> None:
-    require_exact_keys(item, INDEX_ITEM_KEYS, "INVALID_PUBLIC_INDEX_ITEM_KEYS")
-    if not isinstance(item["public_id"], str) or not item["public_id"].startswith("itm_"):
+def validate_common_item_fields(item: dict[str, Any]) -> None:
+    if not isinstance(item["public_id"], str) or re.fullmatch(
+        r"itm_[0-9a-f]{24}", item["public_id"]
+    ) is None:
         raise PublicDataError("INVALID_PUBLIC_ID")
     if not isinstance(item["title"], str):
         raise PublicDataError("INVALID_PUBLIC_TITLE")
@@ -326,71 +452,105 @@ def validate_index_item(item: dict[str, Any]) -> None:
     ):
         raise PublicDataError("INVALID_PUBLIC_CURRENT_PRICE")
     validate_score(item["data_confidence"]["score"], "INVALID_PUBLIC_SCORE")
+    require_exact_keys(
+        item["data_confidence"]["label"],
+        PUBLIC_ALLOWED_FIELDS["confidence_label"],
+        "INVALID_PUBLIC_CONFIDENCE_LABEL_KEYS",
+    )
+    if item["price_analysis"]["price_band"] is not None:
+        require_exact_keys(
+            item["price_analysis"]["price_band"],
+            PUBLIC_ALLOWED_FIELDS["price_band"],
+            "INVALID_PUBLIC_PRICE_BAND_KEYS",
+        )
     percentile_value = item["price_analysis"]["observed_set_percentile"]
     if percentile_value is not None:
         validate_score(percentile_value, "INVALID_PUBLIC_PERCENTILE")
 
 
+def validate_index_item(item: dict[str, Any]) -> None:
+    require_exact_keys(item, INDEX_ITEM_KEYS, "INVALID_PUBLIC_INDEX_ITEM_KEYS")
+    validate_common_item_fields(item)
+    require_exact_keys(
+        item["data_confidence"],
+        PUBLIC_ALLOWED_FIELDS["confidence_summary"],
+        "INVALID_PUBLIC_CONFIDENCE_SUMMARY_KEYS",
+    )
+    require_exact_keys(
+        item["price_analysis"],
+        PUBLIC_ALLOWED_FIELDS["price_summary"],
+        "INVALID_PUBLIC_PRICE_SUMMARY_KEYS",
+    )
+
+
 def validate_detail_item(item: dict[str, Any]) -> None:
     require_exact_keys(item, DETAIL_ITEM_KEYS, "INVALID_PUBLIC_DETAIL_ITEM_KEYS")
-    validate_index_item(
-        {
-            key: item[key]
-            for key in INDEX_ITEM_KEYS
-            if key not in ("last_observed_at",)
-        }
-        | {"last_observed_at": item["last_observed_at"]}
-    )
+    validate_common_item_fields(item)
     validate_url(item["item_url"], "item_url", nullable=True)
     if item["data_confidence"]["version"] != "0.1":
         raise PublicDataError("INVALID_CONFIDENCE_VERSION")
     if item["price_analysis"]["version"] != "0.1":
         raise PublicDataError("INVALID_PRICE_ANALYSIS_VERSION")
+    require_exact_keys(
+        item["data_confidence"],
+        PUBLIC_ALLOWED_FIELDS["confidence_detail"],
+        "INVALID_PUBLIC_CONFIDENCE_DETAIL_KEYS",
+    )
+    require_exact_keys(
+        item["price_analysis"],
+        PUBLIC_ALLOWED_FIELDS["price_detail"],
+        "INVALID_PUBLIC_PRICE_DETAIL_KEYS",
+    )
     components = item["data_confidence"]["components"]
-    if set(components) != {
-        "freshness",
-        "observation_depth",
-        "metadata_completeness",
-        "price_data",
-        "temporal_confidence",
-    }:
-        raise PublicDataError("INVALID_PUBLIC_CONFIDENCE_COMPONENTS")
+    require_exact_keys(
+        components,
+        PUBLIC_ALLOWED_FIELDS["confidence_components"],
+        "INVALID_PUBLIC_CONFIDENCE_COMPONENTS",
+    )
     for score in components.values():
         validate_score(score, "INVALID_PUBLIC_COMPONENT_SCORE")
     for comparison in item["price_analysis"]["genre_comparisons"]:
         validate_comparison(comparison)
     for comparison in item["price_analysis"]["maker_comparison"]["comparisons"]:
         validate_comparison(comparison)
+    require_exact_keys(
+        item["price_analysis"]["maker_comparison"],
+        PUBLIC_ALLOWED_FIELDS["maker_comparison"],
+        "INVALID_PUBLIC_MAKER_COMPARISON_KEYS",
+    )
+    require_exact_keys(
+        item["price_analysis"]["price_history"],
+        PUBLIC_ALLOWED_FIELDS["price_history"],
+        "INVALID_PUBLIC_PRICE_HISTORY_KEYS",
+    )
+    require_exact_keys(
+        item["metadata"],
+        PUBLIC_ALLOWED_FIELDS["metadata"],
+        "INVALID_PUBLIC_METADATA_KEYS",
+    )
     for entities in item["metadata"].values():
         for entity in entities:
             require_exact_keys(
-                entity, {"public_id", "name"}, "INVALID_PUBLIC_METADATA_KEYS"
+                entity,
+                PUBLIC_ALLOWED_FIELDS["metadata_entity"],
+                "INVALID_PUBLIC_METADATA_ENTITY_KEYS",
             )
+            if re.fullmatch(
+                r"(?:mak|ser|act|gen)_[0-9a-f]{16}", entity["public_id"]
+            ) is None:
+                raise PublicDataError("INVALID_PUBLIC_METADATA_GROUP_ID")
 
 
 def validate_manifest(manifest: dict[str, Any], expected_item_count: int) -> None:
     require_exact_keys(
         manifest,
-        {
-            "public_schema_version",
-            "generated_at",
-            "as_of",
-            "item_count",
-            "data_confidence_version",
-            "price_analysis_version",
-            "publication_status",
-            "rights_review_required",
-            "price_analysis_scope",
-            "price_analysis_caveats",
-            "index_path",
-            "item_detail_pattern",
-            "index_sha256",
-            "detail_aggregate_sha256",
-        },
+        PUBLIC_ALLOWED_FIELDS["manifest"],
         "INVALID_PUBLIC_MANIFEST_KEYS",
     )
     if manifest["public_schema_version"] != PUBLIC_SCHEMA_VERSION:
         raise PublicDataError("INVALID_PUBLIC_SCHEMA_VERSION")
+    if manifest["public_policy_version"] != PUBLIC_POLICY_VERSION:
+        raise PublicDataError("INVALID_PUBLIC_POLICY_VERSION")
     if manifest["data_confidence_version"] != "0.1":
         raise PublicDataError("INVALID_CONFIDENCE_VERSION")
     if manifest["price_analysis_version"] != "0.1":
@@ -399,6 +559,30 @@ def validate_manifest(manifest: dict[str, Any], expected_item_count: int) -> Non
         raise PublicDataError("INVALID_PUBLIC_ITEM_COUNT")
     if manifest["publication_status"] != "local_validation_only":
         raise PublicDataError("INVALID_PUBLICATION_STATUS")
+    if tuple(manifest["rights_review_required"]) != RIGHTS_REVIEW_REQUIRED:
+        raise PublicDataError("INVALID_RIGHTS_REVIEW_POLICY")
+
+
+def validate_index_document(document: dict[str, Any], expected_item_count: int) -> None:
+    require_exact_keys(
+        document,
+        PUBLIC_ALLOWED_FIELDS["index_document"],
+        "INVALID_PUBLIC_INDEX_DOCUMENT_KEYS",
+    )
+    if document["public_schema_version"] != PUBLIC_SCHEMA_VERSION:
+        raise PublicDataError("INVALID_PUBLIC_SCHEMA_VERSION")
+    if len(document["items"]) != expected_item_count:
+        raise PublicDataError("INVALID_PUBLIC_ITEM_COUNT")
+
+
+def validate_detail_document(document: dict[str, Any]) -> None:
+    require_exact_keys(
+        document,
+        PUBLIC_ALLOWED_FIELDS["detail_document"],
+        "INVALID_PUBLIC_DETAIL_DOCUMENT_KEYS",
+    )
+    if document["public_schema_version"] != PUBLIC_SCHEMA_VERSION:
+        raise PublicDataError("INVALID_PUBLIC_SCHEMA_VERSION")
 
 
 def json_bytes(value: Any) -> bytes:
@@ -434,10 +618,37 @@ def load_secret_values() -> list[str]:
     return sorted(set(values))
 
 
+def normalized_field_name(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", value.casefold())
+
+
+NORMALIZED_FORBIDDEN_FIELDS = frozenset(
+    normalized_field_name(field_name) for field_name in PUBLIC_FORBIDDEN_FIELDS
+)
+
+
+def scan_field_names(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if not isinstance(key, str):
+                raise PublicDataError("PUBLIC_FIELD_NAME_NOT_STRING")
+            if normalized_field_name(key) in NORMALIZED_FORBIDDEN_FIELDS:
+                raise PublicDataError("PUBLIC_FORBIDDEN_FIELD_NAME")
+            scan_field_names(child)
+    elif isinstance(value, list):
+        for child in value:
+            scan_field_names(child)
+
+
 def safety_scan(files: dict[str, bytes]) -> None:
     secrets = load_secret_values()
     for relative_path, content in files.items():
         text = content.decode("utf-8")
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError as error:
+            raise PublicDataError("PUBLIC_JSON_PARSE_FAILURE") from error
+        scan_field_names(parsed)
         for code, pattern in FORBIDDEN_TEXT_PATTERNS.items():
             if pattern.search(text):
                 raise PublicDataError(f"PUBLIC_SAFETY_SCAN_{code}")
@@ -524,32 +735,29 @@ def build_documents(
         "as_of": iso_utc(as_of),
         "items": index_items,
     }
+    validate_index_document(index_document, len(index_items))
     files = {"index.json": json_bytes(index_document)}
     for item in detail_items:
-        files[detail_relative_path(item["public_id"])] = json_bytes(
-            {
-                "public_schema_version": PUBLIC_SCHEMA_VERSION,
-                "generated_at": iso_utc(generated_at),
-                "as_of": iso_utc(as_of),
-                "item": item,
-            }
-        )
+        detail_document = {
+            "public_schema_version": PUBLIC_SCHEMA_VERSION,
+            "generated_at": iso_utc(generated_at),
+            "as_of": iso_utc(as_of),
+            "item": item,
+        }
+        validate_detail_document(detail_document)
+        files[detail_relative_path(item["public_id"])] = json_bytes(detail_document)
 
     detail_digest = aggregate_detail_digest(files)
     manifest = {
         "public_schema_version": PUBLIC_SCHEMA_VERSION,
+        "public_policy_version": PUBLIC_POLICY_VERSION,
         "generated_at": iso_utc(generated_at),
         "as_of": iso_utc(as_of),
         "item_count": len(index_items),
         "data_confidence_version": confidence_result["score_version"],
         "price_analysis_version": price_result["version"],
         "publication_status": "local_validation_only",
-        "rights_review_required": [
-            "title",
-            "image_url",
-            "item_url",
-            "metadata_display_names",
-        ],
+        "rights_review_required": list(RIGHTS_REVIEW_REQUIRED),
         "price_analysis_scope": "current_data_lab_observed_set",
         "price_analysis_caveats": [
             "OBSERVED_SET_IS_PARTIAL_AND_DATE_SORT_BIASED",
@@ -570,6 +778,7 @@ def build_documents(
     ]
     summary = {
         "public_schema_version": PUBLIC_SCHEMA_VERSION,
+        "public_policy_version": PUBLIC_POLICY_VERSION,
         "as_of": iso_utc(as_of),
         "generated_at": iso_utc(generated_at),
         "item_count": len(index_items),
