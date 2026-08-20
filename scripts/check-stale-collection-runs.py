@@ -24,6 +24,13 @@ class StaleCheckFailure(Exception):
     pass
 
 
+class SafeArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        self.print_usage(sys.stderr)
+        print("stale check failed: INVALID_ARGUMENT", file=sys.stderr)
+        raise SystemExit(1)
+
+
 def bounded_minutes(value: str) -> int:
     try:
         parsed = int(value)
@@ -41,8 +48,14 @@ def bounded_minutes(value: str) -> int:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
+    parser = SafeArgumentParser(
         description="Detect stale native collection runs without changing the DB."
+    )
+    parser.add_argument(
+        "--db",
+        type=Path,
+        default=DATABASE_PATH,
+        help="SQLite database to inspect (default: repository data/data-lab.db)",
     )
     parser.add_argument(
         "--older-than-minutes",
@@ -85,7 +98,7 @@ def main() -> int:
     args = parse_args()
     try:
         checked_count, stale_candidates, anomalies = check_database(
-            DATABASE_PATH, args.older_than_minutes
+            args.db, args.older_than_minutes
         )
     except (StaleCheckFailure, PreflightProcessingError) as error:
         print(f"stale check failed: {error}", file=sys.stderr)
