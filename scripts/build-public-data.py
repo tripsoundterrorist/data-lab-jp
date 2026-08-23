@@ -18,6 +18,8 @@ from types import ModuleType
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 
+from publication_gate import evaluate_publication_gate
+
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATABASE_PATH = ROOT / "data" / "data-lab.db"
@@ -854,6 +856,10 @@ def print_summary(summary: dict[str, Any], dry_run: bool, output: Path) -> None:
     print(f"Validated: {summary['validated_item_count']}")
     print(f"Secret scan: {summary['secret_scan']}")
     print(f"URL validation: {summary['url_validation']}")
+    print(
+        "Publication eligible: "
+        f"{'yes' if summary['publication_gate']['eligible'] else 'no'}"
+    )
     print(f"Total bytes: {summary['sizes']['total_bytes']}")
     if not dry_run:
         print(f"Output: {output.resolve()}")
@@ -867,6 +873,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_PATH)
     parser.add_argument("--as-of", type=timestamp_argument("--as-of"))
     parser.add_argument("--generated-at", type=timestamp_argument("--generated-at"))
+    parser.add_argument(
+        "--publication-mode",
+        choices=("local-validation", "production"),
+        default="local-validation",
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--json", action="store_true")
     return parser.parse_args(argv)
@@ -888,6 +899,13 @@ def main(argv: list[str] | None = None) -> int:
     generated_at = args.generated_at or now
     try:
         files, summary = build_documents(args.db, as_of, generated_at)
+        gate = evaluate_publication_gate(
+            files,
+            tuple(value.encode("utf-8") for value in load_secret_values()),
+        )
+        summary["publication_gate"] = gate.to_dict()
+        if args.publication_mode == "production" and not gate.eligible:
+            raise PublicDataError("PUBLICATION_GATE_BLOCKED")
         if not args.dry_run:
             atomic_write(args.output, files)
     except PublicDataError as error:
