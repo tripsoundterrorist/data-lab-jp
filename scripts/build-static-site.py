@@ -18,6 +18,10 @@ ALLOWLIST = (
     "column-price.html",
     "column-trend.html",
     "column-score.html",
+    "items/index.html",
+    "items/item.html",
+    "items/items.css",
+    "items/items.js",
 )
 FORBIDDEN_FILENAMES = frozenset(
     {
@@ -105,9 +109,14 @@ def resolve_output(repo_root: Path, value: Path | None) -> Path:
 
 def validate_relative_name(name: str) -> None:
     relative = Path(name)
-    if relative.is_absolute() or relative.name != name or ".." in relative.parts:
+    if (
+        relative.is_absolute()
+        or not relative.parts
+        or "." in relative.parts
+        or ".." in relative.parts
+    ):
         raise ValidationError("ALLOWLIST_PATH_UNSAFE")
-    lowered = name.casefold()
+    lowered = relative.name.casefold()
     if lowered in FORBIDDEN_FILENAMES or lowered.startswith(".env."):
         raise ValidationError("FORBIDDEN_FILENAME")
     if relative.suffix.casefold() in FORBIDDEN_EXTENSIONS:
@@ -144,19 +153,23 @@ def read_known_secret_values(repo_root: Path) -> tuple[bytes, ...]:
 
 
 def collect_sources(repo_root: Path) -> dict[str, bytes]:
-    if len(ALLOWLIST) != 4 or len(set(ALLOWLIST)) != 4:
+    if len(ALLOWLIST) != 8 or len(set(ALLOWLIST)) != 8:
         raise ValidationError("ALLOWLIST_INVALID")
     files: dict[str, bytes] = {}
     for name in ALLOWLIST:
         validate_relative_name(name)
         source = repo_root / name
-        if source.is_symlink():
+        source_parts = [
+            repo_root.joinpath(*Path(name).parts[:index])
+            for index in range(1, len(Path(name).parts) + 1)
+        ]
+        if any(part.is_symlink() for part in source_parts):
             raise SourceError("SOURCE_SYMLINK_FORBIDDEN")
         try:
             resolved = source.resolve(strict=True)
         except OSError as error:
             raise SourceError("ALLOWLIST_SOURCE_MISSING") from error
-        if resolved.parent != repo_root or not resolved.is_file():
+        if repo_root not in resolved.parents or not resolved.is_file():
             raise SourceError("ALLOWLIST_SOURCE_OUTSIDE_ROOT")
         try:
             files[name] = resolved.read_bytes()
@@ -166,7 +179,7 @@ def collect_sources(repo_root: Path) -> dict[str, bytes]:
 
 
 def validate_files(files: dict[str, bytes], secrets: tuple[bytes, ...]) -> None:
-    if len(files) != 4 or set(files) != set(ALLOWLIST):
+    if len(files) != 8 or set(files) != set(ALLOWLIST):
         raise ValidationError("OUTPUT_SET_MISMATCH")
     for name, content in files.items():
         validate_relative_name(name)
@@ -184,17 +197,22 @@ def validate_files(files: dict[str, bytes], secrets: tuple[bytes, ...]) -> None:
 def validate_staging(staging: Path, files: dict[str, bytes]) -> None:
     found: dict[str, Path] = {}
     try:
-        entries = list(staging.iterdir())
+        entries = list(staging.rglob("*"))
     except OSError as error:
         raise ValidationError("STAGING_READ_FAILED") from error
     for entry in entries:
         if entry.is_symlink():
             raise ValidationError("STAGING_SYMLINK_FORBIDDEN")
+        relative = entry.relative_to(staging).as_posix()
+        if entry.is_dir():
+            if relative != "items":
+                raise ValidationError("STAGING_UNEXPECTED_DIRECTORY")
+            continue
         if not entry.is_file():
             raise ValidationError("STAGING_NON_FILE_FOUND")
-        validate_relative_name(entry.name)
-        found[entry.name] = entry
-    if len(found) != 4 or set(found) != set(ALLOWLIST):
+        validate_relative_name(relative)
+        found[relative] = entry
+    if len(found) != 8 or set(found) != set(ALLOWLIST):
         raise ValidationError("STAGING_SET_MISMATCH")
     for name, expected in files.items():
         try:
@@ -217,7 +235,9 @@ def atomic_publish(output: Path, files: dict[str, bytes]) -> None:
     previous: Path | None = None
     try:
         for name, content in files.items():
-            (staging / name).write_bytes(content)
+            destination = staging / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
         validate_staging(staging, files)
         if output.exists():
             previous = output.with_name(f".{output.name}.previous-{uuid.uuid4().hex}")

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>作品データ | DATA LAB</title>
+  <link rel="stylesheet" href="items.css">
+  <script src="items.js" defer></script>
+</head>
+<body data-page="index">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">DATA LAB / ITEMS</p>
+      <h1>観測データ一覧</h1>
+    </div>
+    <div id="publication-status" class="publication-status" aria-live="polite">公開準備中</div>
+  </header>
+
+  <main>
+    <section class="intro panel">
+      <div>
+        <p class="section-label">PUBLIC DATA</p>
+        <h2>データの状態を、作品評価と混同せずに確認する</h2>
+        <p>データ信頼度は、保持データの鮮度・観測量・観測期間を表します。作品の品質・人気・内容を評価するものではありません。</p>
+      </div>
+      <dl class="set-summary">
+        <div><dt>観測件数</dt><dd id="item-count">—</dd></div>
+        <div><dt>基準時刻</dt><dd id="as-of">—</dd></div>
+      </dl>
+    </section>
+
+    <section id="data-fallback" class="fallback panel" aria-live="polite">
+      <h2>データ公開準備中</h2>
+      <p>公開可能なデータの確認を進めています。準備が整うまでお待ちください。</p>
+    </section>
+
+    <div id="data-content" hidden>
+      <section class="controls panel" aria-label="一覧の検索と絞り込み">
+        <label><span>タイトル検索</span><input id="search" type="search" placeholder="表示文字列を検索" autocomplete="off"></label>
+        <label><span>並び替え</span><select id="sort"><option value="observed-desc">最終観測が新しい順</option><option value="price-asc">現在価格が低い順</option><option value="price-desc">現在価格が高い順</option><option value="confidence-desc">データ信頼度が高い順</option></select></label>
+        <label><span>観測レベル</span><select id="confidence-filter"><option value="">すべて</option></select></label>
+        <label><span>価格位置帯</span><select id="band-filter"><option value="">すべて</option></select></label>
+      </section>
+      <div class="results-head"><p id="result-count">—</p><p class="scope-note">価格位置はDATA LAB観測セット内のみの参考値です。</p></div>
+      <section id="item-grid" class="item-grid" aria-live="polite"></section>
+      <nav class="pagination" aria-label="ページ移動"><button id="prev-page" type="button">前へ</button><span id="page-status">—</span><button id="next-page" type="button">次へ</button></nav>
+    </div>
+  </main>
+</body>
+</html>
