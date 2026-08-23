@@ -374,16 +374,17 @@ def task_query_script() -> str:
     return f"""
 $ErrorActionPreference = 'Stop'
 $names = @({names})
-$result = [ordered]@{{}}
+$tasks = [ordered]@{{}}
 try {{
+  $registered = @(Get-ScheduledTask -ErrorAction Stop)
   foreach ($name in $names) {{
-    $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
+    $task = $registered | Where-Object {{ $_.TaskName -eq $name }} | Select-Object -First 1
     if ($null -eq $task) {{
-      $result[$name] = [ordered]@{{ exists = $false }}
+      $tasks[$name] = [ordered]@{{ exists = $false }}
       continue
     }}
     $info = Get-ScheduledTaskInfo -TaskName $name -ErrorAction Stop
-    $result[$name] = [ordered]@{{
+    $tasks[$name] = [ordered]@{{
       exists = $true
       enabled = [bool]$task.Settings.Enabled
       state = [string]$task.State
@@ -392,10 +393,17 @@ try {{
       last_result = [int64]$info.LastTaskResult
     }}
   }}
-  $result | ConvertTo-Json -Depth 4 -Compress
+  [ordered]@{{ status = 'ok'; tasks = $tasks }} | ConvertTo-Json -Depth 5 -Compress
 }} catch {{
-  [Console]::Error.WriteLine('TASK_QUERY_FAILED')
-  exit 1
+  $category = [string]$_.CategoryInfo.Category
+  $exceptionType = $_.Exception.GetType().FullName
+  $nativeCode = $_.Exception.HResult -band 0xffff
+  $status = if (
+    $category -eq 'PermissionDenied' -or
+    $exceptionType -eq 'System.UnauthorizedAccessException' -or
+    $nativeCode -eq 5
+  ) {{ 'access_denied' }} else {{ 'query_error' }}
+  [ordered]@{{ status = $status }} | ConvertTo-Json -Compress
 }}
 """
 
@@ -426,18 +434,42 @@ def check_tasks(issues: list[dict[str, str]]) -> dict[str, Any]:
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
-        raise HealthInternalError("TASK_QUERY_FAILED") from None
+        add_issue(issues, "WARN", "TASK_SCHEDULER_QUERY_ERROR")
+        return unavailable_tasks("query_error")
     if completed.returncode != 0:
-        raise HealthInternalError("TASK_QUERY_FAILED")
+        add_issue(issues, "WARN", "TASK_SCHEDULER_QUERY_ERROR")
+        return unavailable_tasks("query_error")
     try:
         stdout = decode_process_output(completed.stdout)
         raw = json.loads(stdout.strip().lstrip("\ufeff"))
-    except (json.JSONDecodeError, TypeError):
-        raise HealthInternalError("TASK_QUERY_INVALID_OUTPUT") from None
+    except (json.JSONDecodeError, TypeError, UnicodeError):
+        add_issue(issues, "WARN", "TASK_SCHEDULER_QUERY_ERROR")
+        return unavailable_tasks("query_error")
+
+    if not isinstance(raw, dict):
+        add_issue(issues, "WARN", "TASK_SCHEDULER_QUERY_ERROR")
+        return unavailable_tasks("query_error")
+    status = raw.get("status")
+    if status != "ok":
+        access_denied = status == "access_denied"
+        code = (
+            "TASK_SCHEDULER_ACCESS_DENIED"
+            if access_denied
+            else "TASK_SCHEDULER_QUERY_ERROR"
+        )
+        add_issue(issues, "WARN", code)
+        return unavailable_tasks("access_denied" if access_denied else "query_error")
+    raw_tasks = raw.get("tasks")
+    if not isinstance(raw_tasks, dict):
+        add_issue(issues, "WARN", "TASK_SCHEDULER_QUERY_ERROR")
+        return unavailable_tasks("query_error")
 
     tasks: dict[str, Any] = {}
     for key, task_name in TASK_NAMES.items():
-        task = raw.get(task_name, {"exists": False})
+        task = raw_tasks.get(task_name)
+        if not isinstance(task, dict):
+            add_issue(issues, "WARN", "TASK_SCHEDULER_QUERY_ERROR")
+            return unavailable_tasks("query_error")
         tasks[key] = {"task_name": task_name, **task}
         if not task.get("exists"):
             level = "WARN" if key == "stale_check" else "ERROR"
@@ -450,6 +482,13 @@ def check_tasks(issues: list[dict[str, str]]) -> dict[str, Any]:
         if last_result not in (0, NOT_YET_RUN_RESULT):
             add_issue(issues, "WARN", f"TASK_{key.upper()}_LAST_RESULT_NONZERO")
     return tasks
+
+
+def unavailable_tasks(status: str) -> dict[str, Any]:
+    return {
+        key: {"task_name": task_name, "query_status": status}
+        for key, task_name in TASK_NAMES.items()
+    }
 
 
 def run_git(*arguments: str) -> str:
@@ -511,6 +550,8 @@ def collect_health(database_path: Path) -> dict[str, Any]:
 
 
 def display_task(task: dict[str, Any]) -> str:
+    if task.get("query_status"):
+        return f"unavailable ({task['query_status']})"
     if not task.get("exists"):
         return "not registered"
     last_result = task.get("last_result")
