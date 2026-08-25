@@ -1,3 +1,5 @@
+"""Fail-closed, multi-gate publication assessment for Public Data v0.1."""
+
 from __future__ import annotations
 
 import json
@@ -7,57 +9,57 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from rights_decision_policy import (
+    APPROVED, DIRECT_SUPPORT_CONFIRMATION, POLICY_VERSION as RIGHTS_POLICY_VERSION,
+    decision_for, validate_policy as validate_rights_policy,
+)
 
-ALLOWED_SCHEMA_VERSIONS = frozenset({"0.1"})
-ALLOWED_POLICY_VERSIONS = frozenset({"0.1"})
+GATE_VERSION = "0.2"
+PUBLIC_SCHEMA_VERSION = "0.1"
+PUBLIC_POLICY_VERSION = "0.1"
+LOCAL_VALIDATION_ONLY = "local_validation_only"
+PASS = "PASS"
+CLOSED = "CLOSED"
+PENDING_OFFICIAL_CONFIRMATION = "PENDING_OFFICIAL_CONFIRMATION"
+VALID_GATE_STATUSES = frozenset({PASS, CLOSED, PENDING_OFFICIAL_CONFIRMATION})
 PUBLIC_ID_PATTERN = re.compile(r"itm_[0-9a-f]{24}")
-REQUIRED_ITEM_FIELDS = frozenset(
-    {"public_id", "title", "current_price", "last_observed_at"}
-)
+REQUIRED_ITEM_FIELDS = frozenset({"public_id", "title", "current_price", "last_observed_at"})
 
+# Explicit public-name to Rights Decision Matrix mapping; no implicit conversion.
+PUBLIC_RIGHTS_FIELD_MAP = {
+    "title": "title", "image_url": "product_main_image",
+    "item_url": "product_page_url", "maker": "maker", "series": "series",
+    "actress": "actress_name", "genre": "genre", "current_price": "price",
+    "review_count": "review_count", "review_average": "review_average",
+    "derived_price_comparison": "derived_price_comparison",
+    "derived_ranking": "derived_ranking", "derived_analysis": "derived_analysis",
+}
+PROHIBITED_PUBLIC_FIELDS = frozenset({
+    "product_description", "description", "user_review_text", "review_text",
+    "actress_api_face_image", "actress_image_url", "person_list_image",
+    "dmm_books_product_image", "sample_video", "sample_movie_url",
+    "video_capture", "raw_api_response", "api_id", "affiliate_id",
+    "affiliate_url", "query_context", "query_context_json", "internal_db_id",
+    "internal_id", "db_id", "database_id", "item_id", "content_id",
+    "product_id", "collection_run_id", "source_offset", "source_position",
+    "filesystem_path", "sqlite_path", "credential", "credentials", "token",
+    "access_token",
+})
+PENDING_FIELDS = (
+    "lifecycle_status", "api_zero_result_meaning", "sale_ended", "unpublished",
+    "deleted", "affiliate_ineligible", "affiliate_url_presence_meaning",
+    "rank_sort_semantics", "review_sort_semantics",
+)
 REASON_ORDER = (
-    "PUBLICATION_STATUS_NOT_PUBLIC",
-    "RIGHTS_REVIEW_PENDING",
-    "UNSUPPORTED_SCHEMA_VERSION",
-    "UNSUPPORTED_POLICY_VERSION",
-    "REQUIRED_FIELD_MISSING",
-    "FORBIDDEN_FIELD_PRESENT",
-    "SECRET_PATTERN_DETECTED",
-    "INVALID_PUBLIC_ID",
-    "INVALID_TIMESTAMP",
-    "INVALID_PUBLIC_DOCUMENT",
+    "FORBIDDEN_FIELD_PRESENT", "SECRET_PATTERN_DETECTED",
+    "RIGHTS_POLICY_VERSION_MISMATCH", "RIGHTS_POLICY_INVALID",
+    "UNKNOWN_RIGHTS_FIELD", "RIGHTS_NOT_APPROVED",
+    "UNSUPPORTED_SCHEMA_VERSION", "UNSUPPORTED_POLICY_VERSION",
+    "REQUIRED_FIELD_MISSING", "INVALID_PUBLIC_ID", "INVALID_TIMESTAMP",
+    "INVALID_PUBLIC_DOCUMENT", "LIFECYCLE_GATE_PENDING",
+    "SEMANTICS_GATE_PENDING", "PUBLICATION_STATUS_NOT_PUBLIC",
+    "DATA_POLICY_GATE_CLOSED", "UNKNOWN_GATE_STATUS",
 )
-
-FORBIDDEN_FIELDS = frozenset(
-    {
-        "internal_db_id",
-        "internal_id",
-        "db_id",
-        "database_id",
-        "item_id",
-        "content_id",
-        "product_id",
-        "api_id",
-        "affiliate_id",
-        "affiliate_url",
-        "raw_api_response",
-        "query_context_json",
-        "collection_run_id",
-        "source_offset",
-        "source_position",
-        "filesystem_path",
-        "sqlite_path",
-        "credential",
-        "credentials",
-        "token",
-        "access_token",
-        "description",
-        "review_text",
-        "sample_movie_url",
-        "actress_image_url",
-    }
-)
-
 SECRET_PATTERNS = (
     re.compile(r"(?i)(?:api|affiliate)[_-]?id\s*="),
     re.compile(r"(?i)(?:access[_-]?token|credential|password|secret)\s*[:=]"),
@@ -68,15 +70,45 @@ SECRET_PATTERNS = (
 
 @dataclass(frozen=True)
 class PublicationGateResult:
-    eligible: bool
-    status: str
-    reasons: tuple[str, ...]
+    gate_version: str
+    overall_eligible: bool
+    publication_status: str
+    rights_gate: str
+    lifecycle_gate: str
+    semantics_gate: str
+    publication_status_gate: str
+    data_policy_gate: str
+    reason_codes: tuple[str, ...]
+    approved_rights_fields: tuple[str, ...]
+    blocked_fields: tuple[str, ...]
+    pending_fields: tuple[str, ...]
+
+    @property
+    def eligible(self) -> bool:  # Existing builder compatibility.
+        return self.overall_eligible
+
+    @property
+    def status(self) -> str:
+        return "eligible" if self.overall_eligible else "blocked"
+
+    @property
+    def reasons(self) -> tuple[str, ...]:
+        return self.reason_codes
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "eligible": self.eligible,
-            "status": self.status,
-            "reasons": list(self.reasons),
+            "gate_version": self.gate_version,
+            "overall_eligible": self.overall_eligible,
+            "publication_status": self.publication_status,
+            "rights_gate": self.rights_gate,
+            "lifecycle_gate": self.lifecycle_gate,
+            "semantics_gate": self.semantics_gate,
+            "publication_status_gate": self.publication_status_gate,
+            "data_policy_gate": self.data_policy_gate,
+            "reason_codes": list(self.reason_codes),
+            "approved_rights_fields": list(self.approved_rights_fields),
+            "blocked_fields": list(self.blocked_fields),
+            "pending_fields": list(self.pending_fields),
         }
 
 
@@ -84,15 +116,9 @@ def normalized_field_name(value: str) -> str:
     return re.sub(r"[^a-z0-9]", "", value.casefold())
 
 
-NORMALIZED_FORBIDDEN_FIELDS = frozenset(
-    normalized_field_name(field_name) for field_name in FORBIDDEN_FIELDS
+NORMALIZED_PROHIBITED_FIELDS = frozenset(
+    normalized_field_name(field) for field in PROHIBITED_PUBLIC_FIELDS
 )
-
-
-def add_reason(reasons: set[str], code: str) -> None:
-    if code not in REASON_ORDER:
-        raise ValueError("unknown publication gate reason")
-    reasons.add(code)
 
 
 def parse_timestamp(value: Any) -> bool:
@@ -100,165 +126,211 @@ def parse_timestamp(value: Any) -> bool:
         return False
     normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
     try:
-        parsed = datetime.fromisoformat(normalized)
+        return datetime.fromisoformat(normalized).tzinfo is not None
     except ValueError:
         return False
-    return parsed.tzinfo is not None
 
 
-def scan_forbidden_fields(value: Any, reasons: set[str]) -> None:
+def _scan_fields(value: Any, blocked: set[str], reasons: set[str]) -> None:
     if isinstance(value, dict):
         for key, child in value.items():
             if not isinstance(key, str):
-                add_reason(reasons, "INVALID_PUBLIC_DOCUMENT")
+                reasons.add("INVALID_PUBLIC_DOCUMENT")
                 continue
-            if normalized_field_name(key) in NORMALIZED_FORBIDDEN_FIELDS:
-                add_reason(reasons, "FORBIDDEN_FIELD_PRESENT")
-            scan_forbidden_fields(child, reasons)
+            if normalized_field_name(key) in NORMALIZED_PROHIBITED_FIELDS:
+                blocked.add(key)
+                reasons.add("FORBIDDEN_FIELD_PRESENT")
+            _scan_fields(child, blocked, reasons)
     elif isinstance(value, list):
         for child in value:
-            scan_forbidden_fields(child, reasons)
+            _scan_fields(child, blocked, reasons)
 
 
-def validate_item(item: Any, reasons: set[str]) -> None:
-    if not isinstance(item, dict):
-        add_reason(reasons, "INVALID_PUBLIC_DOCUMENT")
-        return
-    if not REQUIRED_ITEM_FIELDS <= set(item):
-        add_reason(reasons, "REQUIRED_FIELD_MISSING")
-    public_id = item.get("public_id")
-    if not isinstance(public_id, str) or PUBLIC_ID_PATTERN.fullmatch(public_id) is None:
-        add_reason(reasons, "INVALID_PUBLIC_ID")
-    title = item.get("title")
-    if not isinstance(title, str) or not title.strip():
-        add_reason(reasons, "REQUIRED_FIELD_MISSING")
-    price = item.get("current_price")
-    if not isinstance(price, int) or isinstance(price, bool) or price < 0:
-        add_reason(reasons, "REQUIRED_FIELD_MISSING")
-    if not parse_timestamp(item.get("last_observed_at")):
-        add_reason(reasons, "INVALID_TIMESTAMP")
-
-
-def decoded_documents(
-    files: Mapping[str, bytes], reasons: set[str], known_secrets: Sequence[bytes]
-) -> dict[str, Any]:
+def _decode(files: Mapping[str, bytes], known_secrets: Sequence[bytes], reasons: set[str]) -> dict[str, Any]:
     documents: dict[str, Any] = {}
     for path, content in files.items():
         if not isinstance(path, str) or not isinstance(content, bytes):
-            add_reason(reasons, "INVALID_PUBLIC_DOCUMENT")
+            reasons.add("INVALID_PUBLIC_DOCUMENT")
             continue
         relative = Path(path)
         if relative.is_absolute() or ".." in relative.parts:
-            add_reason(reasons, "INVALID_PUBLIC_DOCUMENT")
+            reasons.add("INVALID_PUBLIC_DOCUMENT")
             continue
         try:
             text = content.decode("utf-8")
             documents[path] = json.loads(text)
         except (UnicodeError, json.JSONDecodeError):
-            add_reason(reasons, "INVALID_PUBLIC_DOCUMENT")
+            reasons.add("INVALID_PUBLIC_DOCUMENT")
             continue
         if any(pattern.search(text) for pattern in SECRET_PATTERNS):
-            add_reason(reasons, "SECRET_PATTERN_DETECTED")
+            reasons.add("SECRET_PATTERN_DETECTED")
         if any(secret and secret in content for secret in known_secrets):
-            add_reason(reasons, "SECRET_PATTERN_DETECTED")
+            reasons.add("SECRET_PATTERN_DETECTED")
     return documents
 
 
-def evaluate(
-    files: Mapping[str, bytes], known_secrets: Sequence[bytes]
-) -> PublicationGateResult:
-    reasons: set[str] = set()
-    documents = decoded_documents(files, reasons, known_secrets)
-    manifest = documents.get("manifest.json")
-    index = documents.get("index.json")
+def _validate_item(item: Any, reasons: set[str]) -> None:
+    if not isinstance(item, dict):
+        reasons.add("INVALID_PUBLIC_DOCUMENT")
+        return
+    if not REQUIRED_ITEM_FIELDS <= set(item):
+        reasons.add("REQUIRED_FIELD_MISSING")
+    public_id = item.get("public_id")
+    if not isinstance(public_id, str) or PUBLIC_ID_PATTERN.fullmatch(public_id) is None:
+        reasons.add("INVALID_PUBLIC_ID")
+    if not isinstance(item.get("title"), str) or not item["title"].strip():
+        reasons.add("REQUIRED_FIELD_MISSING")
+    price = item.get("current_price")
+    if not isinstance(price, int) or isinstance(price, bool) or price < 0:
+        reasons.add("REQUIRED_FIELD_MISSING")
+    if not parse_timestamp(item.get("last_observed_at")):
+        reasons.add("INVALID_TIMESTAMP")
+
+
+def _validate_documents(documents: Mapping[str, Any], reasons: set[str]) -> None:
+    manifest, index = documents.get("manifest.json"), documents.get("index.json")
     if not isinstance(manifest, dict) or not isinstance(index, dict):
-        add_reason(reasons, "INVALID_PUBLIC_DOCUMENT")
-        return result_from_reasons(reasons)
-
-    if manifest.get("publication_status") != "public":
-        add_reason(reasons, "PUBLICATION_STATUS_NOT_PUBLIC")
-    pending = manifest.get("rights_review_required")
-    if not isinstance(pending, list) or pending:
-        add_reason(reasons, "RIGHTS_REVIEW_PENDING")
-    if manifest.get("public_schema_version") not in ALLOWED_SCHEMA_VERSIONS:
-        add_reason(reasons, "UNSUPPORTED_SCHEMA_VERSION")
-    if manifest.get("public_policy_version") not in ALLOWED_POLICY_VERSIONS:
-        add_reason(reasons, "UNSUPPORTED_POLICY_VERSION")
-
-    for field in ("generated_at", "as_of"):
-        if not parse_timestamp(manifest.get(field)):
-            add_reason(reasons, "INVALID_TIMESTAMP")
-    if index.get("public_schema_version") not in ALLOWED_SCHEMA_VERSIONS:
-        add_reason(reasons, "UNSUPPORTED_SCHEMA_VERSION")
-    for field in ("generated_at", "as_of"):
-        if not parse_timestamp(index.get(field)):
-            add_reason(reasons, "INVALID_TIMESTAMP")
-
+        reasons.add("INVALID_PUBLIC_DOCUMENT")
+        return
+    if manifest.get("public_schema_version") != PUBLIC_SCHEMA_VERSION:
+        reasons.add("UNSUPPORTED_SCHEMA_VERSION")
+    if manifest.get("public_policy_version") != PUBLIC_POLICY_VERSION:
+        reasons.add("UNSUPPORTED_POLICY_VERSION")
+    if index.get("public_schema_version") != PUBLIC_SCHEMA_VERSION:
+        reasons.add("UNSUPPORTED_SCHEMA_VERSION")
+    for document in (manifest, index):
+        for field in ("generated_at", "as_of"):
+            if not parse_timestamp(document.get(field)):
+                reasons.add("INVALID_TIMESTAMP")
     items = index.get("items")
     if not isinstance(items, list):
-        add_reason(reasons, "INVALID_PUBLIC_DOCUMENT")
+        reasons.add("INVALID_PUBLIC_DOCUMENT")
         items = []
-    declared_count = manifest.get("item_count")
-    if (
-        not isinstance(declared_count, int)
-        or isinstance(declared_count, bool)
-        or declared_count != len(items)
-    ):
-        add_reason(reasons, "INVALID_PUBLIC_DOCUMENT")
-
+    if type(manifest.get("item_count")) is not int or manifest["item_count"] != len(items):
+        reasons.add("INVALID_PUBLIC_DOCUMENT")
     identifiers: list[str] = []
     for item in items:
-        validate_item(item, reasons)
+        _validate_item(item, reasons)
         if isinstance(item, dict) and isinstance(item.get("public_id"), str):
             identifiers.append(item["public_id"])
     if len(identifiers) != len(set(identifiers)):
-        add_reason(reasons, "INVALID_PUBLIC_DOCUMENT")
-
-    expected_details = {
-        f"items/{identifier[4:6]}/{identifier}.json"
-        for identifier in identifiers
-        if PUBLIC_ID_PATTERN.fullmatch(identifier)
-    }
-    actual_details = {path for path in documents if path.startswith("items/")}
-    if expected_details != actual_details:
-        add_reason(reasons, "INVALID_PUBLIC_DOCUMENT")
-    for path in actual_details:
-        document = documents[path]
-        if not isinstance(document, dict):
-            add_reason(reasons, "INVALID_PUBLIC_DOCUMENT")
+        reasons.add("INVALID_PUBLIC_DOCUMENT")
+    expected = {f"items/{value[4:6]}/{value}.json" for value in identifiers if PUBLIC_ID_PATTERN.fullmatch(value)}
+    actual = {path for path in documents if path.startswith("items/")}
+    if expected != actual:
+        reasons.add("INVALID_PUBLIC_DOCUMENT")
+    for path in actual:
+        detail = documents[path]
+        if not isinstance(detail, dict):
+            reasons.add("INVALID_PUBLIC_DOCUMENT")
             continue
-        if document.get("public_schema_version") not in ALLOWED_SCHEMA_VERSIONS:
-            add_reason(reasons, "UNSUPPORTED_SCHEMA_VERSION")
+        if detail.get("public_schema_version") != PUBLIC_SCHEMA_VERSION:
+            reasons.add("UNSUPPORTED_SCHEMA_VERSION")
         for field in ("generated_at", "as_of"):
-            if not parse_timestamp(document.get(field)):
-                add_reason(reasons, "INVALID_TIMESTAMP")
-        detail_item = document.get("item")
-        validate_item(detail_item, reasons)
-        if (
-            not isinstance(detail_item, dict)
-            or detail_item.get("public_id") != Path(path).stem
-            or detail_item.get("public_id") not in identifiers
-        ):
-            add_reason(reasons, "INVALID_PUBLIC_DOCUMENT")
-
-    for document in documents.values():
-        scan_forbidden_fields(document, reasons)
-    return result_from_reasons(reasons)
+            if not parse_timestamp(detail.get(field)):
+                reasons.add("INVALID_TIMESTAMP")
+        item = detail.get("item")
+        _validate_item(item, reasons)
+        if not isinstance(item, dict) or item.get("public_id") != Path(path).stem or item.get("public_id") not in identifiers:
+            reasons.add("INVALID_PUBLIC_DOCUMENT")
 
 
-def result_from_reasons(reasons: set[str]) -> PublicationGateResult:
-    ordered = tuple(code for code in REASON_ORDER if code in reasons)
+def overall_from_gates(*statuses: str) -> bool:
+    """True only when every required gate has a known PASS status."""
+    if not statuses or any(status not in VALID_GATE_STATUSES for status in statuses):
+        return False
+    return all(status == PASS for status in statuses)
+
+
+def _ordered(reasons: set[str]) -> tuple[str, ...]:
+    return tuple(code for code in REASON_ORDER if code in reasons)
+
+
+def _failed_result(reasons: set[str]) -> PublicationGateResult:
+    reasons.add("INVALID_PUBLIC_DOCUMENT")
     return PublicationGateResult(
-        eligible=not ordered,
-        status="eligible" if not ordered else "blocked",
-        reasons=ordered,
+        GATE_VERSION, False, "unknown", CLOSED, PENDING_OFFICIAL_CONFIRMATION,
+        PENDING_OFFICIAL_CONFIRMATION, CLOSED, CLOSED, _ordered(reasons), (), (),
+        PENDING_FIELDS,
     )
 
 
-def evaluate_publication_gate(
-    files: Mapping[str, bytes], known_secrets: Sequence[bytes] = ()
-) -> PublicationGateResult:
+def evaluate(files: Mapping[str, bytes], known_secrets: Sequence[bytes], *, rights_policy_version: str) -> PublicationGateResult:
+    reasons: set[str] = set()
+    blocked: set[str] = set()
+    documents = _decode(files, known_secrets, reasons)
+    for document in documents.values():
+        _scan_fields(document, blocked, reasons)
+    _validate_documents(documents, reasons)
+    manifest = documents.get("manifest.json")
+    publication_status = manifest.get("publication_status") if isinstance(manifest, dict) else "unknown"
+    rights_fields = manifest.get("rights_review_required") if isinstance(manifest, dict) else None
+    approved: list[str] = []
+    if rights_policy_version != RIGHTS_POLICY_VERSION:
+        reasons.add("RIGHTS_POLICY_VERSION_MISMATCH")
+    if validate_rights_policy():
+        reasons.add("RIGHTS_POLICY_INVALID")
+    if not isinstance(rights_fields, list) or any(not isinstance(field, str) for field in rights_fields):
+        reasons.add("INVALID_PUBLIC_DOCUMENT")
+        rights_fields = []
+    for public_field in rights_fields:
+        policy_field = PUBLIC_RIGHTS_FIELD_MAP.get(public_field)
+        if policy_field is None:
+            reasons.add("UNKNOWN_RIGHTS_FIELD")
+            blocked.add(public_field)
+            continue
+        try:
+            decision = decision_for(policy_field)
+        except KeyError:
+            reasons.add("UNKNOWN_RIGHTS_FIELD")
+            blocked.add(public_field)
+            continue
+        if decision.public_display != APPROVED or decision.evidence_type != DIRECT_SUPPORT_CONFIRMATION:
+            reasons.add("RIGHTS_NOT_APPROVED")
+            blocked.add(public_field)
+        else:
+            approved.append(public_field)
+    rights_blockers = {
+        "FORBIDDEN_FIELD_PRESENT", "SECRET_PATTERN_DETECTED",
+        "RIGHTS_POLICY_VERSION_MISMATCH", "RIGHTS_POLICY_INVALID",
+        "UNKNOWN_RIGHTS_FIELD", "RIGHTS_NOT_APPROVED", "INVALID_PUBLIC_DOCUMENT",
+    }
+    rights_gate = PASS if not (reasons & rights_blockers) else CLOSED
+    lifecycle_gate = PENDING_OFFICIAL_CONFIRMATION
+    semantics_gate = PENDING_OFFICIAL_CONFIRMATION
+    publication_status_gate = PASS if publication_status == "public" else CLOSED
+    data_reasons = {
+        "UNSUPPORTED_SCHEMA_VERSION", "UNSUPPORTED_POLICY_VERSION",
+        "REQUIRED_FIELD_MISSING", "INVALID_PUBLIC_ID", "INVALID_TIMESTAMP",
+        "INVALID_PUBLIC_DOCUMENT", "FORBIDDEN_FIELD_PRESENT", "SECRET_PATTERN_DETECTED",
+    }
+    data_policy_gate = PASS if not (reasons & data_reasons) else CLOSED
+    reasons.update({"LIFECYCLE_GATE_PENDING", "SEMANTICS_GATE_PENDING"})
+    if publication_status_gate != PASS:
+        reasons.add("PUBLICATION_STATUS_NOT_PUBLIC")
+    if data_policy_gate != PASS:
+        reasons.add("DATA_POLICY_GATE_CLOSED")
+    statuses = (rights_gate, lifecycle_gate, semantics_gate, publication_status_gate, data_policy_gate)
+    if any(status not in VALID_GATE_STATUSES for status in statuses):
+        reasons.add("UNKNOWN_GATE_STATUS")
+    return PublicationGateResult(
+        GATE_VERSION, overall_from_gates(*statuses), publication_status if isinstance(publication_status, str) else "unknown",
+        rights_gate, lifecycle_gate, semantics_gate, publication_status_gate,
+        data_policy_gate, _ordered(reasons), tuple(dict.fromkeys(approved)),
+        tuple(sorted(blocked)), PENDING_FIELDS,
+    )
+
+
+def evaluate_publication_gate(files: Mapping[str, bytes], known_secrets: Sequence[bytes] = (), *, rights_policy_version: str = RIGHTS_POLICY_VERSION) -> PublicationGateResult:
     try:
-        return evaluate(files, known_secrets)
+        return evaluate(files, known_secrets, rights_policy_version=rights_policy_version)
     except Exception:
-        return result_from_reasons({"INVALID_PUBLIC_DOCUMENT"})
+        return _failed_result(set())
+
+
+__all__ = [
+    "CLOSED", "GATE_VERSION", "LOCAL_VALIDATION_ONLY", "PASS",
+    "PENDING_OFFICIAL_CONFIRMATION", "PUBLIC_POLICY_VERSION",
+    "PUBLIC_RIGHTS_FIELD_MAP", "PUBLIC_SCHEMA_VERSION", "PublicationGateResult",
+    "evaluate_publication_gate", "overall_from_gates",
+]
