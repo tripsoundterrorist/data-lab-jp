@@ -101,6 +101,18 @@ class UISecurityDisclosurePolicyTests(unittest.TestCase):
     def test_ay_unknown_pattern_invalid(self): self.assertEqual(self.open_assess(prohibited_patterns=("UNKNOWN",)).ui_security_status, policy.INVALID_INPUT)
     def test_az_generic_open_blocked(self): self.assertEqual(self.open_assess(cta_semantic="OPEN").ui_security_status, policy.UI_SECURITY_BLOCKED)
 
+    def test_ba_unknown_handoff_reason_fails_closed(self):
+        value = upstream(True); value["reason_codes"] = ["UNKNOWN_REASON"]
+        result = assess(handoff_result=value)
+        self.assertEqual((result.ui_security_status, result.render_allowed), (policy.INVALID_INPUT, False))
+
+    def test_bb_known_handoff_reason_remains_valid(self):
+        self.assertEqual(self.open_assess().ui_security_status, policy.UI_SECURITY_PASS)
+
+    def test_bc_empty_handoff_reasons_remain_invalid(self):
+        value = upstream(True); value["reason_codes"] = []
+        self.assertEqual(assess(handoff_result=value).ui_security_status, policy.INVALID_INPUT)
+
 
 if __name__ == "__main__":
     unittest.main()

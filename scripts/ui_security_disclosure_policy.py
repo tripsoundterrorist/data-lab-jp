@@ -37,6 +37,17 @@ HANDOFF_FIELDS = frozenset({
     "pr_disclosure_required", "target_context", "reason_codes",
 })
 SAFE_REASON = re.compile(r"[A-Z][A-Z0-9_]{0,63}\Z")
+KNOWN_HANDOFF_REASONS_V01 = frozenset({
+    "ADAPTER_FLAGS_CONTRADICTORY", "ADAPTER_FLAGS_MALFORMED",
+    "ADAPTER_PRODUCTION_RENDER_BLOCKED", "ADAPTER_REASON_UNKNOWN",
+    "ADAPTER_RESULT_SCHEMA_INVALID", "ADAPTER_VERSION_UNSUPPORTED",
+    "DELEGATED_RENDER_CONDITIONS_SATISFIED", "DISCLOSURE_FLAG_MALFORMED",
+    "HANDOFF_VERSION_UNSUPPORTED", "INTERNAL_HANDOFF_ERROR",
+    "LINK_STATUS_UNKNOWN", "PR_DISCLOSURE_UNAVAILABLE",
+    "PR_REQUIREMENT_CONTRADICTION", "TARGET_CONTEXT_FORBIDDEN",
+    "TARGET_CONTEXT_UNKNOWN", "UI_CANDIDATE_REQUIRED",
+    "VALIDATION_STATUS_UNKNOWN",
+})
 
 
 @dataclass(frozen=True)
@@ -89,7 +100,12 @@ def _valid_handoff(value: Any) -> bool:
         and value["target_context"] in {"WEB_UI", None}
         and isinstance(value["reason_codes"], (list, tuple))
         and bool(value["reason_codes"])
-        and all(isinstance(reason, str) and SAFE_REASON.fullmatch(reason) for reason in value["reason_codes"])
+        and all(
+            isinstance(reason, str)
+            and SAFE_REASON.fullmatch(reason)
+            and reason in KNOWN_HANDOFF_REASONS_V01
+            for reason in value["reason_codes"]
+        )
         and not (value["render_allowed"] and value["render_status"] != "RENDER_ALLOWED")
         and not (value["render_allowed"] and not value["render_candidate"])
         and not (value["render_status"] == "RENDER_ALLOWED" and not value["render_allowed"])

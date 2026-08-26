@@ -107,6 +107,64 @@ class PublicationUIReadinessTests(unittest.TestCase):
     def test_ay_component_status_names(self): self.assertEqual(set(assess().to_dict()["component_statuses"]), set(readiness.COMPONENT_NAMES))
     def test_az_extra_top_level_rejected(self): self.assertEqual(assess(unexpected=True).overall_readiness, readiness.INVALID_INPUT)
 
+    def assert_component_fail_closed(self, index, key, value):
+        result = self.altered(index, key, value)
+        self.assertEqual(result.overall_readiness, readiness.INVALID_INPUT)
+        self.assertFalse(result.production_integration_allowed)
+        self.assertFalse(result.all_internal_components_ready)
+        self.assertNotEqual(result.overall_readiness, readiness.PRODUCTION_CANDIDATE)
+
+    def test_ba_unknown_policy_link_status(self): self.assert_component_fail_closed(0, "link_status", "UNKNOWN_LINK_STATUS")
+    def test_bb_unknown_adapter_validation_status(self): self.assert_component_fail_closed(1, "validation_status", "UNKNOWN_VALIDATION_STATUS")
+    def test_bc_unknown_adapter_link_status(self): self.assert_component_fail_closed(1, "link_status", "UNKNOWN_LINK_STATUS")
+    def test_bd_unknown_handoff_render_status(self): self.assert_component_fail_closed(2, "render_status", "UNKNOWN_RENDER_STATUS")
+    def test_be_unknown_security_status(self): self.assert_component_fail_closed(3, "ui_security_status", "UNKNOWN_SECURITY_STATUS")
+
+    def unknown_reason(self, index):
+        values = list(components(True)); values[index] = deepcopy(values[index]); values[index]["reason_codes"] = ["UNKNOWN_REASON"]
+        return assess(values=tuple(values), gate="PASS", lifecycle="RESOLVED", semantics="RESOLVED")
+
+    def test_bf_unknown_policy_reason(self): self.assertEqual(self.unknown_reason(0).overall_readiness, readiness.INVALID_INPUT)
+    def test_bg_unknown_adapter_reason(self): self.assertEqual(self.unknown_reason(1).overall_readiness, readiness.INVALID_INPUT)
+    def test_bh_unknown_handoff_reason(self): self.assertEqual(self.unknown_reason(2).overall_readiness, readiness.INVALID_INPUT)
+    def test_bi_unknown_security_reason(self): self.assertEqual(self.unknown_reason(3).overall_readiness, readiness.INVALID_INPUT)
+
+    def test_bj_unknown_reason_open_fixture_not_allowed(self):
+        result = self.unknown_reason(3)
+        self.assertFalse(result.production_integration_allowed)
+        self.assertNotEqual(result.overall_readiness, readiness.PRODUCTION_CANDIDATE)
+
+    def test_bk_known_reasons_open_fixture_still_candidate(self):
+        result = assess(opened=True, gate="PASS", lifecycle="RESOLVED", semantics="RESOLVED")
+        self.assertEqual(result.overall_readiness, readiness.PRODUCTION_CANDIDATE)
+        self.assertTrue(result.production_integration_allowed)
+
+    def test_bl_empty_reasons_remain_invalid(self):
+        values = list(components()); values[0] = deepcopy(values[0]); values[0]["reason_codes"] = []
+        self.assertEqual(assess(values=tuple(values)).overall_readiness, readiness.INVALID_INPUT)
+
+    def test_bm_blocked_status_with_candidate_requires_review(self):
+        self.assertEqual(self.altered(0, "link_status", "LINK_BLOCKED").overall_readiness, readiness.MANUAL_REVIEW_REQUIRED)
+
+    def test_bn_adapter_blocked_with_render_flag_rejected(self):
+        values = list(components()); values[1] = deepcopy(values[1]); values[1]["link_status"] = "LINK_BLOCKED"; values[1]["production_render_allowed"] = True
+        result = assess(values=tuple(values))
+        self.assertEqual(result.overall_readiness, readiness.INVALID_INPUT)
+
+    def test_bo_handoff_blocked_with_allowed_rejected(self):
+        values = list(components()); values[2] = deepcopy(values[2]); values[2]["render_allowed"] = True
+        self.assertEqual(assess(values=tuple(values)).overall_readiness, readiness.INVALID_INPUT)
+
+    def test_bp_security_blocked_with_allowed_rejected(self):
+        values = list(components()); values[3] = deepcopy(values[3]); values[3]["render_allowed"] = True
+        self.assertEqual(assess(values=tuple(values)).overall_readiness, readiness.INVALID_INPUT)
+
+    def test_bq_unknown_status_open_fixture_not_allowed(self):
+        values = list(components(True)); values[0] = deepcopy(values[0]); values[0]["link_status"] = "UNKNOWN_LINK_STATUS"
+        result = assess(values=tuple(values), gate="PASS", lifecycle="RESOLVED", semantics="RESOLVED")
+        self.assertEqual(result.overall_readiness, readiness.INVALID_INPUT)
+        self.assertFalse(result.production_integration_allowed)
+
 
 if __name__ == "__main__":
     unittest.main()

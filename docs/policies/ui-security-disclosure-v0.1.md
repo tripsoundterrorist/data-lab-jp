@@ -17,3 +17,5 @@ The contract never claims availability, purchasability, or affiliate eligibility
 ## Safe result
 
 Output is limited to policy version, UI security status, render permission, disclosure requirement, external-indicator requirement, required rel tokens, prohibited-pattern codes, and reason codes. URLs, titles, IDs, credentials, paths, and raw exceptions are neither inputs nor outputs. A fixture may reach `UI_SECURITY_PASS` only when upstream rendering is already allowed and every additional security requirement passes.
+
+Handoff reason codes are validated against the version 0.1 allowlist; unknown codes fail closed as `INVALID_INPUT`.
