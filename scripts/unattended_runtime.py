@@ -10,6 +10,7 @@ from typing import Any, Callable, Mapping, MutableSet
 import pushover_notification_adapter as notification_adapter
 import pushover_sender
 import unattended_job_queue as queue
+from notification_ledger import LedgerError, ledger_for_mode
 
 
 RUNTIME_VERSION = "0.1"
@@ -65,7 +66,7 @@ def _result(mode: Any, status: str, *, event_type: str | None = None,
             approval: bool = False, emergency: bool = False,
             reasons: tuple[str, ...]) -> RuntimeResult:
     return RuntimeResult(
-        RUNTIME_VERSION, mode if mode in MODES else "DRY_RUN", status, event_type,
+        RUNTIME_VERSION, mode if type(mode) is str and mode in MODES else "DRY_RUN", status, event_type,
         selected, suppressed, attempted, succeeded, approval, emergency,
         tuple(sorted(set(reasons))),
     )
@@ -115,6 +116,7 @@ def _runtime(
     live_notification_confirmed: Any, seen_event_ids: MutableSet[str] | None,
     adapter_fn: Callable[..., Any], sender_fn: Callable[..., Any],
     credential_loader: Callable[..., Any] | None, transport: Callable[..., Any] | None,
+    ledger: Any,
 ) -> RuntimeResult:
     if runtime_version != RUNTIME_VERSION:
         return _result(mode, "INVALID_INPUT", reasons=("RUNTIME_VERSION_UNSUPPORTED",))
@@ -152,6 +154,37 @@ def _runtime(
         return _result(mode, "LIVE_NOTIFICATION_NOT_CONFIRMED", event_type=event_type,
                        selected=True, approval=approval,
                        reasons=("EXPLICIT_LIVE_CONFIRMATION_REQUIRED",))
+    delivery = None
+    try:
+        with ledger_for_mode(mode, ledger) as store:
+            # Explicit test stores must never load real credentials or send live.
+            if mode == "LIVE_NOTIFICATION" and store.test_only and (transport is None or credential_loader is None):
+                raise LedgerError("LEDGER_TEST_TRANSPORT_REQUIRED")
+            with store.transaction(writable=(mode != "DRY_RUN")) as transaction:
+                if transaction.lookup(identity) == "DELIVERED":
+                    return _result(mode, "NOTIFICATION_DUPLICATE_SUPPRESSED", event_type=event_type,
+                                   selected=True, suppressed=True, approval=approval,
+                                   reasons=("PERSISTENT_DUPLICATE_SUPPRESSED",))
+                delivery = _deliver(value, mode=mode, live_notification_confirmed=live_notification_confirmed,
+                                    adapter_fn=adapter_fn, sender_fn=sender_fn,
+                                    credential_loader=credential_loader, transport=transport,
+                                    seen_event_ids=seen_event_ids, identity=identity)
+                if (mode != "DRY_RUN" and delivery.runtime_status == "NOTIFICATION_DELIVERED"
+                        and delivery.delivery_succeeded is True):
+                    transaction.record_success(identity, event_type)
+                return delivery
+    except LedgerError as error:
+        return _result(mode, "NOTIFICATION_FAILED_SAFE", event_type=event_type,
+                       selected=True, approval=approval,
+                       attempted=delivery.delivery_attempted if delivery else False,
+                       succeeded=delivery.delivery_succeeded if delivery else False,
+                       emergency=delivery.emergency_blocked if delivery else False,
+                       reasons=(error.code,))
+
+
+def _deliver(value, *, mode, live_notification_confirmed, adapter_fn, sender_fn,
+             credential_loader, transport, seen_event_ids, identity):
+    event_type, approval = value["event_type"], value["approval_required"]
     adapted = adapter_fn(value)
     adapted_dict = adapted.to_dict() if isinstance(adapted, notification_adapter.PushoverNotification) else adapted
     if (not isinstance(adapted_dict, Mapping)
@@ -171,6 +204,17 @@ def _runtime(
         return _result(mode, "NOTIFICATION_FAILED_SAFE", event_type=event_type,
                        selected=True, approval=approval,
                        reasons=("SENDER_RESULT_INVALID",))
+    if (sent_dict["sender_version"] != pushover_sender.SENDER_VERSION
+            or sent_dict["sender_mode"] != sender_mode
+            or any(type(sent_dict[key]) is not bool for key in (
+                "delivery_attempted", "delivery_succeeded", "suppressible_skipped",
+                "emergency_blocked", "credential_presence_ok"))
+            or (sent_dict["delivery_succeeded"] and (
+                sent_dict["sender_status"] != "SEND_SUCCEEDED"
+                or not sent_dict["delivery_attempted"] or sent_dict["emergency_blocked"]
+                or mode == "DRY_RUN" or event_type == "CRITICAL_STOP"))):
+        return _result(mode, "NOTIFICATION_FAILED_SAFE", event_type=event_type,
+                       selected=True, approval=approval, reasons=("SENDER_RESULT_INVALID",))
     if seen_event_ids is not None:
         seen_event_ids.add(identity)
     attempted = sent_dict.get("delivery_attempted") is True
@@ -197,6 +241,7 @@ def process_notification(
     sender_fn: Callable[..., Any] = pushover_sender.send_notification,
     credential_loader: Callable[..., Any] | None = None,
     transport: Callable[..., Any] | None = None,
+    ledger: Any = None,
 ) -> RuntimeResult:
     try:
         return _runtime(
@@ -204,6 +249,7 @@ def process_notification(
             live_notification_confirmed=live_notification_confirmed,
             seen_event_ids=seen_event_ids, adapter_fn=adapter_fn, sender_fn=sender_fn,
             credential_loader=credential_loader, transport=transport,
+            ledger=ledger,
         )
     except Exception:
         return _result(mode, "NOTIFICATION_FAILED_SAFE", reasons=("INTERNAL_RUNTIME_ERROR",))

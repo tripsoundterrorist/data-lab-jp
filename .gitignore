@@ -7,3 +7,6 @@
 logs/
 __pycache__/
 dist/
+runtime/notification-ledger-v0.1.json
+runtime/notification-ledger-v0.1.json.lock
+runtime/notification-ledger-v0.1.json.*.tmp

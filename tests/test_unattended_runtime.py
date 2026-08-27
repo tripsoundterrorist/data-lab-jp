@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -41,6 +42,12 @@ class Transport:
 class UnattendedRuntimeTests(unittest.TestCase):
     def execute(self,value=None,**kwargs):
         kwargs.setdefault("credential_loader",credentials)
+        # Existing live-mode coverage remains mock-only and cannot write the real ledger.
+        if kwargs.get("mode") == "LIVE_NOTIFICATION":
+            from notification_ledger import NotificationLedger
+            with tempfile.TemporaryDirectory(prefix="runtime-ledger-test-") as folder:
+                kwargs["ledger"] = NotificationLedger(Path(folder) / "ledger.json")
+                return runtime.process_notification(event() if value is None else value,**kwargs)
         return runtime.process_notification(event() if value is None else value,**kwargs)
 
     def test_01_version(self): self.assertEqual(runtime.RUNTIME_VERSION,"0.1")

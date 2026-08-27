@@ -17,9 +17,12 @@ back or mutates queue/job state and never changes retry, Gate, database, or
 production state.
 
 Optional in-memory duplicate detection stores only a SHA-256 identity derived
-deterministically from the exact safe event. It creates no persistent ledger.
-Duplicate events return `DUPLICATE_EVENT_SUPPRESSED` without adapter, sender, or
-network activity.
+deterministically from the exact safe event. Session duplicates return
+`DUPLICATE_EVENT_SUPPRESSED`. Persistent Notification Ledger v0.1 additionally
+records successful delivery and suppresses restart duplicates with
+`NOTIFICATION_DUPLICATE_SUPPRESSED`, before adapter, sender or network activity.
+See [the ledger policy](persistent-notification-ledger-v0.1.md) for storage,
+mode isolation, corruption recovery and the delivery-to-record crash window.
 
 The exact safe output contains runtime version/mode/status, event type, bounded
 selection/delivery booleans, approval/emergency booleans, and safe reason codes.
