@@ -627,6 +627,107 @@ def validate_job_transition_result(result: Any) -> TransitionValidationResult:
         return invalid
 
 
+BLOCKED_CONTRACT_VERSION = "0.1"
+_BLOCKED_REASONS = {
+    "APPROVAL_BLOCKED": "APPROVAL_REQUIRED_FOR_PROGRESS",
+    "FAILED_SAFE_BLOCKED": "FAILED_SAFE_PREVENTS_PROGRESS",
+    "MIXED_BLOCKED": "MULTIPLE_PROVEN_BLOCKERS",
+}
+
+
+@dataclass(frozen=True)
+class QueueBlockedDecision:
+    decision_version: str
+    decision_status: str
+    blocked: bool
+    occurred_at: str | None
+    blocker_class: str
+    reason_code: str
+    remaining_job_count: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return dict(self.__dict__)
+
+
+def assess_queue_blocked(jobs: Any, *, window_states: Mapping[str, str] | None = None,
+                         external_read_allowed: bool = False) -> QueueBlockedDecision:
+    """Opt-in snapshot proof, not a replacement for select_next_job.
+
+    Only approval/failed-safe roots and READY dependency chains to those roots
+    prove blockage. All unresolved work remains UNKNOWN, never guessed blocked.
+    No recovery operation or notification is invoked.
+    """
+    def result(status, reason, count=0):
+        return QueueBlockedDecision(BLOCKED_CONTRACT_VERSION, status, False,
+                                    None, "NONE", reason, count)
+    try:
+        if (type(jobs) not in (list, tuple) or any(type(j) is not JobContract for j in jobs)
+                or not validate_queue(jobs)[0] or type(external_read_allowed) is not bool):
+            return result("UNKNOWN", "QUEUE_INPUT_INVALID")
+        jobs = tuple(jobs)
+        remaining = [j for j in jobs if j.state != DONE]
+        count = len(remaining)
+        selection = select_next_job(jobs, window_states=window_states,
+                                    external_read_allowed=external_read_allowed)
+        if selection.status not in {"QUEUE_IDLE", "JOB_SELECTED"}:
+            return result("UNKNOWN", "QUEUE_INPUT_INVALID")
+        if not remaining:
+            return result("QUEUE_IDLE", "NO_REMAINING_WORK")
+        if any(j.state == RUNNING for j in remaining):
+            return result("NOT_BLOCKED", "RUNNING_JOB_PRESENT", count)
+        if selection.status == "JOB_SELECTED":
+            return result("NOT_BLOCKED", "ELIGIBLE_READY_JOB_PRESENT", count)
+        proven = {}
+        for j in remaining:
+            if j.state == WAITING_APPROVAL and j.requires_approval and not j.approval_received:
+                proven[j.job_id] = {"APPROVAL_BLOCKED"}
+            elif j.state == FAILED_SAFE:
+                proven[j.job_id] = {"FAILED_SAFE_BLOCKED"}
+        # Existing validate_queue already rejects cycles/unknown dependencies.
+        # A READY job needs ALL dependencies DONE, so one proven blocked parent
+        # suffices. Unknown residual jobs still prevent a queue-wide proof.
+        while True:
+            additions = {
+                j.job_id: set().union(*(proven[d] for d in j.dependencies if d in proven))
+                for j in remaining if j.state == READY and j.job_id not in proven
+                and any(d in proven for d in j.dependencies)
+            }
+            if not additions:
+                break
+            proven.update(additions)
+        if len(proven) != count:
+            return result("UNKNOWN", "BLOCKAGE_NOT_PROVEN", count)
+        classes = set().union(*proven.values())
+        classification = next(iter(classes)) if len(classes) == 1 else "MIXED_BLOCKED"
+        stamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        return QueueBlockedDecision(BLOCKED_CONTRACT_VERSION, "QUEUE_BLOCKED", True,
+                                    stamp, classification, _BLOCKED_REASONS[classification], count)
+    except Exception:
+        return result("UNKNOWN", "QUEUE_INPUT_INVALID")
+
+
+def validate_queue_blocked_decision(decision: Any) -> bool:
+    """Validate the blocked contract only; no origin or snapshot authentication."""
+    try:
+        fields = {"decision_version", "decision_status", "blocked", "occurred_at",
+                  "blocker_class", "reason_code", "remaining_job_count"}
+        if (type(decision) is not QueueBlockedDecision or set(vars(decision)) != fields
+                or any(type(getattr(decision, k)) is not str for k in
+                       fields - {"blocked", "remaining_job_count"})
+                or decision.decision_version != BLOCKED_CONTRACT_VERSION
+                or decision.decision_status != "QUEUE_BLOCKED" or decision.blocked is not True
+                or type(decision.remaining_job_count) is not int or decision.remaining_job_count < 1
+                or decision.blocker_class not in _BLOCKED_REASONS
+                or decision.reason_code != _BLOCKED_REASONS[decision.blocker_class]
+                or (decision.blocker_class == "MIXED_BLOCKED" and decision.remaining_job_count < 2)):
+            return False
+        stamp = datetime.fromisoformat(decision.occurred_at[:-1] + "+00:00"
+                                       if decision.occurred_at.endswith("Z") else decision.occurred_at)
+        return stamp.tzinfo is not None and stamp.utcoffset() is not None and stamp.utcoffset().total_seconds() == 0
+    except Exception:
+        return False
+
+
 def create_event(**kwargs: Any) -> NotificationEvent | None:
     try:
         expected = {"event_version", "event_type", "job_id", "job_type", "severity", "state", "approval_required", "summary_code", "occurred_at"}
@@ -650,6 +751,8 @@ def create_event(**kwargs: Any) -> NotificationEvent | None:
 
 
 __all__ = [
+    "BLOCKED_CONTRACT_VERSION", "QueueBlockedDecision", "assess_queue_blocked",
+    "validate_queue_blocked_decision",
     "TRANSITION_VALIDATION_VERSION", "TransitionValidationResult", "validate_job_transition_result",
     "FAILED_SAFE_CONTRACT_VERSION", "fail_job_safe", "validate_failed_safe_transition",
     "COMPLETION_CONTRACT_VERSION", "complete_job", "validate_completion_transition",
