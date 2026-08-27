@@ -627,6 +627,50 @@ def validate_job_transition_result(result: Any) -> TransitionValidationResult:
         return invalid
 
 
+IDENTITY_CONTRACT_VERSION = "0.1"
+# Explicitly approved logical configuration; see queue-identity-contract-v0.1.md.
+# Not inferred from the host, filesystem, process, Scheduler or credentials.
+MAIN_QUEUE_ID = "data-lab-unattended-main"
+
+
+@dataclass(frozen=True)
+class QueueIdentity:
+    identity_version: str
+    queue_id: str
+    identity_status: str
+    reason_code: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return dict(self.__dict__)
+
+
+def get_queue_identity() -> QueueIdentity:
+    """Return the approved main logical identity, not a security principal."""
+    return QueueIdentity(IDENTITY_CONTRACT_VERSION, MAIN_QUEUE_ID,
+                         "CONFIGURED", "POLICY_BACKED_LOGICAL_IDENTITY")
+
+
+def validate_queue_identity(identity: Any) -> bool:
+    """Pure contract/configuration check, not provenance or ownership proof.
+
+    v0.1 authorizes only the main queue. Another logical queue requires its own
+    explicit policy assignment; an arbitrary well-formed name is insufficient.
+    """
+    try:
+        fields = {"identity_version", "queue_id", "identity_status", "reason_code"}
+        return (
+            type(identity) is QueueIdentity and set(vars(identity)) == fields
+            and all(type(getattr(identity, field)) is str for field in fields)
+            and identity.identity_version == IDENTITY_CONTRACT_VERSION
+            and _safe_text(identity.queue_id)
+            and identity.queue_id == MAIN_QUEUE_ID
+            and identity.identity_status == "CONFIGURED"
+            and identity.reason_code == "POLICY_BACKED_LOGICAL_IDENTITY"
+        )
+    except Exception:
+        return False
+
+
 BLOCKED_CONTRACT_VERSION = "0.1"
 _BLOCKED_REASONS = {
     "APPROVAL_BLOCKED": "APPROVAL_REQUIRED_FOR_PROGRESS",
@@ -751,6 +795,8 @@ def create_event(**kwargs: Any) -> NotificationEvent | None:
 
 
 __all__ = [
+    "IDENTITY_CONTRACT_VERSION", "MAIN_QUEUE_ID", "QueueIdentity",
+    "get_queue_identity", "validate_queue_identity",
     "BLOCKED_CONTRACT_VERSION", "QueueBlockedDecision", "assess_queue_blocked",
     "validate_queue_blocked_decision",
     "TRANSITION_VALIDATION_VERSION", "TransitionValidationResult", "validate_job_transition_result",
