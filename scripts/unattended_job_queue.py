@@ -877,7 +877,32 @@ def create_event(**kwargs: Any) -> NotificationEvent | JobNotificationEventV02 |
         return None
 
 
+QUEUE_BLOCKED_FACTORY_VERSION = "0.1"
+
+
+def build_queue_blocked_safe_event(decision: Any, identity: Any) -> QueueNotificationEventV02 | None:
+    """Canonical production metadata, no queue assessment or delivery.
+
+    Input validators own their contracts. The existing schema validator owns the
+    output contract. Invalid input/exception returns None, never raw metadata.
+    """
+    try:
+        if validate_queue_blocked_decision(decision) is not True:
+            return None
+        if validate_queue_identity(identity) is not True:
+            return None
+        return create_event(
+            event_version=EVENT_SCHEMA_VERSION, subject_type="QUEUE",
+            event_type="QUEUE_BLOCKED", severity="ERROR", state="QUEUE_BLOCKED",
+            summary_code="QUEUE_BLOCKED", approval_required=False,
+            queue_id=identity.queue_id, occurred_at=decision.occurred_at,
+        )
+    except Exception:
+        return None
+
+
 __all__ = [
+    "QUEUE_BLOCKED_FACTORY_VERSION", "build_queue_blocked_safe_event",
     "EVENT_SCHEMA_VERSION", "V02_JOB_FIELDS", "V02_QUEUE_FIELDS", "event_fields_v02",
     "JobNotificationEventV02", "QueueNotificationEventV02",
     "IDENTITY_CONTRACT_VERSION", "MAIN_QUEUE_ID", "QueueIdentity",
