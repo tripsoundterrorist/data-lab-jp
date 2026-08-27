@@ -76,3 +76,8 @@ Runtime directories must be trusted local directories; symlink/junction paths ar
 rejected, but this is not a defense against a hostile user changing paths during I/O.
 
 No LIVE smoke test is performed for this implementation.
+
+Runtime / Ledger Recovery v0.1 adds a stricter LIVE preflight: missing snapshots,
+lock or temp artifacts, and diagnostic failures block LIVE until HEALTHY is
+confirmed. See [Recovery policy](runtime-ledger-recovery-v0.1.md). It does not
+initialize, repair, unlock or delete anything automatically.

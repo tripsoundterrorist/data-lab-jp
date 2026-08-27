@@ -24,6 +24,10 @@ records successful delivery and suppresses restart duplicates with
 See [the ledger policy](persistent-notification-ledger-v0.1.md) for storage,
 mode isolation, corruption recovery and the delivery-to-record crash window.
 
+Runtime / Ledger Recovery v0.1 adds read-only preflight before delivery. LIVE
+requires HEALTHY; a missing ledger now blocks LIVE until explicit operator action.
+See [Recovery policy](runtime-ledger-recovery-v0.1.md) for diagnostics and limits.
+
 The exact safe output contains runtime version/mode/status, event type, bounded
 selection/delivery booleans, approval/emergency booleans, and safe reason codes.
 It excludes credentials, URLs, notification text, raw events/results,

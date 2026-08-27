@@ -11,6 +11,7 @@ import pushover_notification_adapter as notification_adapter
 import pushover_sender
 import unattended_job_queue as queue
 from notification_ledger import LedgerError, ledger_for_mode
+from ledger_recovery import HEALTHY, RECOVERABLE_NO_WRITE, inspect_ledger
 
 
 RUNTIME_VERSION = "0.1"
@@ -160,6 +161,12 @@ def _runtime(
             # Explicit test stores must never load real credentials or send live.
             if mode == "LIVE_NOTIFICATION" and store.test_only and (transport is None or credential_loader is None):
                 raise LedgerError("LEDGER_TEST_TRANSPORT_REQUIRED")
+            recovery = inspect_ledger(store)
+            if (recovery.recovery_status not in {HEALTHY, RECOVERABLE_NO_WRITE}
+                    or (mode == "LIVE_NOTIFICATION" and recovery.recovery_status != HEALTHY)):
+                return _result(mode, "NOTIFICATION_FAILED_SAFE", event_type=event_type,
+                               selected=True, approval=approval,
+                               reasons=recovery.reason_codes)
             with store.transaction(writable=(mode != "DRY_RUN")) as transaction:
                 if transaction.lookup(identity) == "DELIVERED":
                     return _result(mode, "NOTIFICATION_DUPLICATE_SUPPRESSED", event_type=event_type,

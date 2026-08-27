@@ -47,6 +47,8 @@ class UnattendedRuntimeTests(unittest.TestCase):
             from notification_ledger import NotificationLedger
             with tempfile.TemporaryDirectory(prefix="runtime-ledger-test-") as folder:
                 kwargs["ledger"] = NotificationLedger(Path(folder) / "ledger.json")
+                # LIVE simulation now requires an explicitly healthy fixture snapshot.
+                kwargs["ledger"].path.write_text("[]\n", encoding="utf-8")
                 return runtime.process_notification(event() if value is None else value,**kwargs)
         return runtime.process_notification(event() if value is None else value,**kwargs)
 
