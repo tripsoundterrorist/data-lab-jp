@@ -772,8 +772,91 @@ def validate_queue_blocked_decision(decision: Any) -> bool:
         return False
 
 
-def create_event(**kwargs: Any) -> NotificationEvent | None:
+EVENT_SCHEMA_VERSION = "0.2"
+V02_COMMON_FIELDS = frozenset({"event_version", "event_type", "subject_type", "occurred_at",
+                               "severity", "state", "approval_required", "summary_code"})
+V02_JOB_FIELDS = V02_COMMON_FIELDS | {"job_id", "job_type"}
+V02_QUEUE_FIELDS = V02_COMMON_FIELDS | {"queue_id"}
+V02_JOB_STATES = {
+    "JOB_STARTED": RUNNING, "JOB_COMPLETED": DONE, "JOB_FAILED_SAFE": FAILED_SAFE,
+    "JOB_WAITING_APPROVAL": WAITING_APPROVAL, "JOB_CHECKPOINTED": CHECKPOINTED,
+    "JOB_SWITCHED": READY,
+}
+
+
+@dataclass(frozen=True)
+class JobNotificationEventV02:
+    event_version: str
+    event_type: str
+    subject_type: str
+    occurred_at: str
+    severity: str
+    state: str
+    approval_required: bool
+    summary_code: str
+    job_id: str
+    job_type: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return dict(self.__dict__)
+
+
+@dataclass(frozen=True)
+class QueueNotificationEventV02:
+    event_version: str
+    event_type: str
+    subject_type: str
+    occurred_at: str
+    severity: str
+    state: str
+    approval_required: bool
+    summary_code: str
+    queue_id: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return dict(self.__dict__)
+
+
+def event_fields_v02(value: Mapping[str, Any]) -> frozenset[str] | None:
+    """Shape selection only; callers must still validate field values."""
+    if value.get("event_version") != EVENT_SCHEMA_VERSION:
+        return None
+    if value.get("subject_type") == "JOB":
+        return V02_JOB_FIELDS
+    if value.get("subject_type") == "QUEUE":
+        return V02_QUEUE_FIELDS
+    return None
+
+
+def _create_event_v02(values: Mapping[str, Any]) -> JobNotificationEventV02 | QueueNotificationEventV02 | None:
+    fields = event_fields_v02(values)
+    if (fields is None or set(values) != fields
+            or any(type(values[k]) is not str for k in fields - {"approval_required"})
+            or type(values["approval_required"]) is not bool
+            or values["severity"] not in SEVERITIES
+            or not _safe_text(values["summary_code"], SAFE_CODE)
+            or _time(values["occurred_at"]) is None
+            or values["approval_required"] != (values["event_type"] == "JOB_WAITING_APPROVAL")):
+        return None
+    if values["subject_type"] == "JOB":
+        if (values["event_type"] not in V02_JOB_STATES
+                or values["state"] != V02_JOB_STATES[values["event_type"]]
+                or not _safe_text(values["job_id"]) or not _safe_text(values["job_type"])
+                or values["job_id"] == MAIN_QUEUE_ID):
+            return None
+        return JobNotificationEventV02(**values)
+    identity = QueueIdentity(IDENTITY_CONTRACT_VERSION, values["queue_id"],
+                             "CONFIGURED", "POLICY_BACKED_LOGICAL_IDENTITY")
+    if (not validate_queue_identity(identity) or values["event_type"] != "QUEUE_BLOCKED"
+            or values["state"] != "QUEUE_BLOCKED" or values["summary_code"] != "QUEUE_BLOCKED"):
+        return None
+    return QueueNotificationEventV02(**values)
+
+
+def create_event(**kwargs: Any) -> NotificationEvent | JobNotificationEventV02 | QueueNotificationEventV02 | None:
     try:
+        if kwargs.get("event_version") == EVENT_SCHEMA_VERSION:
+            return _create_event_v02(kwargs)
         expected = {"event_version", "event_type", "job_id", "job_type", "severity", "state", "approval_required", "summary_code", "occurred_at"}
         if set(kwargs) != expected:
             return None
@@ -795,6 +878,8 @@ def create_event(**kwargs: Any) -> NotificationEvent | None:
 
 
 __all__ = [
+    "EVENT_SCHEMA_VERSION", "V02_JOB_FIELDS", "V02_QUEUE_FIELDS", "event_fields_v02",
+    "JobNotificationEventV02", "QueueNotificationEventV02",
     "IDENTITY_CONTRACT_VERSION", "MAIN_QUEUE_ID", "QueueIdentity",
     "get_queue_identity", "validate_queue_identity",
     "BLOCKED_CONTRACT_VERSION", "QueueBlockedDecision", "assess_queue_blocked",

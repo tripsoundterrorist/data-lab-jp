@@ -74,7 +74,7 @@ def _result(mode: Any, status: str, *, event_type: str | None = None,
 
 
 def _event_mapping(event: Any) -> Mapping[str, Any] | None:
-    if isinstance(event, queue.NotificationEvent):
+    if isinstance(event, (queue.NotificationEvent, queue.JobNotificationEventV02, queue.QueueNotificationEventV02)):
         return event.to_dict()
     return event if isinstance(event, Mapping) else None
 
@@ -83,11 +83,14 @@ def event_identity(event: Any) -> str | None:
     """Return a deterministic opaque identity for an already-safe exact event."""
 
     value = _event_mapping(event)
-    if value is None or set(value) != EVENT_FIELDS:
+    if value is None:
+        return None
+    fields = queue.event_fields_v02(value) if value.get("event_version") == "0.2" else EVENT_FIELDS
+    if fields is None or set(value) != fields:
         return None
     try:
         canonical = json.dumps(
-            {key: value[key] for key in sorted(EVENT_FIELDS)},
+            {key: value[key] for key in sorted(fields)},
             ensure_ascii=True, separators=(",", ":"), sort_keys=True,
         )
     except (TypeError, ValueError):
@@ -99,6 +102,11 @@ def _validate_event(event: Any) -> tuple[Mapping[str, Any] | None, tuple[str, ..
     value = _event_mapping(event)
     if value is None:
         return None, ("EVENT_CONTRACT_INVALID",)
+    if value.get("event_version") == queue.EVENT_SCHEMA_VERSION:
+        validated = queue.create_event(**dict(value))
+        if validated is None:
+            return None, ("QUEUE_EVENT_INVALID",)
+        return validated.to_dict(), ()
     if set(value) != EVENT_FIELDS:
         return None, ("EVENT_SCHEMA_INVALID",)
     validated = queue.create_event(**dict(value))

@@ -77,7 +77,7 @@ def _invalid(*reasons: str) -> PushoverNotification:
 
 
 def _event_dict(event: Any) -> Mapping[str, Any] | None:
-    if isinstance(event, queue.NotificationEvent):
+    if isinstance(event, (queue.NotificationEvent, queue.JobNotificationEventV02, queue.QueueNotificationEventV02)):
         return event.to_dict()
     return event if isinstance(event, Mapping) else None
 
@@ -98,6 +98,11 @@ def _adapt(event: Any, adapter_version: Any) -> PushoverNotification:
     values = _event_dict(event)
     if values is None:
         return _invalid("EVENT_CONTRACT_INVALID")
+    if values.get("event_version") == queue.EVENT_SCHEMA_VERSION:
+        validated = queue.create_event(**dict(values))
+        if validated is None:
+            return _invalid("EVENT_CONTRACT_INVALID")
+        return _render(validated.event_type, validated.approval_required)
     if set(values) != INPUT_FIELDS:
         return _invalid("EVENT_SCHEMA_INVALID")
     if values["event_version"] != queue.EVENT_VERSION:
@@ -126,6 +131,10 @@ def _adapt(event: Any, adapter_version: Any) -> PushoverNotification:
         return _invalid("UNSAFE_INPUT_CONTENT")
     if not _valid_time(values["occurred_at"]):
         return _invalid("OCCURRED_AT_INVALID")
+    return _render(event_type, values["approval_required"])
+
+
+def _render(event_type: str, approval_required: bool) -> PushoverNotification:
     priority, delivery_class, title, message = MAPPINGS[event_type]
     if len(title) > TITLE_LIMIT:
         return _invalid("TITLE_TOO_LONG")
@@ -135,7 +144,7 @@ def _adapt(event: Any, adapter_version: Any) -> PushoverNotification:
         return _invalid("UNSAFE_MESSAGE_CONTENT")
     return PushoverNotification(
         ADAPTER_VERSION, READY, priority, priority == 2, delivery_class,
-        title, message, values["approval_required"], ("SAFE_NOTIFICATION_READY",),
+        title, message, approval_required, ("SAFE_NOTIFICATION_READY",),
     )
 
 
