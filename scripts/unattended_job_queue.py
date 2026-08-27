@@ -15,6 +15,7 @@ from typing import Any, Mapping, Sequence
 
 QUEUE_VERSION = "0.1"
 EVENT_VERSION = "0.1"
+TRANSITION_VERSION = "0.1"
 
 READY = "READY"
 RUNNING = "RUNNING"
@@ -419,6 +420,71 @@ def apply_approval(job: JobContract, *, approval_event_received: bool) -> JobCon
     return replace(job, state=READY, approval_received=True)
 
 
+@dataclass(frozen=True)
+class JobTransitionResult:
+    transition_version: str
+    job_id: str | None
+    job_type: str | None
+    previous_state: str | None
+    new_state: str | None
+    occurred_at: str | None
+    transition_status: str
+    reason_code: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return dict(self.__dict__)
+
+
+def validate_approval_transition(previous: Any, candidate: Any, *,
+                                 approval_event_received: Any) -> bool:
+    """Validate only the existing approval operation, not arbitrary state pairs.
+
+    All job fields must match the existing Core operation's result. A matching
+    state pair alone is insufficient. Completion/retry/resume are not implied.
+    """
+    try:
+        return (
+            type(approval_event_received) is bool
+            and type(previous) is JobContract and type(candidate) is JobContract
+            and validate_job(previous)[0] and validate_job(candidate)[0]
+            and previous.state != candidate.state
+            and candidate == apply_approval(previous, approval_event_received=approval_event_received)
+        )
+    except Exception:
+        return False
+
+
+def apply_approval_with_transition(job: Any, *, approval_event_received: Any
+                                   ) -> tuple[JobContract | None, JobTransitionResult]:
+    """Pure opt-in API: new immutable job plus a once-stamped transition result.
+
+    No persistence or automatic approval. Existing apply_approval is unchanged.
+    Unsupported/invalid input returns no updated job and no untrusted metadata.
+    """
+    rejected = JobTransitionResult(TRANSITION_VERSION, None, None, None, None,
+                                   None, "REJECTED", "APPROVAL_TRANSITION_INVALID")
+    try:
+        if (type(job) is not JobContract or not validate_job(job)[0]
+                or type(approval_event_received) is not bool):
+            return None, rejected
+        updated = apply_approval(job, approval_event_received=approval_event_received)
+        if not validate_job(updated)[0]:
+            return None, rejected
+        if updated.state == job.state:
+            return updated, JobTransitionResult(
+                TRANSITION_VERSION, job.job_id, job.job_type, job.state, updated.state,
+                None, "UNCHANGED", "NO_STATE_TRANSITION")
+        if not validate_approval_transition(job, updated, approval_event_received=approval_event_received):
+            return None, rejected
+        # Generate only once, after the Core operation and validation succeed.
+        occurred_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        return updated, JobTransitionResult(
+            TRANSITION_VERSION, job.job_id, job.job_type, job.state, updated.state,
+            occurred_at, "APPLIED", "APPROVAL_STATE_TRANSITION")
+    except Exception:
+        return None, rejected
+
+
 def create_event(**kwargs: Any) -> NotificationEvent | None:
     try:
         expected = {"event_version", "event_type", "job_id", "job_type", "severity", "state", "approval_required", "summary_code", "occurred_at"}
@@ -442,6 +508,8 @@ def create_event(**kwargs: Any) -> NotificationEvent | None:
 
 
 __all__ = [
+    "TRANSITION_VERSION", "JobTransitionResult", "apply_approval_with_transition",
+    "validate_approval_transition",
     "APPROVAL_REQUIRED", "BLOCKED", "CANCELLED", "CHECKPOINTED", "DONE",
     "EVENT_TYPES", "EVENT_VERSION", "EXTERNAL_READ", "FAILED_SAFE",
     "JOB_STATES", "LOW_RISK_LOCAL", "NotificationEvent", "PROHIBITED_UNATTENDED",
