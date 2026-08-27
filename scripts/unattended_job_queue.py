@@ -16,6 +16,7 @@ from typing import Any, Mapping, Sequence
 QUEUE_VERSION = "0.1"
 EVENT_VERSION = "0.1"
 TRANSITION_VERSION = "0.1"
+COMPLETION_CONTRACT_VERSION = "0.1"
 
 READY = "READY"
 RUNNING = "RUNNING"
@@ -485,6 +486,48 @@ def apply_approval_with_transition(job: Any, *, approval_event_received: Any
         return None, rejected
 
 
+def validate_completion_transition(previous: Any, candidate: Any, *, expected_job_id: Any) -> bool:
+    """Core-owned completion validation: identity match, RUNNING -> DONE only."""
+    try:
+        return (
+            type(previous) is JobContract and type(candidate) is JobContract
+            and type(expected_job_id) is str and _safe_text(expected_job_id)
+            and previous.job_id == expected_job_id
+            and validate_job(previous)[0] and validate_job(candidate)[0]
+            and previous.state == RUNNING and candidate.state == DONE
+            and candidate == replace(previous, state=DONE)
+        )
+    except Exception:
+        return False
+
+
+def complete_job(job: Any, *, expected_job_id: Any
+                 ) -> tuple[JobContract | None, JobTransitionResult]:
+    """Explicit in-memory completion; no persistence, cleanup or notification.
+
+    The caller supplies its current job and expected identity, and must retain the
+    returned job as the next state. DONE input rejects without another timestamp.
+    This API cannot detect replay of an obsolete RUNNING snapshot.
+    """
+    rejected = JobTransitionResult(TRANSITION_VERSION, None, None, None, None,
+                                   None, "REJECTED", "COMPLETION_TRANSITION_INVALID")
+    try:
+        if (type(job) is not JobContract or type(expected_job_id) is not str
+                or not _safe_text(expected_job_id) or job.job_id != expected_job_id
+                or not validate_job(job)[0] or job.state != RUNNING):
+            return None, rejected
+        updated = replace(job, state=DONE)
+        if not validate_completion_transition(job, updated, expected_job_id=expected_job_id):
+            return None, rejected
+        occurred_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        result = JobTransitionResult(
+            TRANSITION_VERSION, job.job_id, job.job_type, RUNNING, DONE,
+            occurred_at, "APPLIED", "JOB_COMPLETION_TRANSITION")
+        return updated, result
+    except Exception:
+        return None, rejected
+
+
 def create_event(**kwargs: Any) -> NotificationEvent | None:
     try:
         expected = {"event_version", "event_type", "job_id", "job_type", "severity", "state", "approval_required", "summary_code", "occurred_at"}
@@ -508,6 +551,7 @@ def create_event(**kwargs: Any) -> NotificationEvent | None:
 
 
 __all__ = [
+    "COMPLETION_CONTRACT_VERSION", "complete_job", "validate_completion_transition",
     "TRANSITION_VERSION", "JobTransitionResult", "apply_approval_with_transition",
     "validate_approval_transition",
     "APPROVAL_REQUIRED", "BLOCKED", "CANCELLED", "CHECKPOINTED", "DONE",
