@@ -18,6 +18,7 @@ EVENT_VERSION = "0.1"
 TRANSITION_VERSION = "0.1"
 COMPLETION_CONTRACT_VERSION = "0.1"
 FAILED_SAFE_CONTRACT_VERSION = "0.1"
+TRANSITION_VALIDATION_VERSION = "0.1"
 
 READY = "READY"
 RUNNING = "RUNNING"
@@ -570,6 +571,62 @@ def fail_job_safe(job: Any, *, expected_job_id: Any
         return None, rejected
 
 
+@dataclass(frozen=True)
+class TransitionValidationResult:
+    validation_version: str
+    valid: bool
+    transition_class: str
+    reason_code: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return dict(self.__dict__)
+
+
+def validate_job_transition_result(result: Any) -> TransitionValidationResult:
+    """Read-only APPLIED contract check, not origin/history/replay authentication.
+
+    Approval pairs reflect apply_approval's existing destination semantics. The
+    result cannot prove the omitted JobContract fields or execution provenance.
+    """
+    invalid = TransitionValidationResult(TRANSITION_VALIDATION_VERSION, False,
+                                          "UNSUPPORTED", "TRANSITION_RESULT_INVALID")
+    try:
+        fields = {"transition_version", "job_id", "job_type", "previous_state",
+                  "new_state", "occurred_at", "transition_status", "reason_code"}
+        if (type(result) is not JobTransitionResult or set(vars(result)) != fields
+                or any(type(getattr(result, key)) is not str for key in fields)
+                or result.transition_version != TRANSITION_VERSION
+                or result.transition_status != "APPLIED"
+                or not _safe_text(result.job_id) or not _safe_text(result.job_type)
+                or result.previous_state not in JOB_STATES or result.new_state not in JOB_STATES
+                or result.previous_state == result.new_state):
+            return invalid
+        # Check original offset before normalization: _time converts non-UTC too.
+        stamp = datetime.fromisoformat(result.occurred_at[:-1] + "+00:00"
+                                       if result.occurred_at.endswith("Z") else result.occurred_at)
+        if stamp.tzinfo is None or stamp.utcoffset() is None or stamp.utcoffset().total_seconds() != 0:
+            return invalid
+        if result.reason_code == "APPROVAL_STATE_TRANSITION":
+            if result.new_state == WAITING_APPROVAL:
+                classification = "APPROVAL_WAITING_TRANSITION"
+            elif result.new_state == READY:
+                classification = "APPROVAL_READY_TRANSITION"
+            else:
+                return invalid
+        elif (result.reason_code == "FAILED_SAFE_CONFIRMED"
+              and result.previous_state == RUNNING and result.new_state == FAILED_SAFE):
+            classification = "FAILED_SAFE_TRANSITION"
+        elif (result.reason_code == "JOB_COMPLETION_TRANSITION"
+              and result.previous_state == RUNNING and result.new_state == DONE):
+            classification = "COMPLETION_TRANSITION"
+        else:
+            return invalid
+        return TransitionValidationResult(TRANSITION_VALIDATION_VERSION, True,
+                                          classification, "TRANSITION_CONTRACT_VALID")
+    except Exception:
+        return invalid
+
+
 def create_event(**kwargs: Any) -> NotificationEvent | None:
     try:
         expected = {"event_version", "event_type", "job_id", "job_type", "severity", "state", "approval_required", "summary_code", "occurred_at"}
@@ -593,6 +650,7 @@ def create_event(**kwargs: Any) -> NotificationEvent | None:
 
 
 __all__ = [
+    "TRANSITION_VALIDATION_VERSION", "TransitionValidationResult", "validate_job_transition_result",
     "FAILED_SAFE_CONTRACT_VERSION", "fail_job_safe", "validate_failed_safe_transition",
     "COMPLETION_CONTRACT_VERSION", "complete_job", "validate_completion_transition",
     "TRANSITION_VERSION", "JobTransitionResult", "apply_approval_with_transition",
