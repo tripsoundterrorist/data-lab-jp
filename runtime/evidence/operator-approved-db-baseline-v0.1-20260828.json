@@ -1,0 +1,46 @@
+{
+  "baseline_version": "0.1",
+  "baseline_status": "OPERATOR_APPROVED",
+  "approved_at_utc": "2026-08-28T14:30:09.2001304Z",
+  "approved_at_semantics": "Current artifact-establishment time under explicit operator approval; not DB creation, Collector execution, or historical approval time.",
+  "db_path_class": "PRODUCTION_DEFAULT_LOCAL",
+  "db_relative_path": "data/data-lab.db",
+  "db_sha256": "0EC06FB92D97948FB7FD66CE4097F88DC98B6387665D595522BCB69FA3B14CD5",
+  "db_size": 1200128,
+  "collection_runs_count": 20,
+  "item_snapshots_count": 1744,
+  "items_count": 649,
+  "integrity_check": "ok",
+  "foreign_key_violation_count": 0,
+  "schema_sha256": "5ce53ed8787452aee244ef026caede249ec0ed31047d2e15c7cbb45285ec2e47",
+  "schema_sha256_method": "SHA-256 of UTF-8 Python json.dumps(sorted(SELECT type,name,tbl_name,sql FROM sqlite_master), separators=(',', ':')), ensure_ascii=True.",
+  "git_head": "ccf660499add6954ce5689158dd2d53f42924dfa",
+  "git_branch": "main",
+  "git_head_semantics": "Source HEAD at approval verification, before committing this evidence artifact; not proof of DB identity.",
+  "historical_chain_status": "PREVIOUS_CHAIN_UNVERIFIED",
+  "historical_gap_reason": "No independent source-SHA chain connects the previous approved DB to the 2026-08-27 comparison backup source.",
+  "approval_scope": [
+    "Continued use of the current production DB from this baseline onward.",
+    "Use the recorded current SHA and counts as the new operator-approved baseline.",
+    "Evaluate future Collector and Backup differences from this baseline."
+  ],
+  "approval_exclusions": [
+    "Historical provenance completeness or retroactive approval of the 2026-08-27 backup source.",
+    "Scheduler trigger provenance.",
+    "Global credential completeness.",
+    "Origin authentication.",
+    "Absolute absence of historical manual writes."
+  ],
+  "scheduler_provenance": "UNKNOWN",
+  "credential_scope": "CREDENTIAL_SCOPE_PARTIAL",
+  "evidence_note": "Explicit operator decision to trust the current DB prospectively, not retroactive verification. Prior comparison-backup-to-current row reconciliation is reusable only while both file SHA values match. Production DB was opened read-only; no DB copy, repair, restore, Collector or Backup execution is authorized by this artifact.",
+  "future_reconciliation_rule": "Preserve Collector pre-DB SHA, run result, post-DB SHA, Backup source SHA and destination SHA in a separate future implementation. This artifact alone does not implement that chain or provide a row-level baseline copy.",
+  "baseline_invalidation_conditions": [
+    "A changed current DB SHA or count requires reconciliation before claiming equality with this baseline.",
+    "Integrity or foreign-key failure requires review.",
+    "Missing or conflicting evidence must not be inferred as VERIFIED."
+  ],
+  "production_db_write": false,
+  "live_authorized": false,
+  "overall_preflight_reassessment": "DEFERRED_TO_SEPARATE_GATE"
+}
