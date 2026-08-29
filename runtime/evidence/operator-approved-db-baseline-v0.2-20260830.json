@@ -1,0 +1,60 @@
+{
+  "baseline_version": "0.2",
+  "baseline_status": "OPERATOR_APPROVED",
+  "approved_at_utc": "2026-08-29T20:25:20.7388572Z",
+  "approved_at_semantics": "Current artifact-establishment time under explicit operator approval; not DB creation, Collector execution, or historical approval time.",
+  "db_path_class": "PRODUCTION_DEFAULT_LOCAL",
+  "db_relative_path": "data/data-lab.db",
+  "db_sha256": "DCDB8181DB3E0177DB605A65B2C77DF8546AE8D11D8720C66B14282D91956347",
+  "db_size": 1228800,
+  "collection_runs_count": 21,
+  "item_snapshots_count": 1844,
+  "items_count": 652,
+  "integrity_check": "ok",
+  "foreign_key_violation_count": 0,
+  "schema_sha256": "5ce53ed8787452aee244ef026caede249ec0ed31047d2e15c7cbb45285ec2e47",
+  "schema_sha256_method": "SHA-256 of UTF-8 Python json.dumps(sorted(SELECT type,name,tbl_name,sql FROM sqlite_master), separators=(',', ':')), ensure_ascii=True.",
+  "logical_digest_method": "For each table, select the listed formal schema columns ordered by the listed canonical key. Encode each row as UTF-8 json.dumps(list(row), ensure_ascii=False, separators=(',', ':')); hash the concatenation of each row's 8-byte unsigned big-endian encoded length followed by its encoded bytes with SHA-256. Values and filesystem metadata are not stored in this artifact; these digests are continuity evidence, not authentication.",
+  "logical_digests": {
+    "collection_runs": {
+      "order_by": "collection_run_id",
+      "columns": ["collection_run_id", "run_type", "started_at", "finished_at", "first_observed_at", "last_observed_at", "site", "service", "floor", "source_sort", "hits", "max_items", "max_pages", "api_calls", "pages_fetched", "api_total_count_initial", "total_count_changed", "fetched_items", "processed_items", "duplicate_content_ids_across_pages", "items_upserted", "snapshots_inserted", "collection_complete", "status", "stop_reason", "error_code"],
+      "sha256": "26ed76fd9be2e53f684fe9cbb8f02deee53c4108d0b375af893a6c7e01df31f2"
+    },
+    "item_snapshots": {
+      "order_by": "id",
+      "columns": ["id", "item_id", "collection_run_id", "observed_at", "source_sort", "source_offset", "source_position", "price_raw", "price_min", "review_average", "review_count", "query_context_json"],
+      "sha256": "2e316acff4fe546eba3460c4d99289efd9bdda93e7339ef4d3a870691bc2292e"
+    },
+    "items": {
+      "order_by": "id",
+      "columns": ["id", "site", "service", "floor", "content_id", "product_id", "title", "source_date", "maker_json", "series_json", "actress_json", "genre_json", "image_url_large", "item_url", "first_observed_at", "last_observed_at", "master_updated_at"],
+      "sha256": "6efb61c27264bcd11cb5acd74240f38c484487b29da5345d657a977e33f20a07"
+    }
+  },
+  "git_head": "5e9af295aaae0ad906008df716bd749a7c62202f",
+  "git_branch": "main",
+  "git_head_semantics": "Source HEAD at approval verification, before committing this evidence artifact; not proof of DB identity.",
+  "previous_baseline_version": "0.1",
+  "previous_baseline_sha256": "0EC06FB92D97948FB7FD66CE4097F88DC98B6387665D595522BCB69FA3B14CD5",
+  "previous_baseline_artifact_sha256": "FE1650CD6E5467F776520AFC77BBA09FA398DD0327997612034ECCCDC967D42E",
+  "previous_chain_status": "PREVIOUS_CHAIN_UNVERIFIED",
+  "historical_gap_reason": "The complete row-level identity chain from Operator-Approved DB Baseline v0.1 through the 2026-08-28 comparison state to this DB is not independently proven. DELETE_STATUS_UNVERIFIED remains for comparisons originating at v0.1.",
+  "approval_scope": [
+    "Continued use of the current production DB from this baseline onward.",
+    "Use the recorded current SHA, counts, schema and logical digests as Operator-Approved DB Baseline v0.2.",
+    "Evaluate future Collector and Backup differences from this baseline.",
+    "Use this baseline for safety review before Queue Persistence and Checkpoint work."
+  ],
+  "approval_exclusions": [
+    "Complete row-level provenance from baseline v0.1 or proof of historical delete absence.",
+    "Absolute absence of historical manual writes.",
+    "Scheduler trigger provenance, global credential completeness, origin authentication or exactly-once semantics."
+  ],
+  "scheduler_provenance": "UNKNOWN",
+  "credential_scope": "CREDENTIAL_SCOPE_PARTIAL",
+  "evidence_note": "Explicit operator decision to trust the current DB prospectively, not retroactive verification. The 2026-08-29 Collector delta was consistent within the available comparison evidence, while the earlier chain limitation remains. Production DB was opened read-only; no DB copy, repair, restore, Collector or Backup execution is authorized by this artifact.",
+  "future_evidence_requirement": "Preserve Collector pre-DB SHA, run result, post-DB SHA, logical table digests, Backup source SHA and Backup destination SHA in a separate future implementation.",
+  "production_db_write": false,
+  "live_authorized": false
+}
