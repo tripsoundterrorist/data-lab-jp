@@ -73,6 +73,8 @@ class SafeNotificationSchemaTests(unittest.TestCase):
         self.assertIsNotNone(queue.create_event(**canary.canary_event()))
         self.assertEqual(adapter.adapt_notification(canary.canary_event()).notification_status, "READY")
 
+    @unittest.skipUnless(ledger.DEFAULT_PATH.is_file(),
+                         "production notification ledger is not present")
     def test_production_record_read_compatibility(self):
         # Read-only: no bootstrap, transaction writes, transport or LIVE invocation.
         before = ledger.DEFAULT_PATH.read_bytes()
