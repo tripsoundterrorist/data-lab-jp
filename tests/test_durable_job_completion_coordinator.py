@@ -43,14 +43,15 @@ class DurableJobCompletionCoordinatorTests(unittest.TestCase):
         self.initialize(self.running())
         result = self.complete()
         self.assertEqual(result.coordinator_version, "0.1")
+        self.assertTrue(result.durable)
         self.assertEqual((result.status, result.job_id, result.attempt_count, result.revision),
-                         ("COMPLETED", "job-a", 1, 1))
+                         ("JOB_COMPLETED_DURABLY", "job-a", 1, 1))
         self.assertEqual(result.reason_codes, ("JOB_COMPLETION_DURABLE",))
 
     def test_durable_done_and_other_jobs_preserved(self):
         first, second = self.running(), job("job-b", priority="P2")
         self.initialize(first, second)
-        self.assertEqual(self.complete().status, "COMPLETED")
+        self.assertEqual(self.complete().status, "JOB_COMPLETED_DURABLY")
         stored = self.store.load_queue().snapshot
         self.assertEqual(stored.jobs[0], replace(first, state=core.DONE))
         self.assertEqual(stored.jobs[1], second)
@@ -62,6 +63,7 @@ class DurableJobCompletionCoordinatorTests(unittest.TestCase):
              mock.patch.object(self.store, "save_queue") as save:
             result = self.complete(expected_attempt_count=1)
         self.assertEqual(result.reason_codes, ("EXECUTION_GENERATION_MISMATCH",))
+        self.assertFalse(result.durable)
         complete.assert_not_called()
         save.assert_not_called()
         self.assertEqual(self.store.queue_path.read_bytes(), before)
@@ -101,18 +103,48 @@ class DurableJobCompletionCoordinatorTests(unittest.TestCase):
                                             ("STALE_REVISION",))
         with mock.patch.object(self.store, "save_queue", return_value=stale) as save:
             result = self.complete()
-        self.assertEqual(result.status, "PERSISTENCE_NOT_CONFIRMED")
+        self.assertEqual(result.status, "COMPLETION_CONFLICT")
+        self.assertFalse(result.durable)
         self.assertEqual(result.reason_codes, ("STALE_REVISION",))
         save.assert_called_once()
 
-    def test_read_back_mismatch_fails_closed(self):
+    def test_saved_is_durable_without_second_load(self):
         self.initialize(self.running())
         initial = self.store.load_queue()
-        mismatch = persistence.QueueLoadResult(
-            "0.1", "HEALTHY", replace(initial.snapshot, revision=1), ("QUEUE_LOADED",))
-        with mock.patch.object(self.store, "load_queue", side_effect=[initial, mismatch]):
+        saved = persistence.QueueSaveResult("0.1", "SAVED", 1, ("QUEUE_SAVED",))
+        with mock.patch.object(self.store, "load_queue", return_value=initial) as load, \
+             mock.patch.object(self.store, "save_queue", return_value=saved):
             result = self.complete()
-        self.assertEqual(result.reason_codes, ("QUEUE_CONFIRMATION_MISMATCH",))
+        self.assertEqual(result.status, "JOB_COMPLETED_DURABLY")
+        self.assertTrue(result.durable)
+        load.assert_called_once_with()
+
+    def test_uncertain_persistence_fails_closed_without_retry_or_rollback(self):
+        self.initialize(self.running())
+        initial = self.store.load_queue().snapshot
+        uncertain = persistence.QueueSaveResult(
+            "0.1", "RECOVERY_BLOCKED", None, ("QUEUE_READ_BACK_FAILED",))
+        with mock.patch.object(self.store, "save_queue", return_value=uncertain) as save, \
+             mock.patch.object(self.store, "load_queue", wraps=self.store.load_queue) as load:
+            result = self.complete()
+        self.assertEqual(result.status, "JOB_COMPLETION_UNCERTAIN")
+        self.assertEqual(result.reason_codes, ("RECOVERY_BLOCKED",))
+        self.assertFalse(result.durable)
+        save.assert_called_once()
+        load.assert_called_once_with()
+        self.assertEqual(initial.jobs[0].state, core.RUNNING)
+        self.assertEqual(initial.jobs[0].attempt_count, 1)
+
+    def test_known_prewrite_block_is_recovery_blocked(self):
+        self.initialize(self.running())
+        blocked = persistence.QueueSaveResult(
+            "0.1", "LOCKED", None, ("QUEUE_LOCKED",))
+        with mock.patch.object(self.store, "save_queue", return_value=blocked) as save:
+            result = self.complete()
+        self.assertEqual(result.status, "RECOVERY_BLOCKED")
+        self.assertEqual(result.reason_codes, ("QUEUE_LOCKED",))
+        self.assertFalse(result.durable)
+        save.assert_called_once()
 
     def test_no_process_or_notification_capability(self):
         tree = ast.parse(Path(coordinator.__file__).read_text(encoding="utf-8"))
@@ -135,6 +167,7 @@ class DurableJobCompletionCoordinatorTests(unittest.TestCase):
                                side_effect=ValueError("fixture-secret")):
             result = self.complete()
         self.assertEqual(result.reason_codes, ("COORDINATOR_INTERNAL_ERROR",))
+        self.assertFalse(result.durable)
         self.assertNotIn("fixture-secret", repr(result))
 
 
