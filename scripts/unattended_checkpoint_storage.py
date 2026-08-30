@@ -28,6 +28,8 @@ _CHECKPOINT_FIELDS = {
 }
 _REPARSE_POINT = 0x400
 _TEST_TOKEN = object()
+_READ_ONLY_TOKEN = object()
+FORMAL_REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -141,21 +143,28 @@ class CheckpointInspectionResult:
 
 
 class CheckpointStorage:
-    """Temporary-root implementation used only by Phase B tests."""
+    """Shared validator with test-write and production-read-only modes."""
 
     def __init__(self, root: Path, identity: core.QueueIdentity, token: object):
-        if token is not _TEST_TOKEN:
-            raise ValueError("production storage is not enabled in Phase A/B")
+        if token not in {_TEST_TOKEN, _READ_ONLY_TOKEN}:
+            raise ValueError("checkpoint storage activation is not authorized")
         if not isinstance(root, Path) or root.is_absolute() is False:
             raise ValueError("an absolute temporary root is required")
         if not core.validate_queue_identity(identity) or not _safe_existing_chain(root):
             raise ValueError("unsafe storage root or identity")
         self._root = root.absolute()
         self._identity = identity
+        self._write_enabled = token is _TEST_TOKEN
+        if self._write_enabled and self._root == FORMAL_REPO_ROOT:
+            raise ValueError("the formal production root cannot be a test write root")
 
     @classmethod
     def for_test(cls, root: Path, identity: core.QueueIdentity) -> "CheckpointStorage":
         return cls(root, identity, _TEST_TOKEN)
+
+    @classmethod
+    def _for_read_only(cls, root: Path, identity: core.QueueIdentity) -> "CheckpointStorage":
+        return cls(root, identity, _READ_ONLY_TOKEN)
 
     @property
     def objects_dir(self) -> Path:
@@ -176,6 +185,9 @@ class CheckpointStorage:
         return candidate
 
     def save_checkpoint(self, checkpoint: core.Checkpoint) -> CheckpointSaveResult:
+        if not self._write_enabled:
+            return CheckpointSaveResult(CHECKPOINT_RESULT_VERSION, "WRITE_DISABLED", None,
+                                        ("PRODUCTION_CHECKPOINT_WRITE_DISABLED",))
         invalid = CheckpointSaveResult(CHECKPOINT_RESULT_VERSION, "RECOVERY_BLOCKED", None,
                                        ("CHECKPOINT_INVALID",))
         try:
@@ -272,6 +284,7 @@ class CheckpointStorage:
             objects = list(self.objects_dir.glob("*.json"))
             corrupt_active = corrupt_unreferenced = 0
             valid_names: set[str] = set()
+            present_names = {path.stem for path in objects}
             for path in objects:
                 storage_id = path.stem
                 structural = STORAGE_ID.fullmatch(storage_id) is not None
@@ -294,7 +307,7 @@ class CheckpointStorage:
                     corrupt_active += 1
                 else:
                     corrupt_unreferenced += 1
-            missing = len(active - valid_names)
+            missing = len(active - present_names)
             unreferenced = len(valid_names - active)
             if corrupt_active or missing:
                 status, action = "RECOVERY_BLOCKED", "STOP_QUEUE_RECOVERY"
@@ -317,7 +330,7 @@ class CheckpointStorage:
 
 
 __all__ = [
-    "CHECKPOINT_STORAGE_VERSION", "MAX_CHECKPOINT_BYTES", "CheckpointInspectionResult",
+    "CHECKPOINT_STORAGE_VERSION", "FORMAL_REPO_ROOT", "MAX_CHECKPOINT_BYTES", "CheckpointInspectionResult",
     "CheckpointLoadResult", "CheckpointSaveResult", "CheckpointStorage",
     "checkpoint_object_bytes", "checkpoint_storage_id",
 ]

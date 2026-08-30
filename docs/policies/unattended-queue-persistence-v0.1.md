@@ -22,7 +22,11 @@ temporary residue fail closed; no stale unlock, force mode, repair, revision
 reset, or automatic bootstrap exists.
 
 Phase B filesystem entry points require an explicit absolute temporary test root.
-Production path activation and bootstrap remain later gates. Missing Queue means
+Phase C resolves the production Queue path from this module's formal repository
+root and exposes read-only load and aggregate inspection only. Production mode
+rejects Queue save and bootstrap before lock or directory creation, and the
+formal repository root is rejected as a test write root. Bootstrap remains a
+later operator gate. Missing Queue means
 `MISSING_REQUIRES_BOOTSTRAP`. RUNNING, WAITING_APPROVAL, FAILED_SAFE, DONE, and
 CHECKPOINTED values round-trip unchanged. CHECKPOINTED without a reference is
 Core-valid but inspection requires manual review. Persistence adds no payload,

@@ -10,3 +10,7 @@ dist/
 runtime/notification-ledger-v0.1.json
 runtime/notification-ledger-v0.1.json.lock
 runtime/notification-ledger-v0.1.json.*.tmp
+runtime/unattended-queue-v0.1.json
+runtime/unattended-queue-v0.1.json.lock
+runtime/unattended-queue-v0.1.json.tmp
+runtime/checkpoints/

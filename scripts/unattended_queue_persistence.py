@@ -32,6 +32,8 @@ _JOB_FIELDS = {
 _REFERENCE_FIELDS = {"reference_version", "job_id", "checkpoint_storage_id"}
 _REPARSE_POINT = 0x400
 _TEST_TOKEN = object()
+_READ_ONLY_TOKEN = object()
+FORMAL_REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -95,6 +97,31 @@ class QueueInspectionResult:
     job_count: int | None
     state_counts: tuple[tuple[str, int], ...]
     active_reference_count: int | None
+    lock_status: str
+    temp_status: str
+    action_required: str
+    reason_codes: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ProductionStorageInspectionResult:
+    result_version: str
+    persistence_version: str | None
+    status: str
+    checkpoint_status: str
+    queue_exists: bool
+    checkpoint_storage_exists: bool
+    revision: int | None
+    job_count: int | None
+    state_counts: tuple[tuple[str, int], ...]
+    active_reference_count: int | None
+    checkpoint_object_count: int | None
+    unreferenced_object_count: int | None
+    confirmed_orphan_count: int | None
+    missing_reference_count: int | None
+    mismatched_reference_count: int | None
+    corrupt_active_count: int | None
+    corrupt_unreferenced_count: int | None
     lock_status: str
     temp_status: str
     action_required: str
@@ -298,17 +325,25 @@ class QueuePersistenceStore:
     """Temporary-root Queue store; production roots remain unavailable in Phase A/B."""
 
     def __init__(self, root: Path, checkpoint_storage: CheckpointStorage | None, token: object):
-        if token is not _TEST_TOKEN or not isinstance(root, Path) or not root.is_absolute():
-            raise ValueError("production storage is not enabled in Phase A/B")
+        if token not in {_TEST_TOKEN, _READ_ONLY_TOKEN} or not isinstance(root, Path) or not root.is_absolute():
+            raise ValueError("Queue storage activation is not authorized")
         if not _safe_existing_chain(root):
             raise ValueError("unsafe temporary root")
         self._root = root.absolute()
         self._checkpoint_storage = checkpoint_storage
+        self._write_enabled = token is _TEST_TOKEN
+        if self._write_enabled and self._root == FORMAL_REPO_ROOT:
+            raise ValueError("the formal production root cannot be a test write root")
 
     @classmethod
     def for_test(cls, root: Path, checkpoint_storage: CheckpointStorage | None = None
                  ) -> "QueuePersistenceStore":
         return cls(root, checkpoint_storage, _TEST_TOKEN)
+
+    @classmethod
+    def _for_read_only(cls, root: Path, checkpoint_storage: CheckpointStorage | None = None
+                       ) -> "QueuePersistenceStore":
+        return cls(root, checkpoint_storage, _READ_ONLY_TOKEN)
 
     @property
     def queue_path(self) -> Path:
@@ -352,6 +387,9 @@ class QueuePersistenceStore:
 
     def initialize_for_test(self, snapshot: PersistedQueueSnapshot) -> QueueSaveResult:
         """Explicit test fixture bootstrap; impossible on a production store."""
+        if not self._write_enabled:
+            return QueueSaveResult(RESULT_VERSION, "WRITE_DISABLED", None,
+                                   ("PRODUCTION_QUEUE_BOOTSTRAP_DISABLED",))
         if snapshot.revision != 0 or self.queue_path.exists() or not self._safe():
             return QueueSaveResult(RESULT_VERSION, "RECOVERY_BLOCKED", None,
                                    ("TEST_BOOTSTRAP_REJECTED",))
@@ -405,6 +443,9 @@ class QueuePersistenceStore:
 
     def save_queue(self, snapshot: PersistedQueueSnapshot,
                    expected_revision: int) -> QueueSaveResult:
+        if not self._write_enabled:
+            return QueueSaveResult(RESULT_VERSION, "WRITE_DISABLED", None,
+                                   ("PRODUCTION_QUEUE_WRITE_DISABLED",))
         try:
             with self._lock() as acquired:
                 if not acquired:
@@ -478,10 +519,93 @@ class QueuePersistenceStore:
             "OPERATOR_REVIEW" if status != "HEALTHY" else "NONE", tuple(reasons))
 
 
+def resolve_production_queue_path() -> Path:
+    """Return the one formal Queue path; callers cannot supply a path."""
+    return FORMAL_REPO_ROOT / "runtime" / "unattended-queue-v0.1.json"
+
+
+def resolve_production_checkpoint_root(identity: core.QueueIdentity | None = None) -> Path | None:
+    """Return the formal object directory for the approved Queue identity."""
+    value = core.get_queue_identity() if identity is None else identity
+    if not core.validate_queue_identity(value):
+        return None
+    return FORMAL_REPO_ROOT / "runtime" / "checkpoints" / value.queue_id / "objects"
+
+
+def _production_stores() -> tuple[QueuePersistenceStore, CheckpointStorage]:
+    identity = core.get_queue_identity()
+    checkpoints = CheckpointStorage._for_read_only(FORMAL_REPO_ROOT, identity)
+    queue_store = QueuePersistenceStore._for_read_only(FORMAL_REPO_ROOT, checkpoints)
+    return queue_store, checkpoints
+
+
+def load_production_queue_read_only() -> QueueLoadResult:
+    """Validate the formal production Queue without creating or repairing state."""
+    try:
+        store, _ = _production_stores()
+        return store.load_queue(validate_active_objects=True)
+    except Exception:
+        return QueueLoadResult(RESULT_VERSION, "RECOVERY_BLOCKED", None,
+                               ("PRODUCTION_QUEUE_INSPECTION_FAILED",))
+
+
+def inspect_production_queue_storage() -> ProductionStorageInspectionResult:
+    """Return aggregate, secret-safe facts for the fixed production paths."""
+    blocked = ProductionStorageInspectionResult(
+        RESULT_VERSION, None, "RECOVERY_BLOCKED", "RECOVERY_BLOCKED", False, False,
+        None, None, (), None, None, None, None, None, None, None, None,
+        "UNKNOWN", "UNKNOWN", "STOP_QUEUE_RECOVERY",
+        ("PRODUCTION_QUEUE_INSPECTION_FAILED",))
+    try:
+        store, checkpoint_store = _production_stores()
+        queue_exists = store.queue_path.is_file()
+        checkpoint_exists = checkpoint_store.objects_dir.is_dir()
+        queue_report = store.inspect_queue_storage()
+        schema_load = store.load_queue(validate_active_objects=False)
+        snapshot = schema_load.snapshot
+        active_ids = tuple(ref.checkpoint_storage_id for ref in snapshot.active_checkpoint_refs) if snapshot else ()
+        checkpoint_report = checkpoint_store.inspect(active_ids)
+        missing = mismatch = corrupt_active = 0
+        if snapshot is not None:
+            for ref in snapshot.active_checkpoint_refs:
+                loaded = checkpoint_store.load_checkpoint(ref.checkpoint_storage_id, ref.job_id)
+                if "REFERENCE_MISSING" in loaded.reason_codes:
+                    missing += 1
+                elif any(code in loaded.reason_codes for code in
+                         ("REFERENCE_JOB_MISMATCH", "REFERENCE_QUEUE_MISMATCH")):
+                    mismatch += 1
+                elif loaded.status != "HEALTHY":
+                    corrupt_active += 1
+        status = queue_report.status
+        reasons = list(queue_report.reason_codes)
+        if snapshot is not None and (missing or mismatch or corrupt_active):
+            status = "RECOVERY_BLOCKED"
+        if checkpoint_report.status in {"RECOVERY_BLOCKED", "MANUAL_REVIEW_REQUIRED"}:
+            if checkpoint_report.status == "RECOVERY_BLOCKED" or status == "HEALTHY":
+                status = checkpoint_report.status
+            reasons.extend(checkpoint_report.reason_codes)
+        checkpoint_status = checkpoint_report.status
+        action = "NONE" if status in {"HEALTHY", "MISSING_REQUIRES_BOOTSTRAP"} else "OPERATOR_REVIEW"
+        return ProductionStorageInspectionResult(
+            RESULT_VERSION, queue_report.persistence_version, status, checkpoint_status,
+            queue_exists, checkpoint_exists, queue_report.revision, queue_report.job_count,
+            queue_report.state_counts, queue_report.active_reference_count,
+            checkpoint_report.checkpoint_object_count,
+            checkpoint_report.unreferenced_object_count,
+            checkpoint_report.confirmed_orphan_count, missing, mismatch,
+            corrupt_active, checkpoint_report.corrupt_unreferenced_count,
+            queue_report.lock_status, queue_report.temp_status, action,
+            tuple(sorted(set(reasons))))
+    except Exception:
+        return blocked
+
+
 __all__ = [
-    "MAX_QUEUE_BYTES", "PERSISTENCE_VERSION", "REFERENCE_VERSION",
+    "FORMAL_REPO_ROOT", "MAX_QUEUE_BYTES", "PERSISTENCE_VERSION", "REFERENCE_VERSION",
     "ActiveCheckpointReference", "PersistedQueueSnapshot", "QueueInspectionResult",
-    "QueueLoadResult", "QueuePersistenceStore", "QueueSaveResult",
+    "ProductionStorageInspectionResult", "QueueLoadResult", "QueuePersistenceStore", "QueueSaveResult",
     "ReferenceUpdateResult", "deserialize_queue", "replace_active_checkpoint_ref",
+    "inspect_production_queue_storage", "load_production_queue_read_only",
+    "resolve_production_checkpoint_root", "resolve_production_queue_path",
     "serialize_queue", "validate_active_checkpoint_refs", "validate_snapshot",
 ]

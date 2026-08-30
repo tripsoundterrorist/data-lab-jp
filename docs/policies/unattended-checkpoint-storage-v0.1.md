@@ -18,4 +18,7 @@ Objects not selected by an active reference are reported as unreferenced, not
 asserted to be orphans. Valid unreferenced objects are retained. Corrupt
 unreferenced evidence requires manual review without automatically rewriting or
 stopping unrelated Queue state. A missing directory is valid only when there is
-no required active object. Phase A/B creates no production checkpoint directory.
+no required active object. Phase C resolves the formal checkpoint root and reads
+or inspects it without creating directories. Production checkpoint writes are
+explicitly disabled, and the formal repository root cannot be used as a test
+write root.
