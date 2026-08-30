@@ -19,6 +19,7 @@ TRANSITION_VERSION = "0.1"
 COMPLETION_CONTRACT_VERSION = "0.1"
 FAILED_SAFE_CONTRACT_VERSION = "0.1"
 TRANSITION_VALIDATION_VERSION = "0.1"
+EXECUTION_ADOPTION_CONTRACT_VERSION = "0.1"
 
 READY = "READY"
 RUNNING = "RUNNING"
@@ -488,6 +489,92 @@ def apply_approval_with_transition(job: Any, *, approval_event_received: Any
         return None, rejected
 
 
+def _valid_explicit_utc(value: Any) -> bool:
+    """Accept a deterministic, timezone-aware UTC timestamp without generating one."""
+    try:
+        if type(value) is not str:
+            return False
+        stamp = datetime.fromisoformat(value[:-1] + "+00:00" if value.endswith("Z") else value)
+        return (stamp.tzinfo is not None and stamp.utcoffset() is not None
+                and stamp.utcoffset().total_seconds() == 0)
+    except (TypeError, ValueError):
+        return False
+
+
+def validate_execution_adoption_transition(
+    previous: Any, candidate: Any, result: Any, *, expected_job_id: Any,
+) -> bool:
+    """Validate the fresh READY execution candidate and its shared result."""
+    try:
+        return (
+            type(previous) is JobContract and type(candidate) is JobContract
+            and type(expected_job_id) is str and _safe_text(expected_job_id)
+            and previous.job_id == expected_job_id == candidate.job_id
+            and validate_job(previous)[0] and validate_job(candidate)[0]
+            and previous.state == READY and candidate.state == RUNNING
+            and previous.attempt_count < previous.max_attempts
+            and candidate.attempt_count == previous.attempt_count + 1
+            and candidate.attempt_count <= candidate.max_attempts
+            and candidate == replace(previous, state=RUNNING,
+                                     attempt_count=previous.attempt_count + 1)
+            and type(result) is JobTransitionResult
+            and result == JobTransitionResult(
+                TRANSITION_VERSION, previous.job_id, previous.job_type,
+                READY, RUNNING, result.occurred_at, "APPLIED",
+                "JOB_EXECUTION_ADOPTION")
+            and _valid_explicit_utc(result.occurred_at)
+        )
+    except Exception:
+        return False
+
+
+def adopt_ready_job_for_execution(
+    jobs: Any, *, expected_job_id: Any, occurred_at: Any,
+    window_states: Mapping[str, str] | None = None,
+    external_read_allowed: bool = False,
+) -> tuple[JobContract | None, JobTransitionResult]:
+    """Create a fresh READY -> RUNNING candidate; never persist or execute it.
+
+    Selection is recomputed from the supplied current queue. The increment is
+    only a candidate here; durable attempt consumption belongs to a later CAS
+    coordinator contract.
+    """
+    generic_rejection = JobTransitionResult(
+        TRANSITION_VERSION, None, None, None, None, None, "REJECTED",
+        "EXECUTION_ADOPTION_INVALID")
+    try:
+        if (type(expected_job_id) is not str or not _safe_text(expected_job_id)
+                or not _valid_explicit_utc(occurred_at)):
+            return None, generic_rejection
+        valid, _ = validate_queue(jobs)
+        if not valid:
+            return None, generic_rejection
+        mapping = {job.job_id: job for job in jobs}
+        target = mapping.get(expected_job_id)
+        if target is None:
+            return None, replace(generic_rejection, reason_code="OBSOLETE_SELECTION")
+        if target.state == READY and target.attempt_count == target.max_attempts:
+            return None, replace(generic_rejection, reason_code="ATTEMPTS_EXHAUSTED")
+        if target.state != READY:
+            return None, generic_rejection
+        decision = select_next_job(
+            jobs, window_states=window_states,
+            external_read_allowed=external_read_allowed)
+        if decision.selected_job_id != expected_job_id:
+            return None, replace(generic_rejection, reason_code="SELECTION_CHANGED")
+        candidate = replace(target, state=RUNNING,
+                            attempt_count=target.attempt_count + 1)
+        result = JobTransitionResult(
+            TRANSITION_VERSION, target.job_id, target.job_type, READY, RUNNING,
+            occurred_at, "APPLIED", "JOB_EXECUTION_ADOPTION")
+        if not validate_execution_adoption_transition(
+                target, candidate, result, expected_job_id=expected_job_id):
+            return None, generic_rejection
+        return candidate, result
+    except Exception:
+        return None, generic_rejection
+
+
 def validate_completion_transition(previous: Any, candidate: Any, *, expected_job_id: Any) -> bool:
     """Core-owned completion validation: identity match, RUNNING -> DONE only."""
     try:
@@ -619,6 +706,9 @@ def validate_job_transition_result(result: Any) -> TransitionValidationResult:
         elif (result.reason_code == "JOB_COMPLETION_TRANSITION"
               and result.previous_state == RUNNING and result.new_state == DONE):
             classification = "COMPLETION_TRANSITION"
+        elif (result.reason_code == "JOB_EXECUTION_ADOPTION"
+              and result.previous_state == READY and result.new_state == RUNNING):
+            classification = "EXECUTION_ADOPTION_TRANSITION"
         else:
             return invalid
         return TransitionValidationResult(TRANSITION_VALIDATION_VERSION, True,
