@@ -16,6 +16,7 @@ COORDINATOR_VERSION = "0.1"
 class DurableJobCompletionResult:
     coordinator_version: str
     status: str
+    durable: bool
     job_id: str | None
     attempt_count: int | None
     revision: int | None
@@ -23,16 +24,27 @@ class DurableJobCompletionResult:
 
 
 def _result(status: str, reasons: tuple[str, ...], *, job_id: str | None = None,
+            durable: bool = False,
             attempt_count: int | None = None,
             revision: int | None = None) -> DurableJobCompletionResult:
     return DurableJobCompletionResult(
-        COORDINATOR_VERSION, status, job_id, attempt_count, revision, reasons)
+        COORDINATOR_VERSION, status, durable, job_id, attempt_count, revision, reasons)
+
+
+def _save_failure(saved: persistence.QueueSaveResult) -> DurableJobCompletionResult:
+    if saved.status == "STALE_REVISION":
+        return _result("COMPLETION_CONFLICT", ("STALE_REVISION",))
+    if saved.status == "RECOVERY_BLOCKED" and any(
+            code in {"QUEUE_READ_BACK_FAILED", "QUEUE_SAVE_FAILED"}
+            for code in saved.reason_codes):
+        return _result("JOB_COMPLETION_UNCERTAIN", ("RECOVERY_BLOCKED",))
+    return _result("RECOVERY_BLOCKED", tuple(saved.reason_codes))
 
 
 def complete_running_job_durably(
     store: Any, *, expected_job_id: Any, expected_attempt_count: Any,
 ) -> DurableJobCompletionResult:
-    """Load, complete through Core, CAS-save once, and confirm exact state."""
+    """Load, complete through Core, and accept Persistence's durable CAS result."""
     if not isinstance(store, persistence.QueuePersistenceStore):
         return _result("RECOVERY_BLOCKED", ("PERSISTENCE_STORE_INVALID",))
     if (type(expected_attempt_count) is not int or expected_attempt_count < 1):
@@ -63,19 +75,10 @@ def complete_running_job_durably(
         proposed = replace(before, jobs=jobs)
         saved = store.save_queue(proposed, before.revision)
         if saved.status != "SAVED" or saved.revision != before.revision + 1:
-            return _result("PERSISTENCE_NOT_CONFIRMED", tuple(saved.reason_codes))
-        confirmed = store.load_queue()
-        if confirmed.status != "HEALTHY" or confirmed.snapshot is None:
-            return _result("PERSISTENCE_NOT_CONFIRMED", ("QUEUE_CONFIRMATION_FAILED",))
-        expected = replace(proposed, revision=saved.revision)
-        if confirmed.snapshot != expected:
-            return _result("PERSISTENCE_NOT_CONFIRMED", ("QUEUE_CONFIRMATION_MISMATCH",))
-        stored = next((job for job in confirmed.snapshot.jobs
-                       if job.job_id == expected_job_id), None)
-        if stored != candidate or stored.attempt_count != expected_attempt_count:
-            return _result("PERSISTENCE_NOT_CONFIRMED", ("GENERATION_CONFIRMATION_MISMATCH",))
-        return _result("COMPLETED", ("JOB_COMPLETION_DURABLE",),
-                       job_id=stored.job_id, attempt_count=stored.attempt_count,
-                       revision=confirmed.snapshot.revision)
+            return _save_failure(saved)
+        return _result("JOB_COMPLETED_DURABLY", ("JOB_COMPLETION_DURABLE",),
+                       durable=True, job_id=candidate.job_id,
+                       attempt_count=candidate.attempt_count,
+                       revision=saved.revision)
     except Exception:
         return _result("RECOVERY_BLOCKED", ("COORDINATOR_INTERNAL_ERROR",))
