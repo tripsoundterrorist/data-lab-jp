@@ -44,7 +44,8 @@ class DurableExecutionAdoptionCoordinatorTests(unittest.TestCase):
         self.initialize(job())
         result = self.adopt()
         self.assertEqual(result.coordinator_version, "0.1")
-        self.assertEqual(result.status, "ADOPTED")
+        self.assertEqual(result.status, "EXECUTION_ADOPTED_DURABLY")
+        self.assertTrue(result.durable)
         self.assertEqual((result.job_id, result.attempt_count, result.revision),
                          ("job-a", 1, 1))
         self.assertEqual(result.reason_codes, ("EXECUTION_ADOPTION_DURABLE",))
@@ -54,7 +55,7 @@ class DurableExecutionAdoptionCoordinatorTests(unittest.TestCase):
         self.initialize(first, second)
         result = self.adopt()
         stored = self.store.load_queue().snapshot
-        self.assertEqual(result.status, "ADOPTED")
+        self.assertEqual(result.status, "EXECUTION_ADOPTED_DURABLY")
         self.assertEqual(stored.jobs[0], replace(first, state=core.RUNNING, attempt_count=1))
         self.assertEqual(stored.jobs[1], second)
         self.assertEqual(stored.active_checkpoint_refs, ())
@@ -65,6 +66,7 @@ class DurableExecutionAdoptionCoordinatorTests(unittest.TestCase):
         result = self.adopt()
         self.assertEqual(result.status, "ADOPTION_REJECTED")
         self.assertEqual(result.reason_codes, ("EXECUTION_ADOPTION_INVALID",))
+        self.assertFalse(result.durable)
         self.assertEqual(self.store.queue_path.read_bytes(), before)
 
     def test_selection_change_does_not_write(self):
@@ -98,21 +100,76 @@ class DurableExecutionAdoptionCoordinatorTests(unittest.TestCase):
                                             ("STALE_REVISION",))
         with mock.patch.object(self.store, "save_queue", return_value=stale) as save:
             result = self.adopt()
-        self.assertEqual(result.status, "PERSISTENCE_NOT_CONFIRMED")
+        self.assertEqual(result.status, "ADOPTION_CONFLICT")
+        self.assertFalse(result.durable)
         self.assertEqual(result.reason_codes, ("STALE_REVISION",))
         save.assert_called_once()
 
-    def test_read_back_mismatch_fails_closed(self):
+    def test_saved_is_durable_without_second_load(self):
         self.initialize(job())
-        real_load = self.store.load_queue
-        initial = real_load()
-        mismatch = persistence.QueueLoadResult(
-            "0.1", "HEALTHY", replace(initial.snapshot, revision=1), ("QUEUE_LOADED",))
-        with mock.patch.object(self.store, "load_queue",
-                               side_effect=[initial, mismatch]):
+        initial = self.store.load_queue()
+        saved = persistence.QueueSaveResult("0.1", "SAVED", 1, ("QUEUE_SAVED",))
+        with mock.patch.object(self.store, "load_queue", return_value=initial) as load, \
+             mock.patch.object(self.store, "save_queue", return_value=saved):
             result = self.adopt()
-        self.assertEqual(result.status, "PERSISTENCE_NOT_CONFIRMED")
-        self.assertEqual(result.reason_codes, ("QUEUE_CONFIRMATION_MISMATCH",))
+        self.assertEqual(result.status, "EXECUTION_ADOPTED_DURABLY")
+        self.assertTrue(result.durable)
+        load.assert_called_once_with()
+
+    def test_target_active_checkpoint_ref_blocks_fresh_route(self):
+        target = job()
+        ref = persistence.ActiveCheckpointReference("0.1", target.job_id, "a" * 64)
+        loaded = persistence.QueueLoadResult(
+            "0.1", "HEALTHY", snapshot(target, refs=(ref,)), ("QUEUE_LOADED",))
+        with mock.patch.object(self.store, "load_queue", return_value=loaded), \
+             mock.patch.object(core, "adopt_ready_job_for_execution") as adopt, \
+             mock.patch.object(self.store, "save_queue") as save:
+            result = self.adopt()
+        self.assertEqual(result.status, "ADOPTION_REJECTED")
+        self.assertEqual(result.reason_codes,
+                         ("FRESH_ROUTE_CHECKPOINT_REFERENCE_PRESENT",))
+        self.assertFalse(result.durable)
+        adopt.assert_not_called()
+        save.assert_not_called()
+
+    def test_other_job_checkpoint_ref_does_not_block_fresh_route(self):
+        target, paused = job(), job("paused", state=core.CHECKPOINTED)
+        ref = persistence.ActiveCheckpointReference("0.1", paused.job_id, "a" * 64)
+        loaded = persistence.QueueLoadResult(
+            "0.1", "HEALTHY", snapshot(target, paused, refs=(ref,)),
+            ("QUEUE_LOADED",))
+        saved = persistence.QueueSaveResult("0.1", "SAVED", 1, ("QUEUE_SAVED",))
+        with mock.patch.object(self.store, "load_queue", return_value=loaded) as load, \
+             mock.patch.object(self.store, "save_queue", return_value=saved):
+            result = self.adopt()
+        self.assertEqual(result.status, "EXECUTION_ADOPTED_DURABLY")
+        load.assert_called_once_with()
+
+    def test_uncertain_persistence_fails_closed_without_retry_or_rollback(self):
+        self.initialize(job())
+        initial = self.store.load_queue().snapshot
+        uncertain = persistence.QueueSaveResult(
+            "0.1", "RECOVERY_BLOCKED", None, ("QUEUE_READ_BACK_FAILED",))
+        with mock.patch.object(self.store, "save_queue", return_value=uncertain) as save, \
+             mock.patch.object(self.store, "load_queue", wraps=self.store.load_queue) as load:
+            result = self.adopt()
+        self.assertEqual(result.status, "EXECUTION_ADOPTION_UNCERTAIN")
+        self.assertEqual(result.reason_codes, ("RECOVERY_BLOCKED",))
+        self.assertFalse(result.durable)
+        save.assert_called_once()
+        load.assert_called_once_with()
+        self.assertEqual(initial.jobs[0].attempt_count, 0)
+
+    def test_known_prewrite_block_is_recovery_blocked(self):
+        self.initialize(job())
+        blocked = persistence.QueueSaveResult(
+            "0.1", "LOCKED", None, ("QUEUE_LOCKED",))
+        with mock.patch.object(self.store, "save_queue", return_value=blocked) as save:
+            result = self.adopt()
+        self.assertEqual(result.status, "RECOVERY_BLOCKED")
+        self.assertEqual(result.reason_codes, ("QUEUE_LOCKED",))
+        self.assertFalse(result.durable)
+        save.assert_called_once()
 
     def test_no_executor_or_process_capability(self):
         tree = ast.parse(Path(coordinator.__file__).read_text(encoding="utf-8"))
@@ -138,6 +195,7 @@ class DurableExecutionAdoptionCoordinatorTests(unittest.TestCase):
             result = self.adopt()
         self.assertEqual(result.status, "RECOVERY_BLOCKED")
         self.assertEqual(result.reason_codes, ("COORDINATOR_INTERNAL_ERROR",))
+        self.assertFalse(result.durable)
         self.assertNotIn("fixture-secret", repr(result))
 
 

@@ -11,14 +11,28 @@ bootstrap production storage, deliver notifications, or activate production.
 
 The coordinator loads one healthy persisted snapshot, delegates selection and
 candidate creation to Core, validates the returned transition, replaces only the
-selected job, and performs exactly one expected-revision CAS save. It then loads
-the Queue again and requires the complete snapshot, revision, selected job, and
-attempt generation to equal the expected durable state.
+selected job, and performs exactly one expected-revision CAS save. Persistence's
+`SAVED` result is the durable boundary because Persistence already completed its
+atomic replacement and exact internal read-back. The coordinator must not issue
+a second `load_queue()` after `SAVED`.
 
 `attempt_count` is consumed only after CAS and read-back confirmation. A stale
 revision, lock, temporary residue, failed save, uncertain read-back, or mismatch
 fails closed. The coordinator does not retry because a failed response can be
-observationally ambiguous.
+observationally ambiguous. A stale revision returns `ADOPTION_CONFLICT` with
+`durable=false` and is never retried. An observationally uncertain save returns
+`EXECUTION_ADOPTION_UNCERTAIN`, `RECOVERY_BLOCKED`, and `durable=false`; it never
+rolls back, saves again, or decrements an attempt.
+
+Successful adoption returns `EXECUTION_ADOPTED_DURABLY`,
+`EXECUTION_ADOPTION_DURABLE`, and `durable=true`.
+
+## Fresh route and checkpoint references
+
+Before Core adoption, the coordinator rejects a target job that has an active
+checkpoint reference with `FRESH_ROUTE_CHECKPOINT_REFERENCE_PRESENT`. A
+checkpoint reference belonging to another job does not block an otherwise valid
+fresh route. The coordinator never deletes or rewrites checkpoint references.
 
 ## Ownership boundaries
 
