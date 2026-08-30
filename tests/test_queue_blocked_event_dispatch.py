@@ -132,6 +132,8 @@ class QueueBlockedDispatchTests(unittest.TestCase):
         self.transport.assert_not_called()
         self.assertEqual(before, self.path.read_bytes())
 
+    @unittest.skipUnless(ledger.DEFAULT_PATH.is_file(),
+                         "production notification ledger is not present")
     def test_default_dry_production_read_only(self):
         before = ledger.DEFAULT_PATH.read_bytes()
         r = dispatch.dispatch_queue_blocked(self.decision, self.identity, credential_loader=self.loader)
