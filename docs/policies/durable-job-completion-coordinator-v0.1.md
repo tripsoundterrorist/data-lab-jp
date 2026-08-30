@@ -18,11 +18,18 @@ save. This prevents an obsolete completion signal from completing a newer run.
 
 The coordinator loads a healthy Queue, delegates completion and validation to
 Core, replaces only the selected job, and performs exactly one expected-revision
-CAS save. It then reloads the Queue and requires the entire snapshot, revision,
-job state, and attempt generation to match the expected durable result.
+CAS save. Persistence's `SAVED` result is the durable boundary because
+Persistence already completed atomic replacement and exact internal read-back.
+The coordinator must not issue a second `load_queue()` after `SAVED`.
 
 Locks, stale revisions, temporary residue, failed saves, uncertain read-back,
-and mismatches fail closed without retry. Results expose only fixed codes and
+and mismatches fail closed without retry. A stale revision returns
+`COMPLETION_CONFLICT` and `durable=false`. An observationally uncertain save
+returns `JOB_COMPLETION_UNCERTAIN`, `RECOVERY_BLOCKED`, and `durable=false`.
+Neither path retries, rolls back, saves again, nor changes the attempt count.
+
+Successful completion returns `JOB_COMPLETED_DURABLY`,
+`JOB_COMPLETION_DURABLE`, and `durable=true`. Results expose only fixed codes and
 safe identity, generation, and revision fields.
 
 ## Deferred and non-goals
