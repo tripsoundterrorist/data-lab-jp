@@ -129,6 +129,8 @@ class FourEventIntegrationTests(unittest.TestCase):
         self.assertFalse(result.event_generated)
         run.assert_not_called()
 
+    @unittest.skipUnless(ledger.DEFAULT_PATH.is_file(),
+                         "production notification ledger is not present")
     def test_production_ledger_read_only(self):
         saved = ledger.DEFAULT_PATH.read_bytes()
         for kind in KINDS:
