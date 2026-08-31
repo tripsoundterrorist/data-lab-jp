@@ -20,6 +20,7 @@ FAST_TEST_FILES = (
     "test_durable_execution_adoption_coordinator.py",
     "test_durable_job_completion_coordinator.py",
     "test_github_actions_ci_contract.py",
+    "test_notification_noise_control.py",
     "test_queue_input_job_payload_contract.py",
     "test_queue_storage_inspection_trusted_evidence_collector.py",
     "test_unattended_queue_persistence.py",
