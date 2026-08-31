@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import json
 from typing import Any, Callable, Mapping, MutableSet
@@ -71,6 +71,13 @@ def _result(mode: Any, status: str, *, event_type: str | None = None,
         RUNTIME_VERSION, mode if type(mode) is str and mode in MODES else "DRY_RUN", status, event_type,
         selected, suppressed, attempted, succeeded, approval, emergency,
         tuple(sorted(set(reasons))),
+    )
+
+
+def _add_safe_reason(result: RuntimeResult, reason: str) -> RuntimeResult:
+    """Add one fixed internal classification without changing result schema."""
+    return replace(
+        result, reason_codes=tuple(sorted(set(result.reason_codes + (reason,))))
     )
 
 
@@ -198,6 +205,7 @@ def _runtime(
                                    selected=True, suppressed=True, approval=approval,
                                    reasons=("PERSISTENT_DUPLICATE_SUPPRESSED",))
                 incident = None
+                suppression = None
                 if mode == "MOCK_RUNTIME" and event_type != "CRITICAL_STOP":
                     incident = incident_identity(value)
                     if incident is None:
@@ -226,6 +234,12 @@ def _runtime(
                                     adapter_fn=adapter_fn, sender_fn=sender_fn,
                                     credential_loader=credential_loader, transport=transport,
                                     seen_event_ids=seen_event_ids, identity=identity)
+                if (suppression is not None and suppression.reminder
+                        and delivery.runtime_status == "NOTIFICATION_DELIVERED"
+                        and delivery.delivery_succeeded is True):
+                    delivery = _add_safe_reason(
+                        delivery, "INCIDENT_REMINDER_SELECTED"
+                    )
                 if (mode != "DRY_RUN" and delivery.runtime_status == "NOTIFICATION_DELIVERED"
                         and delivery.delivery_succeeded is True):
                     if mode == "MOCK_RUNTIME":
