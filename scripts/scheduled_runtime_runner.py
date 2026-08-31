@@ -23,6 +23,7 @@ SUCCESS_STATUSES = frozenset({"NOTIFICATION_READY", "NOTIFICATION_DELIVERED",
                              "NOTIFICATION_DUPLICATE_SUPPRESSED"})
 RUNTIME_STATUSES = SUCCESS_STATUSES | {"INVALID_INPUT", "NOTIFICATION_FAILED_SAFE",
                                       "LIVE_NOTIFICATION_NOT_CONFIRMED", "EMERGENCY_SEND_BLOCKED"}
+SAFE_RUNTIME_REPORT_REASONS = frozenset({"INCIDENT_REMINDER_SELECTED"})
 
 
 @dataclass(frozen=True)
@@ -153,7 +154,12 @@ def run_once(event=None, *, mode="DRY_RUN", live_notification_confirmed=False,
                             else:
                                 runtime_status, attempted = result.runtime_status, result.delivery_attempted
                                 if runtime_status in SUCCESS_STATUSES:
-                                    status, code, reasons = "COMPLETED", 0, ("RUNTIME_CYCLE_COMPLETED",)
+                                    reported = tuple(
+                                        reason for reason in result.reason_codes
+                                        if reason in SAFE_RUNTIME_REPORT_REASONS
+                                    )
+                                    status, code, reasons = "COMPLETED", 0, \
+                                        ("RUNTIME_CYCLE_COMPLETED",) + reported
                                 else:
                                     status, code, reasons = "BLOCKED", 2, ("RUNTIME_CYCLE_BLOCKED",)
     except Exception:

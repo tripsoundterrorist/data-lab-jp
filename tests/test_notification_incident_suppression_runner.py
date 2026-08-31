@@ -92,6 +92,7 @@ class NotificationIncidentSuppressionRunnerTests(unittest.TestCase):
         previous = self.seed(value, "2026-08-31T00:00:00Z")
         result = self.execute(value)
         self.assertEqual(result.runtime_status, "NOTIFICATION_DELIVERED")
+        self.assertIn("INCIDENT_REMINDER_SELECTED", result.reason_codes)
         self.assertTrue(result.notification_attempted)
         self.transport.assert_called_once()
         rows = self.store._read()
@@ -110,6 +111,25 @@ class NotificationIncidentSuppressionRunnerTests(unittest.TestCase):
         self.transport.assert_called_once()
         self.assertEqual([row["ledger_version"] for row in self.store._read()],
                          ["0.2", "0.1"])
+        self.assertNotIn("INCIDENT_REMINDER_SELECTED", result.reason_codes)
+
+    def test_first_delivery_report_has_no_reminder_classification(self):
+        result = self.execute(event())
+        self.assertEqual(result.runtime_status, "NOTIFICATION_DELIVERED")
+        self.assertEqual(result.reason_codes, ("RUNTIME_CYCLE_COMPLETED",))
+
+    def test_runner_does_not_forward_unrecognized_runtime_reasons(self):
+        runtime_result = runtime.RuntimeResult(
+            runtime.RUNTIME_VERSION, "MOCK_RUNTIME", "NOTIFICATION_DELIVERED",
+            "JOB_COMPLETED", True, False, True, True, False, False,
+            ("FIXTURE_PRIVATE_REASON",),
+        )
+        with mock.patch.object(
+            runtime, "process_notification", return_value=runtime_result,
+        ):
+            result = self.execute(event())
+        self.assertEqual(result.reason_codes, ("RUNTIME_CYCLE_COMPLETED",))
+        self.assertNotIn("FIXTURE_PRIVATE_REASON", repr(result.to_dict()))
 
     def test_suppressed_cycle_releases_runner_lock(self):
         value = event()

@@ -274,6 +274,10 @@ class ScheduledRuntimeRunnerTests(unittest.TestCase):
                     "exit_code", "reason_codes"}
         self.assertEqual(set(self.execute().to_dict()), expected)
 
+    def test_runner_runtime_reason_allowlist_is_fixed(self):
+        self.assertEqual(runner.SAFE_RUNTIME_REPORT_REASONS,
+                         frozenset({"INCIDENT_REMINDER_SELECTED"}))
+
     def test_env_cannot_promote_mode(self):
         with mock.patch.dict(os.environ, {"RUNNER_MODE": "LIVE_NOTIFICATION"}):
             self.assertEqual(self.execute().mode, "DRY_RUN")
