@@ -120,6 +120,22 @@ def _validate_event(event: Any) -> tuple[Mapping[str, Any] | None, tuple[str, ..
     return value, ()
 
 
+def incident_identity(event: Any) -> str | None:
+    """Return a stable opaque identity for a validated incident, excluding time."""
+
+    value, _ = _validate_event(event)
+    if value is None or "occurred_at" not in value:
+        return None
+    try:
+        canonical = json.dumps(
+            {key: value[key] for key in sorted(value) if key != "occurred_at"},
+            ensure_ascii=True, separators=(",", ":"), sort_keys=True,
+        )
+    except (TypeError, ValueError):
+        return None
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def _runtime(
     event: Any, *, runtime_version: Any, mode: Any,
     live_notification_confirmed: Any, seen_event_ids: MutableSet[str] | None,
@@ -273,5 +289,5 @@ def process_notification(
 __all__ = [
     "AUTO_NOTIFY_EVENTS", "EVENT_FIELDS", "MODES", "OUTPUT_FIELDS",
     "RUNTIME_VERSION", "RuntimeResult", "SUPPRESSED_EVENTS", "event_identity",
-    "process_notification",
+    "incident_identity", "process_notification",
 ]
