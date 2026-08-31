@@ -125,15 +125,46 @@ class NotificationLedgerV02WriterTests(unittest.TestCase):
             )
         self.assertTrue(self.rows()[0]["recorded_at_utc"].endswith("Z"))
 
-    def test_runtime_does_not_call_v02_writer(self):
+    def test_mock_runtime_writes_v02_with_stable_incident_identity(self):
         loader = mock.Mock(return_value=("fixture-user", "fixture-app"))
         transport = mock.Mock(return_value={"status": 1})
+        value = event()
+        result = runtime.process_notification(
+            value, mode="MOCK_RUNTIME", ledger=self.store,
+            credential_loader=loader, transport=transport,
+        )
+        self.assertTrue(result.delivery_succeeded)
+        self.assertEqual(self.rows()[0]["ledger_version"], "0.2")
+        self.assertEqual(
+            self.rows()[0]["incident_identity"], runtime.incident_identity(value)
+        )
+
+    def test_mock_runtime_fails_closed_when_incident_identity_is_unavailable(self):
+        loader = mock.Mock(return_value=("fixture-user", "fixture-app"))
+        transport = mock.Mock(return_value={"status": 1})
+        with mock.patch.object(runtime, "incident_identity", return_value=None):
+            result = runtime.process_notification(
+                event(), mode="MOCK_RUNTIME", ledger=self.store,
+                credential_loader=loader, transport=transport,
+            )
+        self.assertEqual(result.runtime_status, "NOTIFICATION_FAILED_SAFE")
+        self.assertEqual(result.reason_codes,
+                         ("LEDGER_INCIDENT_IDENTITY_INVALID",))
+        self.assertTrue(result.delivery_attempted)
+        self.assertTrue(result.delivery_succeeded)
+        self.assertEqual(self.rows(), [])
+
+    def test_live_runtime_keeps_v01_writer(self):
+        loader = mock.Mock(return_value=("fixture-user", "fixture-app"))
+        transport = mock.Mock(return_value={"status": 1})
+        self.write([])
         with mock.patch.object(
             ledger.LedgerTransaction, "record_success_v02",
             side_effect=AssertionError,
         ) as writer:
             result = runtime.process_notification(
-                event(), mode="MOCK_RUNTIME", ledger=self.store,
+                event(), mode="LIVE_NOTIFICATION", ledger=self.store,
+                live_notification_confirmed=True,
                 credential_loader=loader, transport=transport,
             )
         self.assertTrue(result.delivery_succeeded)
