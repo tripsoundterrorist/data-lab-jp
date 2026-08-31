@@ -23,26 +23,36 @@ class GitHubActionsCIContractTests(unittest.TestCase):
         self.assertNotRegex(self.content, r"(?m)^\s*[a-z-]+:\s*write\s*$")
 
     def test_standard_runner_has_timeout_and_concurrency(self):
-        self.assertIn("runs-on: ubuntu-latest", self.content)
-        self.assertIn("timeout-minutes: 5", self.content)
+        self.assertEqual(self.content.count("runs-on: ubuntu-latest"), 2)
+        self.assertEqual(self.content.count("timeout-minutes: 5"), 2)
         self.assertIn("cancel-in-progress: true", self.content)
         self.assertNotIn("larger", self.content.lower())
         self.assertNotIn("self-hosted", self.content)
 
     def test_checkout_is_sha_pinned_without_persisted_credentials(self):
-        match = re.search(r"uses: actions/checkout@([0-9a-f]{40})", self.content)
-        self.assertIsNotNone(match)
-        self.assertEqual(match.group(1),
-                         "3d3c42e5aac5ba805825da76410c181273ba90b1")
-        self.assertIn("persist-credentials: false", self.content)
-        self.assertIn("fetch-depth: 1", self.content)
+        matches = re.findall(r"uses: actions/checkout@([0-9a-f]{40})", self.content)
+        self.assertEqual(matches, [
+            "3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "3d3c42e5aac5ba805825da76410c181273ba90b1",
+        ])
+        self.assertEqual(self.content.count("persist-credentials: false"), 2)
+        self.assertEqual(self.content.count("fetch-depth: 1"), 2)
 
-    def test_baseline_commands_are_exact_and_dependency_free(self):
+    def test_tier_commands_are_exact_and_dependency_free(self):
         self.assertIn("run: python3 --version", self.content)
         self.assertIn("run: python3 -m compileall -q scripts tests", self.content)
-        self.assertIn("run: python3 -m unittest discover -s tests", self.content)
+        self.assertIn("run: python3 scripts/run_test_tier.py fast", self.content)
+        self.assertIn("run: python3 scripts/run_test_tier.py regression", self.content)
+        self.assertIn("run: python3 scripts/run_test_tier.py full", self.content)
         for forbidden in ("pip install", "curl ", "wget ", "npm ", "docker "):
             self.assertNotIn(forbidden, self.content)
+
+    def test_fast_gates_event_specific_broad_validation(self):
+        self.assertIn("  validation:\n    needs: fast\n", self.content)
+        self.assertEqual(
+            self.content.count("if: github.event_name == 'pull_request'"), 2
+        )
+        self.assertEqual(self.content.count("if: github.event_name == 'push'"), 1)
 
     def test_no_secrets_artifacts_cache_deploy_or_mutation(self):
         lowered = self.content.lower()
