@@ -23,6 +23,7 @@ FAST_TEST_FILES = (
     "test_notification_noise_control.py",
     "test_notification_incident_identity.py",
     "test_notification_ledger_record_v02.py",
+    "test_notification_ledger_mixed_read.py",
     "test_queue_input_job_payload_contract.py",
     "test_queue_storage_inspection_trusted_evidence_collector.py",
     "test_unattended_queue_persistence.py",
