@@ -146,6 +146,10 @@ class LedgerTransaction:
     def lookup(self, identity):
         return "DELIVERED" if any(row["event_identity"] == identity for row in self._records) else "NEW"
 
+    def records_snapshot(self):
+        """Return an isolated record snapshot for pure read-only decisions."""
+        return [dict(record) for record in self._records]
+
     def record_success(self, identity, event_type):
         if not self._writable:
             raise LedgerError("LEDGER_READ_ONLY")
