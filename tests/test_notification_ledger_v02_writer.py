@@ -150,8 +150,10 @@ class NotificationLedgerV02WriterTests(unittest.TestCase):
         self.assertEqual(result.runtime_status, "NOTIFICATION_FAILED_SAFE")
         self.assertEqual(result.reason_codes,
                          ("LEDGER_INCIDENT_IDENTITY_INVALID",))
-        self.assertTrue(result.delivery_attempted)
-        self.assertTrue(result.delivery_succeeded)
+        self.assertFalse(result.delivery_attempted)
+        self.assertFalse(result.delivery_succeeded)
+        loader.assert_not_called()
+        transport.assert_not_called()
         self.assertEqual(self.rows(), [])
 
     def test_live_runtime_keeps_v01_writer(self):
@@ -170,6 +172,96 @@ class NotificationLedgerV02WriterTests(unittest.TestCase):
         self.assertTrue(result.delivery_succeeded)
         writer.assert_not_called()
         self.assertEqual(self.rows()[0]["ledger_version"], "0.1")
+
+    def test_mock_runtime_suppresses_v02_incident_inside_window(self):
+        value = event()
+        value["occurred_at"] = "2026-08-27T00:10:00+00:00"
+        previous = codec.build_record(
+            event_identity=EVENT_A,
+            incident_identity=runtime.incident_identity(value),
+            event_type="JOB_COMPLETED",
+            recorded_at_utc="2026-08-27T00:00:00Z",
+        )
+        self.assertIsNotNone(previous)
+        self.write([previous])
+        loader = mock.Mock(side_effect=AssertionError)
+        transport = mock.Mock(side_effect=AssertionError)
+        result = runtime.process_notification(
+            value, mode="MOCK_RUNTIME", ledger=self.store,
+            credential_loader=loader, transport=transport,
+        )
+        self.assertEqual(result.runtime_status,
+                         "NOTIFICATION_DUPLICATE_SUPPRESSED")
+        self.assertTrue(result.notification_suppressed)
+        self.assertIn("INCIDENT_DUPLICATE_SUPPRESSED", result.reason_codes)
+        loader.assert_not_called()
+        transport.assert_not_called()
+        self.assertEqual(self.rows(), [previous])
+
+    def test_mock_runtime_v01_only_does_not_suppress_incident(self):
+        self.write([v01(EVENT_A)])
+        value = event()
+        value["job_id"] = "distinct-job"
+        loader = mock.Mock(return_value=("fixture-user", "fixture-app"))
+        transport = mock.Mock(return_value={"status": 1})
+        result = runtime.process_notification(
+            value, mode="MOCK_RUNTIME", ledger=self.store,
+            credential_loader=loader, transport=transport,
+        )
+        self.assertTrue(result.delivery_succeeded)
+        self.assertEqual([row["ledger_version"] for row in self.rows()],
+                         ["0.1", "0.2"])
+
+    def test_mock_runtime_delivers_approval_reminder_at_boundary(self):
+        value = event()
+        value.update(
+            event_type="JOB_WAITING_APPROVAL", severity="WARN",
+            state="WAITING_APPROVAL", approval_required=True,
+            occurred_at="2026-08-27T00:30:00+00:00",
+        )
+        previous = codec.build_record(
+            event_identity=EVENT_A,
+            incident_identity=runtime.incident_identity(value),
+            event_type="JOB_WAITING_APPROVAL",
+            recorded_at_utc="2026-08-27T00:00:00Z",
+        )
+        self.assertIsNotNone(previous)
+        self.write([previous])
+        loader = mock.Mock(return_value=("fixture-user", "fixture-app"))
+        transport = mock.Mock(return_value={"status": 1})
+        result = runtime.process_notification(
+            value, mode="MOCK_RUNTIME", ledger=self.store,
+            credential_loader=loader, transport=transport,
+        )
+        self.assertTrue(result.delivery_succeeded)
+        transport.assert_called_once()
+        self.assertEqual(len(self.rows()), 2)
+        self.assertEqual(self.rows()[1]["incident_identity"],
+                         previous["incident_identity"])
+
+    def test_live_runtime_does_not_read_incident_snapshot(self):
+        self.write([])
+        loader = mock.Mock(return_value=("fixture-user", "fixture-app"))
+        transport = mock.Mock(return_value={"status": 1})
+        with mock.patch.object(
+            ledger.LedgerTransaction, "records_snapshot",
+            side_effect=AssertionError,
+        ) as snapshot:
+            result = runtime.process_notification(
+                event(), mode="LIVE_NOTIFICATION", ledger=self.store,
+                live_notification_confirmed=True,
+                credential_loader=loader, transport=transport,
+            )
+        self.assertTrue(result.delivery_succeeded)
+        snapshot.assert_not_called()
+
+    def test_transaction_snapshot_is_isolated(self):
+        self.write([v01()])
+        with self.store.transaction() as transaction:
+            snapshot = transaction.records_snapshot()
+            snapshot[0]["event_type"] = "JOB_FAILED_SAFE"
+            snapshot.append(v01(EVENT_B))
+        self.assertEqual(self.rows(), [v01()])
 
 
 if __name__ == "__main__":
