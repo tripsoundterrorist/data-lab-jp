@@ -234,10 +234,33 @@ class NotificationLedgerV02WriterTests(unittest.TestCase):
             credential_loader=loader, transport=transport,
         )
         self.assertTrue(result.delivery_succeeded)
+        self.assertIn("INCIDENT_REMINDER_SELECTED", result.reason_codes)
         transport.assert_called_once()
         self.assertEqual(len(self.rows()), 2)
         self.assertEqual(self.rows()[1]["incident_identity"],
                          previous["incident_identity"])
+
+    def test_mock_first_delivery_has_no_reminder_classification(self):
+        loader = mock.Mock(return_value=("fixture-user", "fixture-app"))
+        transport = mock.Mock(return_value={"status": 1})
+        result = runtime.process_notification(
+            event(), mode="MOCK_RUNTIME", ledger=self.store,
+            credential_loader=loader, transport=transport,
+        )
+        self.assertTrue(result.delivery_succeeded)
+        self.assertNotIn("INCIDENT_REMINDER_SELECTED", result.reason_codes)
+
+    def test_live_delivery_has_no_reminder_classification(self):
+        self.write([])
+        loader = mock.Mock(return_value=("fixture-user", "fixture-app"))
+        transport = mock.Mock(return_value={"status": 1})
+        result = runtime.process_notification(
+            event(), mode="LIVE_NOTIFICATION", ledger=self.store,
+            live_notification_confirmed=True,
+            credential_loader=loader, transport=transport,
+        )
+        self.assertTrue(result.delivery_succeeded)
+        self.assertNotIn("INCIDENT_REMINDER_SELECTED", result.reason_codes)
 
     def test_live_runtime_does_not_read_incident_snapshot(self):
         self.write([])
