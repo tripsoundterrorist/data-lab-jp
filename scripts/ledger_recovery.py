@@ -62,8 +62,15 @@ def _snapshot(path):
     elif any(type(row) is not dict or "ledger_version" not in row for row in rows):
         version = "UNKNOWN"
     else:
-        version = (ledger.LEDGER_VERSION if all(row["ledger_version"] == ledger.LEDGER_VERSION for row in rows)
-                   else "UNSUPPORTED")
+        versions = {row["ledger_version"] for row in rows}
+        if versions == {"0.1"}:
+            version = "0.1"
+        elif versions == {"0.2"}:
+            version = "0.2"
+        elif versions == {"0.1", "0.2"}:
+            version = "MIXED_0.1_0.2"
+        else:
+            version = "UNSUPPORTED"
     identities = [row.get("event_identity") for row in rows if type(row) is dict]
     safe_ids = [value for value in identities if type(value) is str and ledger.IDENTITY.fullmatch(value)]
     duplicates = len(safe_ids) - len(set(safe_ids)) if len(safe_ids) == len(rows) else None

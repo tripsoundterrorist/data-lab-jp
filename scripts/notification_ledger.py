@@ -9,6 +9,7 @@ import re
 import tempfile
 
 from unattended_job_queue import EVENT_TYPES
+import notification_ledger_record_v02 as record_codec
 
 
 LEDGER_VERSION = "0.1"
@@ -27,21 +28,7 @@ class LedgerError(Exception):
 
 
 def _valid_record(record):
-    if type(record) is not dict or set(record) != RECORD_FIELDS:
-        return False
-    if record["ledger_version"] != LEDGER_VERSION or record["delivery_status"] != "NOTIFICATION_DELIVERED":
-        return False
-    if type(record["event_identity"]) is not str or not IDENTITY.fullmatch(record["event_identity"]):
-        return False
-    if type(record["event_type"]) is not str or record["event_type"] not in EVENT_TYPES:
-        return False
-    stamp = record["recorded_at_utc"]
-    if type(stamp) is not str or not stamp.endswith("Z"):
-        return False
-    try:
-        return datetime.fromisoformat(stamp[:-1] + "+00:00").utcoffset().total_seconds() == 0
-    except (ValueError, AttributeError):
-        return False
+    return record_codec.validate_record(record) in {"0.1", "0.2"}
 
 
 def _unique_keys(pairs):
