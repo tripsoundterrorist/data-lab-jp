@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TESTS = ROOT / "tests"
 
 FAST_TEST_FILES = (
+    "test_development_gate_evidence.py",
     "test_durable_execution_adoption_coordinator.py",
     "test_durable_job_completion_coordinator.py",
     "test_github_actions_ci_contract.py",
