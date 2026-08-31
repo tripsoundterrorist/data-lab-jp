@@ -158,7 +158,7 @@ class NotificationLedgerTests(unittest.TestCase):
         self.execute(); text = self.path.read_text()
         for forbidden in ("fixture-user", "fixture-app", "fixture-response", "payload", "token", "message", "title", "request", "credential"):
             self.assertNotIn(forbidden, text)
-        self.assertEqual(set(self.records()[0]), ledger.RECORD_FIELDS)
+        self.assertEqual(set(self.records()[0]), ledger.record_codec.V02_FIELDS)
 
     def test_critical_unchanged(self):
         result = self.execute(event("CRITICAL_STOP"))
