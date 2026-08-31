@@ -10,6 +10,7 @@ from typing import Any, Callable, Mapping, MutableSet
 import pushover_notification_adapter as notification_adapter
 import pushover_sender
 import unattended_job_queue as queue
+import notification_incident_suppression_coordinator as incident_suppression
 from notification_ledger import LedgerError, ledger_for_mode
 from ledger_recovery import HEALTHY, RECOVERABLE_NO_WRITE, inspect_ledger
 
@@ -196,6 +197,31 @@ def _runtime(
                     return _result(mode, "NOTIFICATION_DUPLICATE_SUPPRESSED", event_type=event_type,
                                    selected=True, suppressed=True, approval=approval,
                                    reasons=("PERSISTENT_DUPLICATE_SUPPRESSED",))
+                incident = None
+                if mode == "MOCK_RUNTIME" and event_type != "CRITICAL_STOP":
+                    incident = incident_identity(value)
+                    if incident is None:
+                        raise LedgerError("LEDGER_INCIDENT_IDENTITY_INVALID")
+                    suppression = incident_suppression.coordinate(
+                        records=transaction.records_snapshot(),
+                        event_type=event_type,
+                        incident_identity=incident,
+                        occurred_at=value["occurred_at"],
+                    )
+                    if suppression.status == "COORDINATION_BLOCKED":
+                        return _result(
+                            mode, "NOTIFICATION_FAILED_SAFE",
+                            event_type=event_type, selected=True,
+                            approval=approval, reasons=suppression.reason_codes,
+                        )
+                    if not suppression.delivery_allowed:
+                        return _result(
+                            mode, "NOTIFICATION_DUPLICATE_SUPPRESSED",
+                            event_type=event_type, selected=True,
+                            suppressed=True, approval=approval,
+                            reasons=suppression.reason_codes +
+                            ("INCIDENT_DUPLICATE_SUPPRESSED",),
+                        )
                 delivery = _deliver(value, mode=mode, live_notification_confirmed=live_notification_confirmed,
                                     adapter_fn=adapter_fn, sender_fn=sender_fn,
                                     credential_loader=credential_loader, transport=transport,
@@ -203,7 +229,6 @@ def _runtime(
                 if (mode != "DRY_RUN" and delivery.runtime_status == "NOTIFICATION_DELIVERED"
                         and delivery.delivery_succeeded is True):
                     if mode == "MOCK_RUNTIME":
-                        incident = incident_identity(value)
                         if incident is None:
                             raise LedgerError("LEDGER_INCIDENT_IDENTITY_INVALID")
                         transaction.record_success_v02(
