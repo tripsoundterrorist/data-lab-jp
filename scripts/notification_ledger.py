@@ -158,6 +158,26 @@ class LedgerTransaction:
             self._ledger._replace(self._records + [record])
             self._records.append(record)
 
+    def record_success_v02(self, identity, incident_identity, event_type):
+        """Append one explicit v0.2 success; never upgrade existing records."""
+        if not self._writable:
+            raise LedgerError("LEDGER_READ_ONLY")
+        if self.lookup(identity) != "NEW":
+            return "NO_CHANGE"
+        record = record_codec.build_record(
+            event_identity=identity,
+            incident_identity=incident_identity,
+            event_type=event_type,
+            recorded_at_utc=datetime.now(timezone.utc).isoformat().replace(
+                "+00:00", "Z"
+            ),
+        )
+        if record is None:
+            raise LedgerError("LEDGER_RECORD_INVALID")
+        self._ledger._replace(self._records + [record])
+        self._records.append(record)
+        return "RECORDED"
+
 
 @contextmanager
 def ledger_for_mode(mode, supplied=None):
