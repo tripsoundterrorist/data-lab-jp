@@ -18,6 +18,7 @@ FAST_TEST_FILES = (
     "test_development_gate_coordinator.py",
     "test_development_gate_evidence.py",
     "test_development_next_gate_usage_permit.py",
+    "test_development_usage_protected_start_adapter.py",
     "test_development_usage_protection_permit.py",
     "test_durable_execution_adoption_coordinator.py",
     "test_durable_job_completion_coordinator.py",
