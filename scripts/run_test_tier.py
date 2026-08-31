@@ -22,6 +22,7 @@ FAST_TEST_FILES = (
     "test_github_actions_ci_contract.py",
     "test_notification_noise_control.py",
     "test_notification_incident_identity.py",
+    "test_notification_incident_suppression_coordinator.py",
     "test_notification_ledger_record_v02.py",
     "test_notification_ledger_mixed_read.py",
     "test_notification_ledger_v02_writer.py",
