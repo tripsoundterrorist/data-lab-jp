@@ -202,7 +202,15 @@ def _runtime(
                                     seen_event_ids=seen_event_ids, identity=identity)
                 if (mode != "DRY_RUN" and delivery.runtime_status == "NOTIFICATION_DELIVERED"
                         and delivery.delivery_succeeded is True):
-                    transaction.record_success(identity, event_type)
+                    if mode == "MOCK_RUNTIME":
+                        incident = incident_identity(value)
+                        if incident is None:
+                            raise LedgerError("LEDGER_INCIDENT_IDENTITY_INVALID")
+                        transaction.record_success_v02(
+                            identity, incident, event_type
+                        )
+                    else:
+                        transaction.record_success(identity, event_type)
                 return delivery
     except LedgerError as error:
         return _result(mode, "NOTIFICATION_FAILED_SAFE", event_type=event_type,
