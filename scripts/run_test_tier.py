@@ -32,6 +32,7 @@ FAST_TEST_FILES = (
     "test_durable_job_completion_coordinator.py",
     "test_github_actions_ci_contract.py",
     "test_notification_noise_control.py",
+    "test_notification_suppression_metrics.py",
     "test_notification_incident_identity.py",
     "test_notification_incident_suppression_coordinator.py",
     "test_notification_incident_suppression_runner.py",
