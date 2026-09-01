@@ -28,9 +28,11 @@ def awaiting_ci(**changes):
 
 def observation(**changes):
     base = adapter.CIObservation(
-        adapter.OBSERVATION_VERSION, "GITHUB_ACTIONS",
+        adapter.OBSERVATION_VERSION, adapter.SOURCE,
         adapter.APPROVED_REPOSITORY, adapter.APPROVED_WORKFLOW,
-        "pull_request", "completed", "success", SHA, 33352559792,
+        "pull_request", adapter.APPROVED_BASE, "codex/gate-a",
+        CHECKPOINT, "FULL", SHA,
+        "completed", "success", SHA, 33352559792,
         (
             adapter.CIJobObservation("fast", "completed", "success", "FAST"),
             adapter.CIJobObservation(
@@ -53,7 +55,8 @@ class DevelopmentGateCIObservationTests(unittest.TestCase):
             adapter.CIJobObservation("validation", "completed", "success", "FULL"),
         )
         result = adapter.observe(
-            awaiting_ci(), observation(event="push", jobs=jobs),
+            awaiting_ci(),
+            observation(event="push", branch="main", jobs=jobs),
             approval_required=True,
         )
         self.assertEqual(result.status, coordinator.ACTION_SUCCEEDED)
@@ -67,6 +70,18 @@ class DevelopmentGateCIObservationTests(unittest.TestCase):
         self.assertEqual(result.status, coordinator.ACTION_UNCERTAIN)
         self.assertIsNone(result.evidence)
 
+    def test_unknown_or_contradictory_status_fails_closed(self):
+        cases = (
+            observation(status="waiting", conclusion=None),
+            observation(status="in_progress", conclusion="success"),
+            observation(status="queued", conclusion="failure"),
+        )
+        for item in cases:
+            with self.subTest(item=item):
+                result = adapter.observe(awaiting_ci(), item, approval_required=False)
+                self.assertEqual(result.status, coordinator.ACTION_FAILED)
+                self.assertIsNone(result.evidence)
+
     def test_failed_ci_is_failed_safe(self):
         result = adapter.observe(
             awaiting_ci(), observation(conclusion="failure"),
@@ -78,6 +93,10 @@ class DevelopmentGateCIObservationTests(unittest.TestCase):
         cases = (
             observation(repository="other/repo"),
             observation(workflow_name="Deploy"),
+            observation(base_branch="release"),
+            observation(checkpoint_ref="c" * 64),
+            observation(test_tier="REGRESSION"),
+            observation(pushed_sha="c" * 40),
             observation(head_sha="c" * 40),
             observation(run_id=True),
             observation(event="schedule"),
@@ -90,6 +109,23 @@ class DevelopmentGateCIObservationTests(unittest.TestCase):
                 adapter.CIJobObservation(
                     "validation", "completed", "success", "REGRESSION"
                 ),
+            )),
+        )
+        for item in cases:
+            with self.subTest(item=item):
+                result = adapter.observe(awaiting_ci(), item, approval_required=False)
+                self.assertEqual(result.status, coordinator.ACTION_FAILED)
+                self.assertIsNone(result.evidence)
+
+    def test_event_refs_are_exact_and_fail_closed(self):
+        cases = (
+            observation(branch="main"),
+            observation(branch="codex/../main"),
+            observation(branch="codex/.hidden"),
+            observation(branch="codex/topic.lock"),
+            observation(event="push", branch="codex/gate-a", jobs=(
+                adapter.CIJobObservation("fast", "completed", "success", "FAST"),
+                adapter.CIJobObservation("validation", "completed", "success", "FULL"),
             )),
         )
         for item in cases:
