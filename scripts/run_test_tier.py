@@ -21,6 +21,7 @@ FAST_TEST_FILES = (
     "test_development_fresh_usage_protected_start_adapter.py",
     "test_development_next_gate_usage_permit.py",
     "test_development_remote_approval_durable_coordinator.py",
+    "test_development_remote_approval_e2e_mock.py",
     "test_development_remote_approval_replay_persistence.py",
     "test_development_remote_approval_replay_record.py",
     "test_development_remote_iphone_approval_observation.py",
