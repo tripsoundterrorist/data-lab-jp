@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from pathlib import Path
 import sys
 import tempfile
@@ -67,8 +68,12 @@ class NotificationIncidentSuppressionRunnerTests(unittest.TestCase):
         first = event()
         first["occurred_at"] = "2026-09-01T00:00:00+00:00"
         second = dict(first, occurred_at="2026-09-01T00:01:00+00:00")
-        self.assertEqual(self.execute(first).runtime_status,
-                         "NOTIFICATION_DELIVERED")
+        with mock.patch.object(ledger, "datetime") as clock:
+            clock.now.return_value = datetime.fromisoformat(
+                "2026-09-01T00:00:30+00:00"
+            )
+            self.assertEqual(self.execute(first).runtime_status,
+                             "NOTIFICATION_DELIVERED")
         restarted = ledger.NotificationLedger(self.path)
         result = self.execute(second, store=restarted)
         self.assertEqual(result.runtime_status,
