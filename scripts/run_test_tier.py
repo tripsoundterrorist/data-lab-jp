@@ -31,6 +31,7 @@ FAST_TEST_FILES = (
     "test_durable_execution_adoption_coordinator.py",
     "test_durable_job_completion_coordinator.py",
     "test_development_checkpoint_result_observation.py",
+    "test_development_commit_push_result_observation.py",
     "test_development_test_result_observation.py",
     "test_github_actions_ci_contract.py",
     "test_notification_noise_control.py",
