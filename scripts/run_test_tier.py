@@ -19,6 +19,7 @@ FAST_TEST_FILES = (
     "test_development_gate_evidence.py",
     "test_development_fresh_usage_protected_start_adapter.py",
     "test_development_next_gate_usage_permit.py",
+    "test_development_remote_approval_replay_record.py",
     "test_development_remote_iphone_approval_observation.py",
     "test_development_usage_evidence_freshness.py",
     "test_development_usage_protected_start_adapter.py",
