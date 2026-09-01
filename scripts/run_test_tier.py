@@ -16,6 +16,7 @@ TESTS = ROOT / "tests"
 FAST_TEST_FILES = (
     "test_development_durable_remote_approval_action_bridge.py",
     "test_development_gate_ci_observation.py",
+    "test_development_observation_chain_integration.py",
     "test_development_gate_coordinator.py",
     "test_development_gate_evidence.py",
     "test_development_fresh_usage_protected_start_adapter.py",
