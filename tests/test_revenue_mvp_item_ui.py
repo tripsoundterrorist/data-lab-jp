@@ -56,6 +56,34 @@ class RevenueMvpItemUiTests(unittest.TestCase):
         self.assertTrue(calls)
         self.assertTrue(all(re.fullmatch(r'"[a-z_]+"', arguments) for arguments in calls))
 
+    def test_runtime_revalidates_items_before_rendering(self):
+        self.assertIn("index.items.every(validateIndexItem)", self.script)
+        self.assertIn("validateDetailItem(detail.item)", self.script)
+        self.assertGreater(
+            self.script.index("state.items = index.items.slice()"),
+            self.script.index("index.items.every(validateIndexItem)"),
+        )
+        self.assertGreater(
+            self.script.index("renderDetail(detail.item)"),
+            self.script.index("validateDetailItem(detail.item)"),
+        )
+
+    def test_runtime_url_validation_rejects_active_and_local_targets(self):
+        self.assertIn('["http:", "https:"]', self.script)
+        self.assertIn('host !== "localhost"', self.script)
+        self.assertIn('!host.endsWith(".localhost")', self.script)
+        self.assertIn('!host.startsWith("127.")', self.script)
+        self.assertIn("!parsed.username && !parsed.password", self.script)
+        self.assertIn("safePublicUrl(item.image_url)", self.script)
+        self.assertIn("safePublicUrl(item.item_url)", self.script)
+
+    def test_runtime_schema_rejects_unknown_item_fields(self):
+        self.assertIn("Object.keys(value).length === expected.length", self.script)
+        self.assertIn("expected.every((key) => Object.hasOwn(value, key))", self.script)
+        self.assertIn('exactKeys(index, ["public_schema_version", "generated_at", "as_of", "items"])', self.script)
+        self.assertIn('exactKeys(detail, ["public_schema_version", "generated_at", "as_of", "item"])', self.script)
+        self.assertIn("new Set(index.items.map", self.script)
+
 
 if __name__ == "__main__":
     unittest.main()

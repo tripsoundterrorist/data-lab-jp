@@ -42,6 +42,99 @@ async function fetchJson(path) {
   return response.json();
 }
 
+function exactKeys(value, expected) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    && Object.keys(value).length === expected.length
+    && expected.every((key) => Object.hasOwn(value, key));
+}
+
+function boundedNumber(value) {
+  return Number.isFinite(value) && value >= 0 && value <= 100;
+}
+
+function validTimestamp(value) {
+  return typeof value === "string" && value.length > 0
+    && !Number.isNaN(new Date(value).getTime());
+}
+
+function safePublicUrl(value) {
+  if (value === null) return true;
+  if (typeof value !== "string" || !value || /[\\\s\u0000-\u001f\u007f]/u.test(value)) return false;
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.toLowerCase().replace(/\.$/u, "");
+    return ["http:", "https:"].includes(parsed.protocol)
+      && !parsed.username && !parsed.password
+      && host !== "localhost" && !host.endsWith(".localhost")
+      && host !== "::1" && host !== "[::1]" && !host.startsWith("127.");
+  } catch (_) {
+    return false;
+  }
+}
+
+function validLabel(value) {
+  return exactKeys(value, ["code", "en", "ja"])
+    && [value.code, value.en, value.ja].every((part) => typeof part === "string" && part.length > 0);
+}
+
+function validBand(value) {
+  return value === null || validLabel(value);
+}
+
+function validConfidence(value, detailed) {
+  const keys = detailed
+    ? ["score", "label", "version", "components", "warnings"]
+    : ["score", "label", "version"];
+  if (!exactKeys(value, keys) || !boundedNumber(value.score) || !validLabel(value.label) || value.version !== "0.1") return false;
+  if (!detailed) return true;
+  return exactKeys(value.components, ["freshness", "observation_depth", "metadata_completeness", "price_data", "temporal_confidence"])
+    && Object.values(value.components).every(boundedNumber)
+    && Array.isArray(value.warnings) && value.warnings.every((warning) => typeof warning === "string");
+}
+
+function validPriceSummary(value) {
+  return exactKeys(value, ["version", "observed_set_percentile", "percentile_method", "price_band"])
+    && value.version === "0.1"
+    && (value.observed_set_percentile === null || boundedNumber(value.observed_set_percentile))
+    && typeof value.percentile_method === "string"
+    && validBand(value.price_band);
+}
+
+function validCommonItem(item, detailed) {
+  return typeof item.public_id === "string" && /^itm_[0-9a-f]{24}$/u.test(item.public_id)
+    && typeof item.title === "string" && item.title.trim().length > 0
+    && safePublicUrl(item.image_url)
+    && (item.current_price === null || (Number.isInteger(item.current_price) && item.current_price >= 0))
+    && validTimestamp(item.last_observed_at)
+    && validConfidence(item.data_confidence, detailed);
+}
+
+function validateIndexItem(item) {
+  return exactKeys(item, ["public_id", "title", "image_url", "current_price", "data_confidence", "price_analysis", "last_observed_at"])
+    && validCommonItem(item, false) && validPriceSummary(item.price_analysis);
+}
+
+function validateDetailItem(item) {
+  if (!exactKeys(item, ["public_id", "title", "image_url", "item_url", "metadata", "current_price", "price_observed_at", "last_observed_at", "data_confidence", "price_analysis"])) return false;
+  if (!validCommonItem(item, true) || !safePublicUrl(item.item_url)) return false;
+  if (item.price_observed_at !== null && !validTimestamp(item.price_observed_at)) return false;
+  if (!exactKeys(item.metadata, ["maker", "series", "actress", "genre"])) return false;
+  const entitiesValid = Object.values(item.metadata).every((entities) => Array.isArray(entities)
+    && entities.every((entity) => exactKeys(entity, ["public_id", "name"])
+      && typeof entity.public_id === "string" && /^(?:mak|ser|act|gen)_[0-9a-f]{16}$/u.test(entity.public_id)
+      && typeof entity.name === "string" && entity.name.length > 0));
+  const analysis = item.price_analysis;
+  return entitiesValid
+    && exactKeys(analysis, ["version", "observed_set_percentile", "percentile_method", "price_band", "genre_comparisons", "maker_comparison", "price_history", "warnings"])
+    && validPriceSummary({ version: analysis.version, observed_set_percentile: analysis.observed_set_percentile, percentile_method: analysis.percentile_method, price_band: analysis.price_band })
+    && Array.isArray(analysis.genre_comparisons)
+    && exactKeys(analysis.maker_comparison, ["available", "comparisons"])
+    && typeof analysis.maker_comparison.available === "boolean"
+    && Array.isArray(analysis.maker_comparison.comparisons)
+    && analysis.price_history && typeof analysis.price_history === "object" && !Array.isArray(analysis.price_history)
+    && Array.isArray(analysis.warnings) && analysis.warnings.every((warning) => typeof warning === "string");
+}
+
 function validateManifest(manifest) {
   const valid = manifest
     && manifest.public_schema_version === EXPECTED_SCHEMA_VERSION
@@ -158,7 +251,12 @@ async function initializeIndex() {
     fetchJson(`${DATA_ROOT}/index.json`),
   ]);
   validateManifest(manifest);
-  if (!index || !Array.isArray(index.items) || index.items.length !== manifest.item_count) throw new Error("PUBLIC_DATA_INVALID");
+  if (!exactKeys(index, ["public_schema_version", "generated_at", "as_of", "items"])
+    || index.public_schema_version !== EXPECTED_SCHEMA_VERSION
+    || !validTimestamp(index.generated_at) || !validTimestamp(index.as_of)
+    || !Array.isArray(index.items) || index.items.length !== manifest.item_count
+    || new Set(index.items.map((item) => item?.public_id)).size !== index.items.length
+    || !index.items.every(validateIndexItem)) throw new Error("PUBLIC_DATA_INVALID");
   state.items = index.items.slice();
   document.getElementById("item-count").textContent = `${manifest.item_count} items`;
   document.getElementById("as-of").textContent = formatDate(manifest.as_of);
@@ -312,7 +410,10 @@ async function initializeDetail() {
   const manifest = await fetchJson(`${DATA_ROOT}/manifest.json`);
   validateManifest(manifest);
   const detail = await fetchJson(`${DATA_ROOT}/items/${id.slice(4, 6)}/${encodeURIComponent(id)}.json`);
-  if (!detail || detail.public_schema_version !== EXPECTED_SCHEMA_VERSION || detail.item?.public_id !== id) throw new Error("PUBLIC_DATA_INVALID");
+  if (!exactKeys(detail, ["public_schema_version", "generated_at", "as_of", "item"])
+    || detail.public_schema_version !== EXPECTED_SCHEMA_VERSION
+    || !validTimestamp(detail.generated_at) || !validTimestamp(detail.as_of)
+    || detail.item?.public_id !== id || !validateDetailItem(detail.item)) throw new Error("PUBLIC_DATA_INVALID");
   renderDetail(detail.item);
   showData();
   trackFunnelEvent("view_item");
