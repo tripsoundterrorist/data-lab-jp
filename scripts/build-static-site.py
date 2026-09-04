@@ -14,10 +14,21 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 ALLOWLIST = (
+    "404.html",
+    "about.html",
+    "analytics-consent.css",
+    "analytics-consent.js",
     "index.html",
     "column-price.html",
     "column-trend.html",
     "column-score.html",
+    "contact.html",
+    "disclosure.html",
+    "legal.css",
+    "privacy.html",
+    "robots.txt",
+    "sitemap.xml",
+    "terms.html",
     "items/index.html",
     "items/item.html",
     "items/items.css",
@@ -153,7 +164,7 @@ def read_known_secret_values(repo_root: Path) -> tuple[bytes, ...]:
 
 
 def collect_sources(repo_root: Path) -> dict[str, bytes]:
-    if len(ALLOWLIST) != 8 or len(set(ALLOWLIST)) != 8:
+    if not ALLOWLIST or len(ALLOWLIST) != len(set(ALLOWLIST)):
         raise ValidationError("ALLOWLIST_INVALID")
     files: dict[str, bytes] = {}
     for name in ALLOWLIST:
@@ -179,7 +190,7 @@ def collect_sources(repo_root: Path) -> dict[str, bytes]:
 
 
 def validate_files(files: dict[str, bytes], secrets: tuple[bytes, ...]) -> None:
-    if len(files) != 8 or set(files) != set(ALLOWLIST):
+    if len(files) != len(ALLOWLIST) or set(files) != set(ALLOWLIST):
         raise ValidationError("OUTPUT_SET_MISMATCH")
     for name, content in files.items():
         validate_relative_name(name)
@@ -212,7 +223,7 @@ def validate_staging(staging: Path, files: dict[str, bytes]) -> None:
             raise ValidationError("STAGING_NON_FILE_FOUND")
         validate_relative_name(relative)
         found[relative] = entry
-    if len(found) != 8 or set(found) != set(ALLOWLIST):
+    if len(found) != len(ALLOWLIST) or set(found) != set(ALLOWLIST):
         raise ValidationError("STAGING_SET_MISMATCH")
     for name, expected in files.items():
         try:
