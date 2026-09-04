@@ -11,6 +11,37 @@ class RevenueMvpItemUiTests(unittest.TestCase):
         self.index = (ROOT / "items/index.html").read_text(encoding="utf-8")
         self.detail = (ROOT / "items/item.html").read_text(encoding="utf-8")
         self.script = (ROOT / "items/items.js").read_text(encoding="utf-8")
+        self.styles = (ROOT / "items/items.css").read_text(encoding="utf-8")
+
+    def test_item_routes_support_keyboard_navigation(self):
+        for document in (self.index, self.detail):
+            self.assertIn('class="skip-link" href="#main-content"', document)
+            self.assertIn('<main id="main-content">', document)
+        self.assertIn(":focus-visible", self.styles)
+        self.assertIn("outline: 3px solid #fff", self.styles)
+
+    def test_mobile_controls_have_minimum_touch_targets(self):
+        for selector in (
+            ".controls input, .controls select",
+            ".detail-link, .back-link",
+            ".pagination button",
+            ".comparison-toggle",
+            ".official-link",
+            ".policy-link",
+        ):
+            rule = self.styles.split(selector, 1)[1].split("}", 1)[0]
+            self.assertIn("min-height: 44px", rule)
+
+    def test_dynamic_results_use_bounded_live_regions(self):
+        self.assertIn('id="result-count" role="status" aria-live="polite"', self.index)
+        self.assertIn('id="page-status" aria-live="polite"', self.index)
+        self.assertNotIn('id="item-grid" class="item-grid" aria-live=', self.index)
+        self.assertNotIn('id="detail-root" class="detail-root" aria-live=', self.detail)
+
+    def test_narrow_layout_reduces_padding_and_wraps_titles(self):
+        self.assertIn("@media (max-width: 430px)", self.styles)
+        self.assertIn("main { padding-inline: 14px; }", self.styles)
+        self.assertIn("overflow-wrap: anywhere", self.styles)
 
     def test_unreleased_item_routes_remain_noindex(self):
         for document in (self.index, self.detail):
