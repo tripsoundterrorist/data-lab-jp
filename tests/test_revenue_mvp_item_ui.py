@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import unittest
 
 
@@ -37,6 +38,23 @@ class RevenueMvpItemUiTests(unittest.TestCase):
     def test_affiliate_url_is_not_read_by_browser_code(self):
         self.assertNotIn("affiliate_url", self.script.casefold())
         self.assertNotIn("affiliateid", self.script.casefold())
+
+    def test_funnel_events_run_only_after_public_data_validation(self):
+        self.assertGreater(
+            self.script.index('trackFunnelEvent("view_item_list")'),
+            self.script.index("validateManifest(manifest)"),
+        )
+        self.assertGreater(
+            self.script.index('trackFunnelEvent("view_item")'),
+            self.script.rindex("validateManifest(manifest)"),
+        )
+        self.assertIn('trackFunnelEvent("select_item")', self.script)
+        self.assertIn('trackFunnelEvent("outbound_product_click")', self.script)
+
+    def test_funnel_events_do_not_send_product_attributes(self):
+        calls = re.findall(r'trackFunnelEvent\(([^)]*)\)', self.script)[1:]
+        self.assertTrue(calls)
+        self.assertTrue(all(re.fullmatch(r'"[a-z_]+"', arguments) for arguments in calls))
 
 
 if __name__ == "__main__":

@@ -5,6 +5,12 @@
   const STORAGE_KEY = "datalabx.analytics-consent.v1";
   const GRANTED = "granted";
   const DENIED = "denied";
+  const ALLOWED_EVENTS = new Set([
+    "view_item_list",
+    "select_item",
+    "view_item",
+    "outbound_product_click"
+  ]);
   let analyticsLoaded = false;
 
   function readChoice() {
@@ -41,7 +47,13 @@
     window.gtag("js", new Date());
     window.gtag("config", MEASUREMENT_ID, {
       allow_google_signals: false,
-      allow_ad_personalization_signals: false
+      allow_ad_personalization_signals: false,
+      send_page_view: false
+    });
+    window.gtag("event", "page_view", {
+      page_location: window.location.origin + window.location.pathname,
+      page_path: window.location.pathname,
+      page_referrer: ""
     });
 
     const script = document.createElement("script");
@@ -50,6 +62,18 @@
     script.dataset.dataLabAnalytics = "true";
     document.head.appendChild(script);
   }
+
+  function trackEvent(name) {
+    if (
+      readChoice() !== GRANTED
+      || !ALLOWED_EVENTS.has(name)
+      || typeof window.gtag !== "function"
+    ) return false;
+    window.gtag("event", name);
+    return true;
+  }
+
+  window.dataLabAnalytics = Object.freeze({ trackEvent });
 
   function createControls() {
     const panel = document.createElement("section");

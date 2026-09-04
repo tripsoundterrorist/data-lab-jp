@@ -64,6 +64,32 @@ class AnalyticsConsentTests(unittest.TestCase):
         self.assertIn("localStorage", privacy)
         self.assertIn("アクセス解析設定", privacy)
 
+    def test_funnel_events_are_strictly_allowlisted_and_parameter_free(self):
+        for event in (
+            "view_item_list", "select_item", "view_item",
+            "outbound_product_click",
+        ):
+            self.assertIn(f'"{event}"', self.script)
+        self.assertIn("!ALLOWED_EVENTS.has(name)", self.script)
+        self.assertIn('window.gtag("event", name);', self.script)
+        self.assertNotIn('window.gtag("event", name,', self.script)
+
+    def test_event_tracking_requires_current_granted_consent(self):
+        self.assertIn("readChoice() !== GRANTED", self.script)
+        self.assertIn('typeof window.gtag !== "function"', self.script)
+        self.assertIn("Object.freeze({ trackEvent })", self.script)
+
+    def test_page_view_strips_query_fragment_and_referrer(self):
+        self.assertIn("send_page_view: false", self.script)
+        self.assertIn(
+            "page_location: window.location.origin + window.location.pathname",
+            self.script,
+        )
+        self.assertIn("page_path: window.location.pathname", self.script)
+        self.assertIn('page_referrer: ""', self.script)
+        self.assertNotIn("window.location.search", self.script)
+        self.assertNotIn("window.location.hash", self.script)
+
 
 if __name__ == "__main__":
     unittest.main()

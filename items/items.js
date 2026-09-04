@@ -6,6 +6,14 @@ const EXPECTED_PUBLICATION_STATUS = "public";
 const PAGE_SIZE = 24;
 const state = { items: [], filtered: [], page: 1 };
 
+function trackFunnelEvent(name) {
+  try {
+    window.dataLabAnalytics?.trackEvent(name);
+  } catch (_) {
+    // Measurement must never break the product experience.
+  }
+}
+
 function element(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -93,6 +101,7 @@ function card(item) {
   body.append(metrics, element("p", "observed-at", `最終観測 ${formatDate(item.last_observed_at)}`));
   const link = element("a", "detail-link", "詳細を見る");
   link.href = `item.html?id=${encodeURIComponent(item.public_id)}`;
+  link.addEventListener("click", () => trackFunnelEvent("select_item"));
   body.append(link);
   article.append(body);
   return article;
@@ -160,6 +169,7 @@ async function initializeIndex() {
   document.getElementById("next-page").addEventListener("click", () => { state.page += 1; renderPage(); });
   showData();
   applyFilters();
+  trackFunnelEvent("view_item_list");
 }
 
 function definitionList(entries) {
@@ -271,6 +281,7 @@ function renderDetail(item) {
     official.href = item.item_url;
     official.target = "_blank";
     official.rel = "noopener noreferrer";
+    official.addEventListener("click", () => trackFunnelEvent("outbound_product_click"));
     external.append(official);
     copy.append(external);
   }
@@ -304,6 +315,7 @@ async function initializeDetail() {
   if (!detail || detail.public_schema_version !== EXPECTED_SCHEMA_VERSION || detail.item?.public_id !== id) throw new Error("PUBLIC_DATA_INVALID");
   renderDetail(detail.item);
   showData();
+  trackFunnelEvent("view_item");
 }
 
 document.addEventListener("DOMContentLoaded", () => {
