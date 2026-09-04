@@ -55,6 +55,10 @@ def _load_static_builder() -> Any:
 
 def _validate_shell(files: dict[str, bytes]) -> None:
     required_markers = {
+        "_headers": (
+            b"Content-Security-Policy:", b"frame-ancestors 'none'",
+            b"X-Content-Type-Options: nosniff",
+        ),
         "index.html": (b'https://datalabx.jp/', b'/analytics-consent.js'),
         "404.html": (b'content="noindex"',),
         "privacy.html": (b'Google Analytics', b'localStorage'),

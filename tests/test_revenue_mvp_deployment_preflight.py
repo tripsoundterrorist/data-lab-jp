@@ -31,7 +31,7 @@ class RevenueMvpDeploymentPreflightTests(unittest.TestCase):
         self.assertEqual(result.deployment_preflight, "NOT_EVALUATED_NO_PUBLIC_DATA")
         self.assertEqual(result.public_data_state, "UNPUBLISHED")
         self.assertFalse(result.public_data_deployment_allowed)
-        self.assertEqual(result.shell_file_count, 19)
+        self.assertEqual(result.shell_file_count, 20)
 
     def test_candidate_with_closed_publication_gate_is_blocked(self):
         with tempfile.TemporaryDirectory() as temporary:
