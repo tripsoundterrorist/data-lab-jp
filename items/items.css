@@ -12,10 +12,12 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; color: var(--text); background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; line-height: 1.6; }
+a { color: var(--accent); }
 button, input, select { font: inherit; }
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 18px 24px; border-bottom: 1px solid var(--line); }
 .topbar h1 { margin: 2px 0 0; font-size: 1.35rem; }
 .eyebrow, .section-label { margin: 0; color: var(--muted); font-size: .7rem; letter-spacing: .14em; }
+.brand-link { color: inherit; text-decoration: none; }
 .publication-status { padding: 6px 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; font-size: .72rem; }
 main { width: min(1180px, 100%); margin: auto; padding: 20px 18px 60px; }
 .panel, .item-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
@@ -75,6 +77,15 @@ main { width: min(1180px, 100%); margin: auto; padding: 20px 18px 60px; }
 .comparison p { margin: 2px 0; font-size: .82rem; }
 .comparison-toggle { margin-top: 12px; padding: 7px 10px; color: var(--accent); background: transparent; border: 1px solid var(--line); border-radius: 6px; }
 .official-link { display: inline-flex; min-height: 38px; align-items: center; color: var(--accent); text-decoration: none; }
+.external-link-block { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.external-link-note { max-width: 560px; margin: 0 0 6px; color: var(--muted); font-size: .78rem; }
+.data-disclosure { padding: 20px; }
+.data-disclosure h2 { margin: 0 0 10px; font-size: 1rem; }
+.data-disclosure p { color: var(--muted); font-size: .84rem; }
+.policy-link { display: inline-flex; min-height: 38px; align-items: center; }
+.site-footer { padding: 28px 18px 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
+.site-footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.site-footer a { color: var(--muted); }
 
 @media (max-width: 950px) { .item-grid { grid-template-columns: repeat(3, 1fr); } .controls { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 700px) { .intro, .detail-hero, .detail-grid { grid-template-columns: 1fr; } .controls { grid-template-columns: 1fr; } .item-grid { grid-template-columns: repeat(2, 1fr); } .set-summary { width: 100%; } }
