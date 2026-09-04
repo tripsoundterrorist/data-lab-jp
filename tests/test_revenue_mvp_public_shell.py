@@ -63,13 +63,29 @@ class RevenueMvpPublicShellTests(unittest.TestCase):
         )}
         self.assertTrue(required <= links)
 
+    def test_home_links_to_fail_closed_product_catalog(self):
+        document = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertIn('href="/items/"', document)
+        self.assertIn("作品データの公開状況を見る", document)
+        self.assertIn("公開前のデータは表示しません", document)
+        self.assertNotIn("作品データ A", document)
+        self.assertNotIn("実データ取得前の表示確認用", document)
+
+    def test_home_analytics_copy_matches_explicit_consent_behavior(self):
+        document = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertIn("明示的に同意いただいた場合に限り", document)
+        self.assertIn("拒否しても基本機能を利用でき", document)
+
     def test_internal_absolute_links_resolve_to_tracked_files(self):
         for page in [*INDEXABLE, "404.html"]:
             for link in parse(page).links:
                 if not link.startswith("/") or link == "/":
                     continue
                 with self.subTest(page=page, link=link):
-                    self.assertTrue((ROOT / link.lstrip("/")).is_file())
+                    target = ROOT / link.lstrip("/")
+                    if link.endswith("/"):
+                        target = target / "index.html"
+                    self.assertTrue(target.is_file())
 
     def test_404_is_not_indexable(self):
         self.assertIn(("robots", "noindex"), parse("404.html").meta)
