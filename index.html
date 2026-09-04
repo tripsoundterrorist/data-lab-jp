@@ -164,6 +164,23 @@
       margin-top: 25px;
     }
 
+    .primary-link {
+      display: inline-flex;
+      min-height: 44px;
+      margin-top: 18px;
+      padding: 10px 16px;
+      align-items: center;
+      border: 1px solid #6b7280;
+      border-radius: 8px;
+      color: #f5f5f5;
+      text-decoration: none;
+    }
+
+    .primary-link:focus-visible {
+      outline: 3px solid #93c5fd;
+      outline-offset: 3px;
+    }
+
     @media (max-width: 700px) {
       .hero {
         padding: 70px 0 50px;
@@ -207,6 +224,8 @@
     <p class="notice">
       現在ベータ版を開発中です。分析データは順次公開予定です。
     </p>
+
+    <a class="primary-link" href="/items/">作品データの公開状況を見る →</a>
   </div>
 
   <div class="grid">
@@ -270,9 +289,9 @@
     <h2>プライバシーポリシー</h2>
 
     <p>
-      当サイトでは、サービス改善やアクセス状況の把握のため、
-      アクセス解析ツール等を利用する場合があります。
-      取得される情報は個人を直接特定するものではありません。
+      当サイトでは、明示的に同意いただいた場合に限り、
+      サービス改善のためGoogle Analyticsを利用します。
+      拒否しても基本機能を利用でき、設定はいつでも変更できます。
     </p>
 
     <p>
@@ -359,43 +378,11 @@
   </div>
 </section>
   <section>
-  <h2>データ表示サンプル</h2>
-
-  <p>
-    実データ取得前の表示確認用です。API接続後、この部分に実際の作品情報を表示します。
-  </p>
-
-  <div class="grid">
-
-    <div class="card">
-      <h2>作品データ A</h2>
-      <p>価格：未取得</p>
-      <p>評価：未取得</p>
-      <p>レビュー数：未取得</p>
-      <p>トレンド：未取得</p>
-      <span class="coming">API接続待ち</span>
-    </div>
-
-    <div class="card">
-      <h2>作品データ B</h2>
-      <p>価格：未取得</p>
-      <p>評価：未取得</p>
-      <p>レビュー数：未取得</p>
-      <p>トレンド：未取得</p>
-      <span class="coming">API接続待ち</span>
-    </div>
-
-    <div class="card">
-      <h2>作品データ C</h2>
-      <p>価格：未取得</p>
-      <p>評価：未取得</p>
-      <p>レビュー数：未取得</p>
-      <p>トレンド：未取得</p>
-      <span class="coming">API接続待ち</span>
-    </div>
-
-  </div>
-</section></main>
+    <h2>作品データ</h2>
+    <p>公開前のデータは表示しません。検証済みデータがない場合、作品データページは「公開準備中」と表示されます。</p>
+    <a class="primary-link" href="/items/">作品データページへ →</a>
+  </section>
+</main>
 
 <footer>
   <div class="footer-inner">
