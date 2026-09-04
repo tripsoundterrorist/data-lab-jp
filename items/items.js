@@ -265,11 +265,14 @@ function renderDetail(item) {
   const copy = element("div", "detail-copy");
   copy.append(element("p", "section-label", "OBSERVATION DETAIL"), element("h2", "detail-title", item.title), element("p", "price", formatPrice(item.current_price)), element("p", "muted", `最終観測 ${formatDate(item.last_observed_at)}`));
   if (item.item_url) {
-    const official = element("a", "official-link", "公式ページを見る");
+    const external = element("div", "external-link-block");
+    external.append(element("p", "external-link-note", "外部の公式商品ページへ移動します。価格・販売状況は移動先でご確認ください。"));
+    const official = element("a", "official-link", "公式商品ページを見る（外部サイト）");
     official.href = item.item_url;
     official.target = "_blank";
     official.rel = "noopener noreferrer";
-    copy.append(official);
+    external.append(official);
+    copy.append(external);
   }
   hero.append(copy);
   root.append(hero);
@@ -280,6 +283,16 @@ function renderDetail(item) {
   grid.append(comparisonPanel("ジャンル内価格比較", "ジャンル", item.price_analysis.genre_comparisons, item.metadata.genre, 20));
   grid.append(comparisonPanel("メーカー内価格比較", "メーカー", item.price_analysis.maker_comparison.comparisons, item.metadata.maker, 10));
   root.append(grid);
+  const disclosure = element("aside", "panel data-disclosure");
+  disclosure.append(
+    element("h2", "", "データ表示について"),
+    element("p", "", "表示内容はDATA LABの観測データに基づく独自集計であり、DMM/FANZA公式のランキングや作品評価ではありません。"),
+    element("p", "", "取得できない情報は推測で補完しません。観測時刻や標本数を確認し、最終的な価格・販売状況は公式商品ページでご確認ください。"),
+  );
+  const policy = element("a", "policy-link", "広告・データ表示方針を確認する");
+  policy.href = "/disclosure.html";
+  disclosure.append(policy);
+  root.append(disclosure);
 }
 
 async function initializeDetail() {
