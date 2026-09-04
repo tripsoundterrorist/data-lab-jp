@@ -1,5 +1,7 @@
 from html.parser import HTMLParser
+import json
 from pathlib import Path
+import re
 import unittest
 import xml.etree.ElementTree as ET
 
@@ -106,6 +108,36 @@ class RevenueMvpPublicShellTests(unittest.TestCase):
         namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
         locations = {node.text for node in root.findall("s:url/s:loc", namespace)}
         self.assertEqual(locations, set(INDEXABLE.values()))
+
+    def test_structured_data_matches_visible_page_metadata(self):
+        for path in ("index.html", "column-price.html", "column-trend.html", "column-score.html"):
+            with self.subTest(path=path):
+                document = (ROOT / path).read_text(encoding="utf-8")
+                blocks = re.findall(
+                    r'<script type="application/ld\+json">(.*?)</script>',
+                    document,
+                    flags=re.DOTALL,
+                )
+                self.assertEqual(len(blocks), 1)
+                data = json.loads(blocks[0])
+                canonical = dict(parse(path).meta)["canonical"]
+                self.assertEqual(data["url"], canonical)
+                self.assertEqual(data["@context"], "https://schema.org")
+                if path == "index.html":
+                    self.assertEqual(data["@type"], "WebSite")
+                else:
+                    self.assertEqual(data["@type"], "Article")
+                    self.assertEqual(data["mainEntityOfPage"], canonical)
+                    self.assertIn(data["headline"], document)
+                    self.assertIn(data["description"], document)
+
+    def test_unreleased_items_have_no_product_or_rating_schema(self):
+        documents = "".join(
+            (ROOT / path).read_text(encoding="utf-8")
+            for path in ("items/index.html", "items/item.html", "items/items.js")
+        )
+        for schema_type in ('"Product"', '"Offer"', '"AggregateRating"'):
+            self.assertNotIn(schema_type, documents)
 
 
 if __name__ == "__main__":
