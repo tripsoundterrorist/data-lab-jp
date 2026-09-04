@@ -14,6 +14,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 ALLOWLIST = (
+    "_headers",
     "404.html",
     "about.html",
     "analytics-consent.css",
