@@ -11,9 +11,10 @@ from typing import Any
 
 import publication_readiness
 import revenue_mvp_deployment_preflight
+import revenue_mvp_search_console_gate
 
 
-GATE_VERSION = "0.1"
+GATE_VERSION = "0.2"
 READY_FOR_RELEASE_APPROVAL = "READY_FOR_RELEASE_APPROVAL"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
@@ -25,6 +26,8 @@ class ReleaseGateResult:
     status: str
     production_release_allowed: bool
     shell_status: str
+    search_console_status: str
+    public_shell_indexing_allowed: bool
     public_data_state: str
     public_data_deployment_allowed: bool
     publication_readiness: str
@@ -50,13 +53,20 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             publication_readiness.current_input(),
             generated_at=datetime.now(timezone.utc),
         )
+        search_console = revenue_mvp_search_console_gate.run_gate()
         ready = (
             deployment.status == revenue_mvp_deployment_preflight.READY
             and deployment.public_data_deployment_allowed is True
             and publication.overall_readiness == publication_readiness.READY
             and publication.overall_eligible is True
+            and search_console.status == revenue_mvp_search_console_gate.READY
+            and search_console.public_shell_indexing_allowed is True
         )
-        reasons = set(deployment.reason_codes) | set(publication.reason_codes)
+        reasons = (
+            set(deployment.reason_codes)
+            | set(publication.reason_codes)
+            | set(search_console.reason_codes)
+        )
         if not ready:
             reasons.add("REVENUE_MVP_RELEASE_BLOCKED")
         return ReleaseGateResult(
@@ -64,16 +74,19 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             READY_FOR_RELEASE_APPROVAL if ready else BLOCKED,
             False,  # A separate explicit approval is always required.
             deployment.status,
+            search_console.status,
+            search_console.public_shell_indexing_allowed,
             deployment.public_data_state,
             deployment.public_data_deployment_allowed,
             publication.overall_readiness,
             ready,
             tuple(sorted(reasons)),
-            publication.next_actions,
+            tuple(dict.fromkeys(publication.next_actions + search_console.next_actions)),
         )
     except Exception:
         return ReleaseGateResult(
             GATE_VERSION, FAIL_CLOSED, False, "UNKNOWN", "UNKNOWN", False,
+            "UNKNOWN", False,
             publication_readiness.FAIL_CLOSED, False,
             ("RELEASE_GATE_INTERNAL_ERROR",), (),
         )
