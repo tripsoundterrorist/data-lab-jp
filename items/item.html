@@ -12,6 +12,7 @@
   <script src="items.js" defer></script>
 </head>
 <body data-page="detail">
+  <a class="skip-link" href="#main-content">本文へ移動</a>
   <header class="topbar">
     <div>
       <p class="eyebrow"><a class="brand-link" href="/">DATA LAB</a> / ITEMS</p>
@@ -19,13 +20,13 @@
     </div>
     <div id="publication-status" class="publication-status" aria-live="polite">公開準備中</div>
   </header>
-  <main>
+  <main id="main-content">
     <p><a class="back-link" href="index.html">← 一覧へ戻る</a></p>
     <section id="data-fallback" class="fallback panel" aria-live="polite">
       <h2>データ公開準備中</h2>
       <p>公開可能なデータの確認を進めています。準備が整うまでお待ちください。</p>
     </section>
-    <article id="detail-root" class="detail-root" aria-live="polite" hidden></article>
+    <article id="detail-root" class="detail-root" hidden></article>
   </main>
   <footer class="site-footer">
     <nav aria-label="サイト情報">

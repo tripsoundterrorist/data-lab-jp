@@ -12,6 +12,7 @@
   <script src="items.js" defer></script>
 </head>
 <body data-page="index">
+  <a class="skip-link" href="#main-content">本文へ移動</a>
   <header class="topbar">
     <div>
       <p class="eyebrow"><a class="brand-link" href="/">DATA LAB</a> / ITEMS</p>
@@ -20,7 +21,7 @@
     <div id="publication-status" class="publication-status" aria-live="polite">公開準備中</div>
   </header>
 
-  <main>
+  <main id="main-content">
     <section class="intro panel">
       <div>
         <p class="section-label">PUBLIC DATA</p>
@@ -46,9 +47,9 @@
         <label><span>観測レベル</span><select id="confidence-filter"><option value="">すべて</option></select></label>
         <label><span>価格位置帯</span><select id="band-filter"><option value="">すべて</option></select></label>
       </section>
-      <div class="results-head"><p id="result-count">—</p><p class="scope-note">価格位置はDATA LAB観測セット内のみの参考値です。</p></div>
-      <section id="item-grid" class="item-grid" aria-live="polite"></section>
-      <nav class="pagination" aria-label="ページ移動"><button id="prev-page" type="button">前へ</button><span id="page-status">—</span><button id="next-page" type="button">次へ</button></nav>
+      <div class="results-head"><p id="result-count" role="status" aria-live="polite">—</p><p class="scope-note">価格位置はDATA LAB観測セット内のみの参考値です。</p></div>
+      <section id="item-grid" class="item-grid" aria-label="作品データ一覧"></section>
+      <nav class="pagination" aria-label="ページ移動"><button id="prev-page" type="button">前へ</button><span id="page-status" aria-live="polite">—</span><button id="next-page" type="button">次へ</button></nav>
     </div>
   </main>
   <footer class="site-footer">
