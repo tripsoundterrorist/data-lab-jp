@@ -8,14 +8,14 @@ ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_ORIGIN = "https://datalabx.jp"
 INDEXABLE = {
     "index.html": f"{PUBLIC_ORIGIN}/",
-    "column-price.html": f"{PUBLIC_ORIGIN}/column-price.html",
-    "column-trend.html": f"{PUBLIC_ORIGIN}/column-trend.html",
-    "column-score.html": f"{PUBLIC_ORIGIN}/column-score.html",
-    "about.html": f"{PUBLIC_ORIGIN}/about.html",
-    "disclosure.html": f"{PUBLIC_ORIGIN}/disclosure.html",
-    "privacy.html": f"{PUBLIC_ORIGIN}/privacy.html",
-    "terms.html": f"{PUBLIC_ORIGIN}/terms.html",
-    "contact.html": f"{PUBLIC_ORIGIN}/contact.html",
+    "column-price.html": f"{PUBLIC_ORIGIN}/column-price",
+    "column-trend.html": f"{PUBLIC_ORIGIN}/column-trend",
+    "column-score.html": f"{PUBLIC_ORIGIN}/column-score",
+    "about.html": f"{PUBLIC_ORIGIN}/about",
+    "disclosure.html": f"{PUBLIC_ORIGIN}/disclosure",
+    "privacy.html": f"{PUBLIC_ORIGIN}/privacy",
+    "terms.html": f"{PUBLIC_ORIGIN}/terms",
+    "contact.html": f"{PUBLIC_ORIGIN}/contact",
 }
 
 
@@ -58,8 +58,7 @@ class RevenueMvpPublicShellTests(unittest.TestCase):
     def test_legal_and_transparency_routes_are_linked_from_home(self):
         links = set(parse("index.html").links)
         required = {f"/{path}" for path in (
-            "about.html", "disclosure.html", "privacy.html", "terms.html",
-            "contact.html",
+            "about", "disclosure", "privacy", "terms", "contact",
         )}
         self.assertTrue(required <= links)
 
@@ -85,7 +84,13 @@ class RevenueMvpPublicShellTests(unittest.TestCase):
                     target = ROOT / link.lstrip("/")
                     if link.endswith("/"):
                         target = target / "index.html"
+                    elif not target.suffix:
+                        target = target.with_suffix(".html")
                     self.assertTrue(target.is_file())
+
+    def test_indexable_canonicals_match_cloudflare_extensionless_routes(self):
+        for canonical in INDEXABLE.values():
+            self.assertFalse(canonical.endswith(".html"), canonical)
 
     def test_404_is_not_indexable(self):
         self.assertIn(("robots", "noindex"), parse("404.html").meta)

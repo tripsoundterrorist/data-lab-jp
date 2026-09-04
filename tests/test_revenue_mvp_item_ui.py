@@ -49,13 +49,13 @@ class RevenueMvpItemUiTests(unittest.TestCase):
 
     def test_item_routes_use_production_canonicals(self):
         self.assertIn('href="https://datalabx.jp/items/"', self.index)
-        self.assertIn('href="https://datalabx.jp/items/item.html"', self.detail)
+        self.assertIn('href="https://datalabx.jp/items/item"', self.detail)
         self.assertNotIn("pages.dev", self.index + self.detail)
 
     def test_item_routes_link_required_site_information(self):
         for document in (self.index, self.detail):
             for path in ("about", "disclosure", "privacy", "terms", "contact"):
-                self.assertIn(f'href="/{path}.html"', document)
+                self.assertIn(f'href="/{path}"', document)
 
     def test_external_product_link_is_explicit_and_safe(self):
         self.assertIn("公式商品ページを見る（外部サイト）", self.script)
@@ -64,7 +64,7 @@ class RevenueMvpItemUiTests(unittest.TestCase):
 
     def test_detail_discloses_independent_observation_scope(self):
         self.assertIn("DMM/FANZA公式のランキングや作品評価ではありません", self.script)
-        self.assertIn('policy.href = "/disclosure.html"', self.script)
+        self.assertIn('policy.href = "/disclosure"', self.script)
 
     def test_affiliate_url_is_not_read_by_browser_code(self):
         self.assertNotIn("affiliate_url", self.script.casefold())
