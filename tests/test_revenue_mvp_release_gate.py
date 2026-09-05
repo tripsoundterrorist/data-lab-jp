@@ -29,7 +29,10 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertIn("REVENUE_MVP_RELEASE_BLOCKED", result.reason_codes)
         self.assertIn("WAIT_FOR_DMM_LIFECYCLE_RESPONSE", result.next_actions)
         self.assertIn("WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE", result.next_actions)
-        self.assertIn("SUBMIT_SITEMAP_IN_SEARCH_CONSOLE", result.next_actions)
+        self.assertNotIn("SUBMIT_SITEMAP_IN_SEARCH_CONSOLE", result.next_actions)
+        self.assertNotIn("REQUEST_HOME_URL_INSPECTION", result.next_actions)
+        self.assertIn("MONITOR_SITEMAP_PROCESSING", result.next_actions)
+        self.assertIn("MONITOR_HOME_INDEX_STATUS", result.next_actions)
         self.assertIn("DO_NOT_REQUEST_ITEM_INDEXING", result.next_actions)
         self.assertIn("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE", result.next_actions)
 
