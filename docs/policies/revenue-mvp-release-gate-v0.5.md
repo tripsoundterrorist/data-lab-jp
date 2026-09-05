@@ -1,4 +1,4 @@
-# Revenue MVP Release Gate v0.4
+# Revenue MVP Release Gate v0.5
 
 `scripts/revenue_mvp_release_gate.py` は、静的shell、任意のPublic Data候補、
 公式確認、Publication Gateを一つのread-only結果へ集約する。ビルド、配備、
@@ -7,6 +7,11 @@
 Search Console preflightも必須条件として集約する。固定公開ページのtitle、description、
 canonical、robots、sitemap、JSON-LDが不整合なら、他の条件が揃っていてもfail-closedとする。
 固定ページの送信準備完了は商品ページの公開・インデックス許可を意味しない。
+
+read-only本番スモークも必須条件として集約する。正式ドメインの固定14 URLについて、
+安全な状態、確認数、失敗URL数、失敗区分数だけを保持する。URL、本文、例外、redirect先、
+credentialはRelease Gateへ取り込まない。本番スモークが失敗または不明なら、他の条件が
+揃っていても公開候補にしない。
 
 Issue #66 Official Answer Matrixのcore 8論点も必須条件として集約する。`UNKNOWN`、
 `FOLLOW_UP_REQUIRED`、条件未確認の`CONDITIONALLY_ALLOWED`がcoreに残る場合は公開候補にしない。
