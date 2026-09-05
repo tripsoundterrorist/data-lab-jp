@@ -34,7 +34,11 @@ def validation(valid=True):
 
 class Builder:
     def __init__(self):
-        self.files = {"manifest.json": b"{}", "index.json": b"{}"}
+        self.files = {
+            "manifest.json": b"{}",
+            "index.json": b"{}",
+            "items/00/itm_000000000000000000000000.json": b"{}",
+        }
 
     def build_documents(self, *_args):
         return self.files, {}
@@ -42,7 +46,9 @@ class Builder:
     def atomic_write(self, output, files):
         output.mkdir()
         for name, content in files.items():
-            (output / name).write_bytes(content)
+            destination = output / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
 
 
 class IsolatedArtifactPipelineTests(unittest.TestCase):
@@ -60,6 +66,10 @@ class IsolatedArtifactPipelineTests(unittest.TestCase):
                     load_builder=lambda: builder,
                 )
             self.assertTrue(output.is_dir())
+            self.assertEqual(
+                set(gate._read_artifacts(output)),
+                set(builder.files),
+            )
         self.assertEqual(result.status, gate.LOCAL_ARTIFACT_VALIDATED)
         self.assertTrue(result.artifact_written)
         self.assertFalse(result.publication_allowed)
@@ -108,8 +118,7 @@ class IsolatedArtifactPipelineTests(unittest.TestCase):
             ):
                 result = gate.run_pipeline(
                     Path("ignored.db"), "0" * 64, output,
-                    as_of=STAMP, generated_at=STAMP,
-                    load_builder=lambda: builder,
+                    as_of=STAMP, generated_at=STAMP, load_builder=lambda: builder,
                 )
             self.assertFalse(output.exists())
         self.assertIn("DATABASE_CHANGED_DURING_PIPELINE", result.reason_codes)

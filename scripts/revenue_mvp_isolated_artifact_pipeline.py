@@ -68,7 +68,11 @@ def _safe_new_output(path: Path) -> Path:
 def _read_artifacts(directory: Path) -> dict[str, bytes]:
     files: dict[str, bytes] = {}
     for path in directory.rglob("*"):
-        if path.is_symlink() or not path.is_file() or path.suffix != ".json":
+        if path.is_symlink():
+            raise ValueError("unsafe artifact entry")
+        if path.is_dir():
+            continue
+        if not path.is_file() or path.suffix != ".json":
             raise ValueError("unsafe artifact entry")
         files[path.relative_to(directory).as_posix()] = path.read_bytes()
     return files
