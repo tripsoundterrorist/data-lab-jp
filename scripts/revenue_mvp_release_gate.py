@@ -12,11 +12,12 @@ from typing import Any
 import publication_readiness
 import revenue_mvp_deployment_preflight
 import revenue_mvp_official_answer_matrix
+import revenue_mvp_production_smoke_gate
 import revenue_mvp_search_console_gate
 import revenue_mvp_x_funnel_candidate
 
 
-GATE_VERSION = "0.4"
+GATE_VERSION = "0.5"
 READY_FOR_RELEASE_APPROVAL = "READY_FOR_RELEASE_APPROVAL"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
@@ -28,6 +29,10 @@ class ReleaseGateResult:
     status: str
     production_release_allowed: bool
     shell_status: str
+    production_smoke_status: str
+    production_smoke_checked_url_count: int
+    production_smoke_failed_url_count: int
+    production_smoke_failed_check_group_count: int
     search_console_status: str
     public_shell_indexing_allowed: bool
     official_answer_status: str
@@ -63,6 +68,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             generated_at=datetime.now(timezone.utc),
         )
         search_console = revenue_mvp_search_console_gate.run_gate()
+        production_smoke = revenue_mvp_production_smoke_gate.run_gate()
         official_answers = revenue_mvp_official_answer_matrix.assess_answer_matrix(
             revenue_mvp_official_answer_matrix.current_entries()
         )
@@ -79,6 +85,9 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             and deployment.public_data_deployment_allowed is True
             and publication.overall_readiness == publication_readiness.READY
             and publication.overall_eligible is True
+            and production_smoke.status == revenue_mvp_production_smoke_gate.PASS
+            and production_smoke.failed_url_count == 0
+            and production_smoke.failed_check_group_count == 0
             and search_console.status == revenue_mvp_search_console_gate.READY
             and search_console.public_shell_indexing_allowed is True
             and official_answers.core_publication_candidate is True
@@ -86,6 +95,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
         reasons = (
             set(deployment.reason_codes)
             | set(publication.reason_codes)
+            | set(production_smoke.reason_codes)
             | set(search_console.reason_codes)
             | set(official_answers.reason_codes)
             | set(x_funnel.reason_codes)
@@ -97,6 +107,10 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             READY_FOR_RELEASE_APPROVAL if ready else BLOCKED,
             False,  # A separate explicit approval is always required.
             deployment.status,
+            production_smoke.status,
+            production_smoke.checked_url_count,
+            production_smoke.failed_url_count,
+            production_smoke.failed_check_group_count,
             search_console.status,
             search_console.public_shell_indexing_allowed,
             official_answers.status,
@@ -128,12 +142,29 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
         )
     except Exception:
         return ReleaseGateResult(
-            GATE_VERSION, FAIL_CLOSED, False, "UNKNOWN", "UNKNOWN", False,
-            "UNKNOWN", False, False, False,
-            "UNKNOWN", False, False,
-            "UNKNOWN", False,
-            publication_readiness.FAIL_CLOSED, False,
-            ("RELEASE_GATE_INTERNAL_ERROR",), (),
+            gate_version=GATE_VERSION,
+            status=FAIL_CLOSED,
+            production_release_allowed=False,
+            shell_status="UNKNOWN",
+            production_smoke_status="UNKNOWN",
+            production_smoke_checked_url_count=0,
+            production_smoke_failed_url_count=0,
+            production_smoke_failed_check_group_count=0,
+            search_console_status="UNKNOWN",
+            public_shell_indexing_allowed=False,
+            official_answer_status="UNKNOWN",
+            core_official_answer_candidate=False,
+            sns_official_answer_candidate=False,
+            official_answer_gate_unlock_allowed=False,
+            x_funnel_status="UNKNOWN",
+            x_manual_post_candidate=False,
+            x_automatic_post_allowed=False,
+            public_data_state="UNKNOWN",
+            public_data_deployment_allowed=False,
+            publication_readiness=publication_readiness.FAIL_CLOSED,
+            affiliate_integration_allowed=False,
+            reason_codes=("RELEASE_GATE_INTERNAL_ERROR",),
+            next_actions=(),
         )
 
 
