@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 import json
 from typing import Any, Mapping
+from types import MappingProxyType
 
 
 MATRIX_VERSION = "0.1"
@@ -35,6 +36,7 @@ CORE_TOPIC_IDS = frozenset({
     "PR_AD_AFFILIATE_DISCLOSURE", "PRODUCTION_DOMAIN_CHANGE",
 })
 SNS_TOPIC_IDS = frozenset(set(TOPIC_IDS) - CORE_TOPIC_IDS)
+CURRENT_ENTRIES: Mapping[str, "AnswerDecision"] = MappingProxyType({})
 
 
 @dataclass(frozen=True)
@@ -120,6 +122,11 @@ def assess_answer_matrix(entries: Any) -> AnswerMatrixResult:
         conditional,
         tuple(sorted(reasons)) or ("SANITIZED_MATRIX_COMPLETE", "SEPARATE_GATE_REVIEW_REQUIRED"),
     )
+
+
+def current_entries() -> Mapping[str, AnswerDecision]:
+    """Return sanitized reviewed entries only; unanswered topics stay absent/UNKNOWN."""
+    return CURRENT_ENTRIES
 
 
 def main() -> int:

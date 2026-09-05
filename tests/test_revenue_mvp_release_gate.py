@@ -21,12 +21,17 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertEqual(result.shell_status, "SHELL_VALIDATED")
         self.assertEqual(result.search_console_status, "PUBLIC_SHELL_READY")
         self.assertTrue(result.public_shell_indexing_allowed)
+        self.assertEqual(result.official_answer_status, "FAIL_CLOSED")
+        self.assertFalse(result.core_official_answer_candidate)
+        self.assertFalse(result.sns_official_answer_candidate)
+        self.assertFalse(result.official_answer_gate_unlock_allowed)
         self.assertEqual(result.public_data_state, "UNPUBLISHED")
         self.assertIn("REVENUE_MVP_RELEASE_BLOCKED", result.reason_codes)
         self.assertIn("WAIT_FOR_DMM_LIFECYCLE_RESPONSE", result.next_actions)
         self.assertIn("WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE", result.next_actions)
         self.assertIn("SUBMIT_SITEMAP_IN_SEARCH_CONSOLE", result.next_actions)
         self.assertIn("DO_NOT_REQUEST_ITEM_INDEXING", result.next_actions)
+        self.assertIn("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE", result.next_actions)
 
     def test_search_console_failure_blocks_otherwise_ready_release(self):
         deployment = SimpleNamespace(
@@ -51,6 +56,37 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertFalse(result.affiliate_integration_allowed)
         self.assertIn("CANONICAL_MISMATCH", result.reason_codes)
 
+    def test_core_answer_candidate_is_required_but_sns_is_not(self):
+        deployment = SimpleNamespace(
+            status="READY", public_data_state="APPROVED_CANDIDATE",
+            public_data_deployment_allowed=True, reason_codes=(),
+        )
+        publication = SimpleNamespace(
+            overall_readiness="READY", overall_eligible=True,
+            reason_codes=(), next_actions=(),
+        )
+        search_console = SimpleNamespace(
+            status="PUBLIC_SHELL_READY", public_shell_indexing_allowed=True,
+            reason_codes=(), next_actions=(),
+        )
+        official_answers = SimpleNamespace(
+            status="REVIEW_CANDIDATE", core_publication_candidate=True,
+            sns_operation_candidate=False, gate_unlock_allowed=False,
+            reason_codes=("UNRESOLVED_OR_UNVERIFIED_TOPICS",),
+        )
+        with (
+            mock.patch.object(gate.revenue_mvp_deployment_preflight, "run_preflight", return_value=deployment),
+            mock.patch.object(gate.publication_readiness, "build_report", return_value=publication),
+            mock.patch.object(gate.revenue_mvp_search_console_gate, "run_gate", return_value=search_console),
+            mock.patch.object(gate.revenue_mvp_official_answer_matrix, "assess_answer_matrix", return_value=official_answers),
+        ):
+            result = gate.run_gate()
+        self.assertEqual(result.status, gate.READY_FOR_RELEASE_APPROVAL)
+        self.assertTrue(result.affiliate_integration_allowed)
+        self.assertFalse(result.production_release_allowed)
+        self.assertFalse(result.sns_official_answer_candidate)
+        self.assertFalse(result.official_answer_gate_unlock_allowed)
+
     def test_deployment_ready_cannot_override_official_blockers(self):
         deployment = SimpleNamespace(
             status="READY", public_data_state="APPROVED_CANDIDATE",
@@ -73,6 +109,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertEqual(result.status, gate.FAIL_CLOSED)
         self.assertFalse(result.production_release_allowed)
         self.assertEqual(result.search_console_status, "UNKNOWN")
+        self.assertEqual(result.official_answer_status, "UNKNOWN")
         self.assertNotIn("secret", json.dumps(result.to_dict()))
 
     def test_cli_is_read_only_and_machine_readable(self):

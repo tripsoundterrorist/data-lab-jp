@@ -15,6 +15,11 @@ def allowed(topics=matrix.TOPIC_IDS):
 
 
 class RevenueMvpOfficialAnswerMatrixTests(unittest.TestCase):
+    def test_current_entries_are_empty_and_immutable(self):
+        self.assertEqual(dict(matrix.current_entries()), {})
+        with self.assertRaises(TypeError):
+            matrix.current_entries()["API_HISTORY_DISPLAY"] = matrix.AnswerDecision(matrix.ALLOWED)
+
     def test_current_unanswered_state_fails_closed(self):
         result = matrix.assess_answer_matrix({})
         self.assertEqual(result.status, "FAIL_CLOSED")
