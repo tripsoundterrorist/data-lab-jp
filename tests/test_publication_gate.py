@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 import publication_gate as gate  # noqa: E402
+import revenue_mvp_official_answer_matrix as matrix  # noqa: E402
 
 PUBLIC_ID = "itm_0123456789abcdef01234567"
 TIMESTAMP = "2026-08-23T06:00:00Z"
@@ -24,7 +25,11 @@ def artifact(publication_status="local_validation_only", rights=None, schema="0.
 def decoded(files): return {path: json.loads(value) for path, value in files.items()}
 def encoded(documents): return {path: json_bytes(value) for path, value in documents.items()}
 
-class PublicationGateV02Tests(unittest.TestCase):
+def allowed_answers():
+    return {topic: matrix.AnswerDecision(matrix.ALLOWED) for topic in matrix.TOPIC_IDS}
+
+
+class PublicationGateV03Tests(unittest.TestCase):
     def rights(self, field): return gate.evaluate_publication_gate(artifact(rights=[field]))
     def assert_forbidden(self, field):
         docs = decoded(artifact()); docs["index.json"]["items"][0][field] = "blocked"
@@ -63,7 +68,7 @@ class PublicationGateV02Tests(unittest.TestCase):
         result = self.rights("implicit_alias"); self.assertEqual(result.rights_gate, gate.CLOSED); self.assertIn("UNKNOWN_RIGHTS_FIELD", result.reason_codes)
     def test_ab_rights_policy_version_mismatch(self):
         result = gate.evaluate_publication_gate(artifact(), rights_policy_version="9.9"); self.assertEqual(result.rights_gate, gate.CLOSED); self.assertIn("RIGHTS_POLICY_VERSION_MISMATCH", result.reason_codes)
-    def test_ac_gate_version_fixed(self): self.assertEqual(gate.GATE_VERSION, "0.2")
+    def test_ac_gate_version_fixed(self): self.assertEqual(gate.GATE_VERSION, "0.3")
     def test_ad_schema_version_mismatch(self): self.assertIn("UNSUPPORTED_SCHEMA_VERSION", gate.evaluate_publication_gate(artifact(schema="9.9")).reason_codes)
     def test_ae_public_policy_version_mismatch(self): self.assertIn("UNSUPPORTED_POLICY_VERSION", gate.evaluate_publication_gate(artifact(policy="9.9")).reason_codes)
     def test_af_current_expected_state(self):
@@ -91,16 +96,50 @@ class PublicationGateV02Tests(unittest.TestCase):
     def test_at_compatibility_properties(self):
         result = gate.evaluate_publication_gate(artifact()); self.assertEqual(result.eligible, result.overall_eligible); self.assertEqual(result.reasons, result.reason_codes)
 
+    def test_au_complete_answers_without_explicit_review_stay_pending(self):
+        result = gate.evaluate_publication_gate(
+            artifact("public"), official_answer_entries=allowed_answers()
+        )
+        self.assertEqual(result.lifecycle_gate, gate.PENDING_OFFICIAL_CONFIRMATION)
+        self.assertEqual(result.semantics_gate, gate.PENDING_OFFICIAL_CONFIRMATION)
+        self.assertFalse(result.overall_eligible)
+
+    def test_av_explicitly_reviewed_complete_answers_unlock_official_gates(self):
+        result = gate.evaluate_publication_gate(
+            artifact("public"), official_answer_entries=allowed_answers(),
+            explicit_official_answer_review_approval=True,
+        )
+        self.assertEqual(result.lifecycle_gate, gate.PASS)
+        self.assertEqual(result.semantics_gate, gate.PASS)
+        self.assertEqual(result.pending_fields, ())
+        self.assertTrue(result.overall_eligible)
+
+    def test_aw_unresolved_answers_cannot_be_approved_open(self):
+        result = gate.evaluate_publication_gate(
+            artifact("public"), official_answer_entries={},
+            explicit_official_answer_review_approval=True,
+        )
+        self.assertFalse(result.overall_eligible)
+        self.assertIn("OFFICIAL_ANSWER_REVIEW_REQUIRED", result.reason_codes)
+
+    def test_ax_non_boolean_approval_fails_closed(self):
+        result = gate.evaluate_publication_gate(
+            artifact("public"), official_answer_entries=allowed_answers(),
+            explicit_official_answer_review_approval=1,
+        )
+        self.assertFalse(result.overall_eligible)
+        self.assertIn("OFFICIAL_ANSWER_APPROVAL_INVALID", result.reason_codes)
+
 class BuilderBoundaryTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         spec = importlib.util.spec_from_file_location("public_builder", SCRIPTS / "build-public-data.py")
         cls.builder = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.builder)
-    def test_au_production_mode_blocks_before_write(self):
+    def test_ay_production_mode_blocks_before_write(self):
         files = artifact()
         with mock.patch.object(self.builder, "build_documents", return_value=(files, {})), mock.patch.object(self.builder, "load_secret_values", return_value=[]), mock.patch.object(self.builder, "atomic_write") as writer, redirect_stdout(io.StringIO()): code = self.builder.main(["--publication-mode", "production", "--json"])
         self.assertEqual(code, 2); writer.assert_not_called()
-    def test_av_local_validation_keeps_local_workflow(self):
+    def test_az_local_validation_keeps_local_workflow(self):
         files = artifact()
         with mock.patch.object(self.builder, "build_documents", return_value=(files, {})), mock.patch.object(self.builder, "load_secret_values", return_value=[]), mock.patch.object(self.builder, "atomic_write") as writer, redirect_stdout(io.StringIO()): code = self.builder.main(["--publication-mode", "local-validation", "--json"])
         self.assertEqual(code, 0); writer.assert_called_once()

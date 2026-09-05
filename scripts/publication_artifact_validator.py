@@ -201,7 +201,7 @@ def validate_artifacts(files: Any) -> ArtifactValidationResult:
     try:
         if not isinstance(files, Mapping):
             return _result({"MALFORMED_INPUT"}, blocked, warnings, schema=None, policy=None, item_count=None, shard_count=0)
-        if GATE_VERSION != "0.2" or RIGHTS_POLICY_VERSION != "0.1":
+        if GATE_VERSION != "0.3" or RIGHTS_POLICY_VERSION != "0.1":
             reasons.add("VERSION_MISMATCH")
         documents = _json_documents(files, reasons)
         manifest = documents.get("manifest.json")

@@ -9,12 +9,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from revenue_mvp_official_answer_matrix import (
+    AnswerDecision, assess_answer_matrix,
+)
 from rights_decision_policy import (
     APPROVED, DIRECT_SUPPORT_CONFIRMATION, POLICY_VERSION as RIGHTS_POLICY_VERSION,
     decision_for, validate_policy as validate_rights_policy,
 )
 
-GATE_VERSION = "0.2"
+GATE_VERSION = "0.3"
 PUBLIC_SCHEMA_VERSION = "0.1"
 PUBLIC_POLICY_VERSION = "0.1"
 LOCAL_VALIDATION_ONLY = "local_validation_only"
@@ -58,7 +61,8 @@ REASON_ORDER = (
     "REQUIRED_FIELD_MISSING", "INVALID_PUBLIC_ID", "INVALID_TIMESTAMP",
     "INVALID_PUBLIC_DOCUMENT", "LIFECYCLE_GATE_PENDING",
     "SEMANTICS_GATE_PENDING", "PUBLICATION_STATUS_NOT_PUBLIC",
-    "DATA_POLICY_GATE_CLOSED", "UNKNOWN_GATE_STATUS",
+    "DATA_POLICY_GATE_CLOSED", "OFFICIAL_ANSWER_REVIEW_REQUIRED",
+    "OFFICIAL_ANSWER_APPROVAL_INVALID", "UNKNOWN_GATE_STATUS",
 )
 SECRET_PATTERNS = (
     re.compile(r"(?i)(?:api|affiliate)[_-]?id\s*="),
@@ -255,7 +259,13 @@ def _failed_result(reasons: set[str]) -> PublicationGateResult:
     )
 
 
-def evaluate(files: Mapping[str, bytes], known_secrets: Sequence[bytes], *, rights_policy_version: str) -> PublicationGateResult:
+def evaluate(
+    files: Mapping[str, bytes],
+    known_secrets: Sequence[bytes],
+    *, rights_policy_version: str,
+    official_answer_entries: Mapping[str, AnswerDecision] | None,
+    explicit_official_answer_review_approval: bool,
+) -> PublicationGateResult:
     reasons: set[str] = set()
     blocked: set[str] = set()
     documents = _decode(files, known_secrets, reasons)
@@ -296,8 +306,19 @@ def evaluate(files: Mapping[str, bytes], known_secrets: Sequence[bytes], *, righ
         "UNKNOWN_RIGHTS_FIELD", "RIGHTS_NOT_APPROVED", "INVALID_PUBLIC_DOCUMENT",
     }
     rights_gate = PASS if not (reasons & rights_blockers) else CLOSED
-    lifecycle_gate = PENDING_OFFICIAL_CONFIRMATION
-    semantics_gate = PENDING_OFFICIAL_CONFIRMATION
+    official_answers = (
+        assess_answer_matrix(official_answer_entries)
+        if official_answer_entries is not None else None
+    )
+    if type(explicit_official_answer_review_approval) is not bool:
+        reasons.add("OFFICIAL_ANSWER_APPROVAL_INVALID")
+    official_reviewed = (
+        official_answers is not None
+        and official_answers.core_publication_candidate is True
+        and explicit_official_answer_review_approval is True
+    )
+    lifecycle_gate = PASS if official_reviewed else PENDING_OFFICIAL_CONFIRMATION
+    semantics_gate = PASS if official_reviewed else PENDING_OFFICIAL_CONFIRMATION
     publication_status_gate = PASS if publication_status == "public" else CLOSED
     data_reasons = {
         "UNSUPPORTED_SCHEMA_VERSION", "UNSUPPORTED_POLICY_VERSION",
@@ -305,7 +326,11 @@ def evaluate(files: Mapping[str, bytes], known_secrets: Sequence[bytes], *, righ
         "INVALID_PUBLIC_DOCUMENT", "FORBIDDEN_FIELD_PRESENT", "SECRET_PATTERN_DETECTED",
     }
     data_policy_gate = PASS if not (reasons & data_reasons) else CLOSED
-    reasons.update({"LIFECYCLE_GATE_PENDING", "SEMANTICS_GATE_PENDING"})
+    if not official_reviewed:
+        reasons.update({
+            "LIFECYCLE_GATE_PENDING", "SEMANTICS_GATE_PENDING",
+            "OFFICIAL_ANSWER_REVIEW_REQUIRED",
+        })
     if publication_status_gate != PASS:
         reasons.add("PUBLICATION_STATUS_NOT_PUBLIC")
     if data_policy_gate != PASS:
@@ -317,13 +342,24 @@ def evaluate(files: Mapping[str, bytes], known_secrets: Sequence[bytes], *, righ
         GATE_VERSION, overall_from_gates(*statuses), publication_status if isinstance(publication_status, str) else "unknown",
         rights_gate, lifecycle_gate, semantics_gate, publication_status_gate,
         data_policy_gate, _ordered(reasons), tuple(dict.fromkeys(approved)),
-        tuple(sorted(blocked)), PENDING_FIELDS,
+        tuple(sorted(blocked)), () if official_reviewed else PENDING_FIELDS,
     )
 
 
-def evaluate_publication_gate(files: Mapping[str, bytes], known_secrets: Sequence[bytes] = (), *, rights_policy_version: str = RIGHTS_POLICY_VERSION) -> PublicationGateResult:
+def evaluate_publication_gate(
+    files: Mapping[str, bytes],
+    known_secrets: Sequence[bytes] = (),
+    *,
+    rights_policy_version: str = RIGHTS_POLICY_VERSION,
+    official_answer_entries: Mapping[str, AnswerDecision] | None = None,
+    explicit_official_answer_review_approval: bool = False,
+) -> PublicationGateResult:
     try:
-        return evaluate(files, known_secrets, rights_policy_version=rights_policy_version)
+        return evaluate(
+            files, known_secrets, rights_policy_version=rights_policy_version,
+            official_answer_entries=official_answer_entries,
+            explicit_official_answer_review_approval=explicit_official_answer_review_approval,
+        )
     except Exception:
         return _failed_result(set())
 
