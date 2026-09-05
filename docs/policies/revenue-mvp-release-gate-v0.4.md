@@ -1,4 +1,4 @@
-# Revenue MVP Release Gate v0.3
+# Revenue MVP Release Gate v0.4
 
 `scripts/revenue_mvp_release_gate.py` は、静的shell、任意のPublic Data候補、
 公式確認、Publication Gateを一つのread-only結果へ集約する。ビルド、配備、
@@ -12,6 +12,10 @@ Issue #66 Official Answer Matrixのcore 8論点も必須条件として集約す
 `FOLLOW_UP_REQUIRED`、条件未確認の`CONDITIONALLY_ALLOWED`がcoreに残る場合は公開候補にしない。
 SNS 4論点は別結果として保持し、SNSだけの未解決事項はcore公開候補を停止しない。
 Matrixがreview candidateでも既存Blocker RegistryやPublication Gateを自動解除しない。
+
+X Funnel Candidateもsafe summaryだけを統合する。現在の`PREVIEW_ONLY`、手動投稿候補、
+自動投稿可否を表示するが、候補本文やURLはRelease Gate結果へ含めない。SNS未解決は
+`WAIT_FOR_DMM_FANZA_SNS_RESPONSE`として報告し、core公開候補の判定条件には加えない。
 
 データ候補が検証済みでも、DMM/FANZAのlifecycleまたはsort semanticsが未解決なら
 `BLOCKED`を維持する。全条件が揃った場合も結果は
