@@ -43,6 +43,8 @@ class RevenueMvpProductionSmokeGateTests(unittest.TestCase):
         self.assertFalse(result.production_write_performed)
         self.assertFalse(result.item_indexing_allowed)
         self.assertEqual(result.indexable_url_count, 9)
+        self.assertEqual(result.failed_url_count, 0)
+        self.assertEqual(result.failed_check_group_count, 0)
 
     def test_canonical_drift_fails_closed(self):
         evidence = valid_evidence()
@@ -63,7 +65,35 @@ class RevenueMvpProductionSmokeGateTests(unittest.TestCase):
             raise OSError("credential-bearing internal detail")
         result = gate.run_gate(fail)
         self.assertEqual(result.status, gate.FAIL_CLOSED)
-        self.assertEqual(result.reason_codes, ("PRODUCTION_HTTP_CHECK_FAILED",))
+        self.assertEqual(result.checked_url_count, 0)
+        self.assertEqual(result.failed_url_count, 14)
+        self.assertEqual(result.failed_check_group_count, 6)
+        self.assertEqual(
+            set(result.reason_codes),
+            {
+                "INCOMPLETE_EVIDENCE", "NOT_FOUND_ROUTE_FETCH_FAILED",
+                "PRIVATE_ROUTE_FETCH_FAILED", "PUBLIC_HOME_FETCH_FAILED",
+                "PUBLIC_COLUMN_FETCH_FAILED", "PUBLIC_INFORMATION_FETCH_FAILED",
+                "SEO_ASSET_FETCH_FAILED", "PRODUCTION_HTTP_CHECK_FAILED",
+            },
+        )
+
+    def test_one_failure_reports_only_safe_group(self):
+        evidence = valid_evidence()
+
+        def fetch(path):
+            if path == "/about":
+                raise TimeoutError("secret endpoint detail")
+            return evidence[path]
+
+        result = gate.run_gate(fetch)
+        self.assertEqual(result.status, gate.FAIL_CLOSED)
+        self.assertEqual(result.checked_url_count, 13)
+        self.assertEqual(result.failed_url_count, 1)
+        self.assertEqual(result.failed_check_group_count, 1)
+        self.assertIn("PUBLIC_INFORMATION_FETCH_FAILED", result.reason_codes)
+        self.assertNotIn("/about", str(result.to_dict()))
+        self.assertNotIn("secret", str(result.to_dict()))
 
 
 if __name__ == "__main__":

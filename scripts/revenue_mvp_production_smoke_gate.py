@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from html.parser import HTMLParser
 import json
 import socket
@@ -14,7 +14,7 @@ import xml.etree.ElementTree as ET
 
 
 ORIGIN = "https://datalabx.jp"
-GATE_VERSION = "0.1"
+GATE_VERSION = "0.2"
 PASS = "PRODUCTION_SHELL_VALIDATED"
 FAIL_CLOSED = "FAIL_CLOSED"
 INDEXABLE = {
@@ -45,6 +45,8 @@ class ProductionSmokeResult:
     status: str
     production_write_performed: bool
     checked_url_count: int
+    failed_url_count: int
+    failed_check_group_count: int
     indexable_url_count: int
     item_indexing_allowed: bool
     reason_codes: tuple[str, ...]
@@ -132,21 +134,63 @@ def validate_responses(responses: Mapping[str, HttpEvidence]) -> ProductionSmoke
             reasons.add("SITEMAP_INVALID")
     return ProductionSmokeResult(
         GATE_VERSION, PASS if not reasons else FAIL_CLOSED, False,
-        len(responses), len(INDEXABLE) if not reasons else 0, False,
+        len(responses), 0, 0, len(INDEXABLE) if not reasons else 0, False,
         tuple(sorted(reasons)) or ("PRODUCTION_HTTP_VALIDATED", "ITEM_INDEXING_BLOCKED"),
     )
 
 
 def run_gate(fetcher: Callable[[str], HttpEvidence] = _fetch) -> ProductionSmokeResult:
     paths = (*INDEXABLE, *PRIVATE, "/robots.txt", "/sitemap.xml", NOT_FOUND)
+    responses: dict[str, HttpEvidence] = {}
+    failed_groups: set[str] = set()
+    failed_url_count = 0
+
+    def failure_group(path: str) -> str:
+        if path == "/":
+            return "PUBLIC_HOME_FETCH_FAILED"
+        if path.startswith("/column-"):
+            return "PUBLIC_COLUMN_FETCH_FAILED"
+        if path in INDEXABLE:
+            return "PUBLIC_INFORMATION_FETCH_FAILED"
+        if path in PRIVATE:
+            return "PRIVATE_ROUTE_FETCH_FAILED"
+        if path in {"/robots.txt", "/sitemap.xml"}:
+            return "SEO_ASSET_FETCH_FAILED"
+        return "NOT_FOUND_ROUTE_FETCH_FAILED"
+
     try:
         with ThreadPoolExecutor(max_workers=5) as executor:
-            values = executor.map(fetcher, paths)
-            return validate_responses(dict(zip(paths, values, strict=True)))
-    except (OSError, UnicodeError, urllib.error.URLError, socket.timeout, ValueError):
+            pending = {executor.submit(fetcher, path): path for path in paths}
+            for future in as_completed(pending):
+                path = pending[future]
+                try:
+                    responses[path] = future.result()
+                except (
+                    OSError, UnicodeError, urllib.error.URLError,
+                    socket.timeout, ValueError,
+                ):
+                    failed_url_count += 1
+                    failed_groups.add(failure_group(path))
+                except Exception:
+                    failed_url_count += 1
+                    failed_groups.add("PRODUCTION_HTTP_INTERNAL_ERROR")
+        validated = validate_responses(responses)
+        reasons = set(validated.reason_codes) if validated.status != PASS else set()
+        reasons.update(failed_groups)
+        if failed_groups:
+            reasons.add("PRODUCTION_HTTP_CHECK_FAILED")
         return ProductionSmokeResult(
-            GATE_VERSION, FAIL_CLOSED, False, 0, 0, False,
-            ("PRODUCTION_HTTP_CHECK_FAILED",),
+            GATE_VERSION, PASS if not reasons else FAIL_CLOSED, False,
+            len(responses), failed_url_count, len(failed_groups),
+            len(INDEXABLE) if not reasons else 0, False,
+            tuple(sorted(reasons)) or (
+                "PRODUCTION_HTTP_VALIDATED", "ITEM_INDEXING_BLOCKED",
+            ),
+        )
+    except Exception:
+        return ProductionSmokeResult(
+            GATE_VERSION, FAIL_CLOSED, False, len(responses), 1, 1, 0, False,
+            ("PRODUCTION_HTTP_CHECK_FAILED", "PRODUCTION_HTTP_INTERNAL_ERROR"),
         )
 
 
