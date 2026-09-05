@@ -4,7 +4,7 @@ const DATA_ROOT = "/data";
 const EXPECTED_SCHEMA_VERSION = "0.1";
 const EXPECTED_PUBLICATION_STATUS = "public";
 const PAGE_SIZE = 24;
-const state = { items: [], filtered: [], page: 1 };
+const state = { items: [], filtered: [], page: 1, localPreview: false };
 
 function trackFunnelEvent(name) {
   try {
@@ -135,20 +135,28 @@ function validateDetailItem(item) {
     && Array.isArray(analysis.warnings) && analysis.warnings.every((warning) => typeof warning === "string");
 }
 
+function localPreviewOrigin() {
+  return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+}
+
 function validateManifest(manifest) {
-  const valid = manifest
-    && manifest.public_schema_version === EXPECTED_SCHEMA_VERSION
-    && manifest.publication_status === EXPECTED_PUBLICATION_STATUS
-    && Array.isArray(manifest.rights_review_required)
-    && manifest.rights_review_required.length === 0;
+  const rights = Array.isArray(manifest?.rights_review_required)
+    ? manifest.rights_review_required : null;
+  const publicData = manifest?.publication_status === EXPECTED_PUBLICATION_STATUS
+    && rights?.length === 0;
+  const localPreview = manifest?.publication_status === "local_validation_only"
+    && localPreviewOrigin() && rights?.length > 0;
+  const valid = manifest?.public_schema_version === EXPECTED_SCHEMA_VERSION
+    && (publicData || localPreview);
   if (!valid) throw new Error("PUBLIC_DATA_NOT_PUBLISHABLE");
+  state.localPreview = localPreview;
 }
 
 function showData() {
   document.getElementById("data-fallback").hidden = true;
   const content = document.getElementById("data-content") || document.getElementById("detail-root");
   content.hidden = false;
-  document.getElementById("publication-status").textContent = "公開データ";
+  document.getElementById("publication-status").textContent = state.localPreview ? "ローカルプレビュー（非公開）" : "公開データ";
 }
 
 function showFallback() {
