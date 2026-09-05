@@ -100,5 +100,13 @@ class LocalPreviewBrowserGateTests(unittest.TestCase):
         self.assertIn('manifest?.publication_status === EXPECTED_PUBLICATION_STATUS', script)
 
 
+    def test_local_preview_uses_html_detail_route_only_on_loopback(self):
+        script = (ROOT / "items" / "items.js").read_text(encoding="utf-8")
+        self.assertIn(
+            'item${state.localPreview ? ".html" : ""}?id=',
+            script,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

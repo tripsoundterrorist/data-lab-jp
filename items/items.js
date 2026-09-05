@@ -201,7 +201,7 @@ function card(item) {
   metrics.append(metric("価格位置", percentile === null ? "データなし" : `観測セット内 約${Math.round(percentile)}%`));
   body.append(metrics, element("p", "observed-at", `最終観測 ${formatDate(item.last_observed_at)}`));
   const link = element("a", "detail-link", "詳細を見る");
-  link.href = `/items/item?id=${encodeURIComponent(item.public_id)}`;
+  link.href = `/items/item${state.localPreview ? ".html" : ""}?id=${encodeURIComponent(item.public_id)}`;
   link.addEventListener("click", () => trackFunnelEvent("select_item"));
   body.append(link);
   article.append(body);
