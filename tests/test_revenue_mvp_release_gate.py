@@ -25,6 +25,9 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertFalse(result.core_official_answer_candidate)
         self.assertFalse(result.sns_official_answer_candidate)
         self.assertFalse(result.official_answer_gate_unlock_allowed)
+        self.assertEqual(result.x_funnel_status, "PREVIEW_ONLY")
+        self.assertFalse(result.x_manual_post_candidate)
+        self.assertFalse(result.x_automatic_post_allowed)
         self.assertEqual(result.public_data_state, "UNPUBLISHED")
         self.assertIn("REVENUE_MVP_RELEASE_BLOCKED", result.reason_codes)
         self.assertIn("WAIT_FOR_DMM_LIFECYCLE_RESPONSE", result.next_actions)
@@ -35,6 +38,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertIn("MONITOR_HOME_INDEX_STATUS", result.next_actions)
         self.assertIn("DO_NOT_REQUEST_ITEM_INDEXING", result.next_actions)
         self.assertIn("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE", result.next_actions)
+        self.assertIn("WAIT_FOR_DMM_FANZA_SNS_RESPONSE", result.next_actions)
 
     def test_search_console_failure_blocks_otherwise_ready_release(self):
         deployment = SimpleNamespace(
@@ -89,6 +93,8 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertFalse(result.production_release_allowed)
         self.assertFalse(result.sns_official_answer_candidate)
         self.assertFalse(result.official_answer_gate_unlock_allowed)
+        self.assertEqual(result.x_funnel_status, "PREVIEW_ONLY")
+        self.assertIn("WAIT_FOR_DMM_FANZA_SNS_RESPONSE", result.next_actions)
 
     def test_deployment_ready_cannot_override_official_blockers(self):
         deployment = SimpleNamespace(
@@ -113,6 +119,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertFalse(result.production_release_allowed)
         self.assertEqual(result.search_console_status, "UNKNOWN")
         self.assertEqual(result.official_answer_status, "UNKNOWN")
+        self.assertEqual(result.x_funnel_status, "UNKNOWN")
         self.assertNotIn("secret", json.dumps(result.to_dict()))
 
     def test_cli_is_read_only_and_machine_readable(self):
@@ -124,6 +131,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         result = json.loads(process.stdout)
         self.assertEqual(result["status"], gate.BLOCKED)
         self.assertFalse(result["production_release_allowed"])
+        self.assertEqual(result["x_funnel_status"], "PREVIEW_ONLY")
 
 
 if __name__ == "__main__":

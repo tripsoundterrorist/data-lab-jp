@@ -13,9 +13,10 @@ import publication_readiness
 import revenue_mvp_deployment_preflight
 import revenue_mvp_official_answer_matrix
 import revenue_mvp_search_console_gate
+import revenue_mvp_x_funnel_candidate
 
 
-GATE_VERSION = "0.3"
+GATE_VERSION = "0.4"
 READY_FOR_RELEASE_APPROVAL = "READY_FOR_RELEASE_APPROVAL"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
@@ -33,6 +34,9 @@ class ReleaseGateResult:
     core_official_answer_candidate: bool
     sns_official_answer_candidate: bool
     official_answer_gate_unlock_allowed: bool
+    x_funnel_status: str
+    x_manual_post_candidate: bool
+    x_automatic_post_allowed: bool
     public_data_state: str
     public_data_deployment_allowed: bool
     publication_readiness: str
@@ -62,6 +66,14 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
         official_answers = revenue_mvp_official_answer_matrix.assess_answer_matrix(
             revenue_mvp_official_answer_matrix.current_entries()
         )
+        x_funnel = revenue_mvp_x_funnel_candidate.build_candidate(
+            fact_text="DATA LABの公開準備状況を更新しました。",
+            landing_path="/",
+            campaign="launch_status",
+            public_data_available=deployment.public_data_deployment_allowed,
+            official_answer_entries=revenue_mvp_official_answer_matrix.current_entries(),
+            explicit_human_approval=False,
+        )
         ready = (
             deployment.status == revenue_mvp_deployment_preflight.READY
             and deployment.public_data_deployment_allowed is True
@@ -76,6 +88,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             | set(publication.reason_codes)
             | set(search_console.reason_codes)
             | set(official_answers.reason_codes)
+            | set(x_funnel.reason_codes)
         )
         if not ready:
             reasons.add("REVENUE_MVP_RELEASE_BLOCKED")
@@ -90,6 +103,9 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             official_answers.core_publication_candidate,
             official_answers.sns_operation_candidate,
             official_answers.gate_unlock_allowed,
+            x_funnel.status,
+            x_funnel.manual_post_candidate,
+            x_funnel.automatic_post_allowed,
             deployment.public_data_state,
             deployment.public_data_deployment_allowed,
             publication.overall_readiness,
@@ -99,12 +115,22 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
                 publication.next_actions
                 + search_console.next_actions
                 + (() if official_answers.core_publication_candidate else ("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE",))
+                + (
+                    ("REVIEW_X_MANUAL_POST_CANDIDATE",)
+                    if x_funnel.manual_post_candidate
+                    else (
+                        ("WAIT_FOR_DMM_FANZA_SNS_RESPONSE",)
+                        if not official_answers.sns_operation_candidate
+                        else ("PREPARE_X_MANUAL_APPROVAL",)
+                    )
+                )
             )),
         )
     except Exception:
         return ReleaseGateResult(
             GATE_VERSION, FAIL_CLOSED, False, "UNKNOWN", "UNKNOWN", False,
             "UNKNOWN", False, False, False,
+            "UNKNOWN", False, False,
             "UNKNOWN", False,
             publication_readiness.FAIL_CLOSED, False,
             ("RELEASE_GATE_INTERNAL_ERROR",), (),
