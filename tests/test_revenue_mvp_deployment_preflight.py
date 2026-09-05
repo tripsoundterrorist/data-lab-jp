@@ -35,14 +35,25 @@ class RevenueMvpDeploymentPreflightTests(unittest.TestCase):
 
     def test_candidate_with_closed_publication_gate_is_blocked(self):
         with tempfile.TemporaryDirectory() as temporary:
-            (Path(temporary) / "manifest.json").write_text("{}", encoding="utf-8")
+            root = Path(temporary)
+            (root / "manifest.json").write_text("{}", encoding="utf-8")
+            detail = root / "items" / "00" / "itm_000000000000000000000000.json"
+            detail.parent.mkdir(parents=True)
+            detail.write_text("{}", encoding="utf-8")
             with mock.patch.object(
                 preflight, "validate_artifacts",
                 return_value=artifact_result(reasons=("LIFECYCLE_GATE_PENDING",)),
-            ):
+            ) as validator:
                 result = preflight.run_preflight(
-                    artifact_directory=Path(temporary)
+                    artifact_directory=root
                 )
+        self.assertEqual(
+            set(validator.call_args.args[0]),
+            {
+                "manifest.json",
+                "items/00/itm_000000000000000000000000.json",
+            },
+        )
         self.assertEqual(result.status, preflight.BLOCKED)
         self.assertEqual(result.deployment_preflight, "CLOSED")
         self.assertFalse(result.public_data_deployment_allowed)

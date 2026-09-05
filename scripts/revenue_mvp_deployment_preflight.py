@@ -84,7 +84,11 @@ def _read_candidate(directory: Path) -> dict[str, bytes]:
         raise ValueError("unsafe candidate root")
     files: dict[str, bytes] = {}
     for path in root.rglob("*"):
-        if path.is_symlink() or not path.is_file() or path.suffix != ".json":
+        if path.is_symlink():
+            raise ValueError("unsafe candidate entry")
+        if path.is_dir():
+            continue
+        if not path.is_file() or path.suffix != ".json":
             raise ValueError("unsafe candidate entry")
         relative = path.relative_to(root).as_posix()
         files[relative] = path.read_bytes()
