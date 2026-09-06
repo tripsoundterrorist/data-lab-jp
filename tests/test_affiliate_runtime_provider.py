@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import affiliate_runtime_provider as provider  # noqa: E402
 
 
-DUMMY_URL = "https://example.invalid/product"
+DUMMY_URL = "https://fixture.fanza.co.jp/product"
 
 
 def base_arguments() -> dict:
