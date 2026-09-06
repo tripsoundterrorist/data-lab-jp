@@ -148,15 +148,15 @@ class DmmAffiliateUrlSafeProbeTests(unittest.TestCase):
                 self.assertIn(reason, result.reason_codes)
                 self.assertNotIn(value, json.dumps(result.to_dict()))
 
-    def test_fanza_co_jp_is_diagnostic_only_and_remains_blocked(self):
+    def test_fanza_co_jp_returned_by_official_api_is_approved(self):
         value = "https://al.fanza.co.jp/opaque-test"
         result = probe.run_probe(
             env_path=self.env_path,
             fetcher=lambda *_args, **_kwargs: FakeResponse(payload(value)),
         )
 
-        self.assertEqual(result.status, probe.BLOCKED)
-        self.assertFalse(result.approved_host_pass)
+        self.assertEqual(result.status, probe.PASS)
+        self.assertTrue(result.approved_host_pass)
         self.assertTrue(result.host_matches_fanza_co_jp)
         self.assertFalse(result.host_unclassified)
         self.assertNotIn(value, json.dumps(result.to_dict()))
