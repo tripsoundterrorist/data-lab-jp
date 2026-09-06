@@ -12,6 +12,7 @@ from typing import Any, Callable
 
 import affiliate_link_adapter
 import affiliate_ui_handoff
+from affiliate_link_policy import WEB_UI
 
 
 PROVIDER_VERSION = "0.1"
@@ -79,7 +80,7 @@ def deliver_affiliate_link(
             adapter_version=affiliate_link_adapter.ADAPTER_VERSION,
             affiliate_url=affiliate_url,
             rights_status=rights_status,
-            publication_context=affiliate_link_adapter.link_policy.WEB_UI,
+            publication_context=WEB_UI,
             lifecycle_status=lifecycle_status,
             verification_status=verification_status,
             publication_gate_overall_eligible=publication_gate_overall_eligible,
