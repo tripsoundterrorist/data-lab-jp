@@ -49,6 +49,18 @@ class AnalyticsConsentTests(unittest.TestCase):
         self.assertIn("catch (_) {\n      return null;", self.script)
         self.assertIn("catch (_) {\n      return false;", self.script)
 
+    def test_runtime_consent_boundary_in_node_harness(self):
+        result = subprocess.run(
+            [
+                "node",
+                str(ROOT / "tests" / "analytics_consent_runtime_harness.js"),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_javascript_is_syntactically_valid(self):
         result = subprocess.run(
             ["node", "--check", str(ROOT / "analytics-consent.js")],
