@@ -7,6 +7,7 @@ import tempfile
 import unittest
 import urllib.error
 import urllib.parse
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -181,7 +182,7 @@ class DmmAffiliateUrlSafeProbeTests(unittest.TestCase):
     def test_cli_dry_run_is_machine_readable(self):
         output = StringIO()
         with (
-            unittest.mock.patch.object(probe, "ENV_PATH", self.env_path),
+            mock.patch.object(probe, "ENV_PATH", self.env_path),
             redirect_stdout(output),
         ):
             return_code = probe.main(["--dry-run"])
