@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 import subprocess
 import unittest
 
@@ -22,6 +23,12 @@ TRACKED_PAGES = (
 class AnalyticsConsentTests(unittest.TestCase):
     def setUp(self):
         self.script = (ROOT / "analytics-consent.js").read_text(encoding="utf-8")
+
+    def require_node(self):
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js is not installed or is not available on PATH")
+        return node
 
     def test_tracked_pages_load_only_local_consent_bootstrap(self):
         for page in TRACKED_PAGES:
@@ -52,7 +59,7 @@ class AnalyticsConsentTests(unittest.TestCase):
     def test_runtime_consent_boundary_in_node_harness(self):
         result = subprocess.run(
             [
-                "node",
+                self.require_node(),
                 str(ROOT / "tests" / "analytics_consent_runtime_harness.js"),
             ],
             check=False,
@@ -63,7 +70,7 @@ class AnalyticsConsentTests(unittest.TestCase):
 
     def test_javascript_is_syntactically_valid(self):
         result = subprocess.run(
-            ["node", "--check", str(ROOT / "analytics-consent.js")],
+            [self.require_node(), "--check", str(ROOT / "analytics-consent.js")],
             check=False,
             capture_output=True,
             text=True,
