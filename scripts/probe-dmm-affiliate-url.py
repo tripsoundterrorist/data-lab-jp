@@ -268,7 +268,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    result = run_probe(dry_run=args.dry_run)
+    result = run_probe(env_path=ENV_PATH, dry_run=args.dry_run)
     print(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
     return 0 if result.status in {PASS, DRY_RUN_READY, BLOCKED} else 2
 
