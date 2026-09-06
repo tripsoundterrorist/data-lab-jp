@@ -59,7 +59,7 @@ class AffiliateRuntimeDmmPipelineTests(unittest.TestCase):
             "FANZA", "digital", "videoa", CONTENT_ID
         )
 
-    def run(self, result=None, **changes):
+    def execute(self, **changes):
         values = {
             "pipeline_version": pipeline.PIPELINE_VERSION,
             "database_path": self.database,
@@ -90,7 +90,7 @@ class AffiliateRuntimeDmmPipelineTests(unittest.TestCase):
 
     def test_closed_gate_stops_before_database_and_api(self):
         requests = []
-        result = self.run(
+        result = self.execute(
             database_path=Path(self.temporary.name) / "missing.db",
             env_path=Path(self.temporary.name) / "missing.env",
             publication_gate_overall_eligible=False,
@@ -107,7 +107,7 @@ class AffiliateRuntimeDmmPipelineTests(unittest.TestCase):
         delivered = []
         before = self.database.read_bytes()
 
-        result = self.run(emit_redirect=delivered.append)
+        result = self.execute(emit_redirect=delivered.append)
 
         self.assertEqual(result.status, resolution.DELIVERED)
         self.assertTrue(result.item_lookup_attempted)
@@ -122,7 +122,7 @@ class AffiliateRuntimeDmmPipelineTests(unittest.TestCase):
         delivered = []
         bad_url = "https://example.invalid/not-approved"
 
-        result = self.run(
+        result = self.execute(
             emit_redirect=delivered.append,
             fetcher=lambda *_args, **_kwargs: FakeResponse(
                 {
@@ -145,7 +145,7 @@ class AffiliateRuntimeDmmPipelineTests(unittest.TestCase):
 
     def test_pending_lifecycle_stops_before_callbacks(self):
         requests = []
-        result = self.run(
+        result = self.execute(
             lifecycle_status=policy.LIFECYCLE_PENDING,
             publication_gate_overall_eligible=False,
             fetcher=lambda *_args, **_kwargs: requests.append("request"),
@@ -156,7 +156,7 @@ class AffiliateRuntimeDmmPipelineTests(unittest.TestCase):
         self.assertEqual(requests, [])
 
     def test_unknown_pipeline_version_fails_closed_before_callbacks(self):
-        result = self.run(pipeline_version="9")
+        result = self.execute(pipeline_version="9")
 
         self.assertEqual(result.status, resolution.BLOCKED)
         self.assertFalse(result.item_lookup_attempted)
