@@ -108,7 +108,7 @@ def deliver_affiliate_link(
             DELIVERED,
             attempted=True,
             delivered=True,
-            reasons=("AFFILIATE_URL_DELIVERED_TO_TRUSTED_EMITTER",),
+            reasons=("LINK_DELIVERED_TO_TRUSTED_EMITTER",),
         )
     except Exception:
         return _result(
