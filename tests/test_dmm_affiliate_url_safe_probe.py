@@ -92,6 +92,11 @@ class DmmAffiliateUrlSafeProbeTests(unittest.TestCase):
         self.assertTrue(result.affiliate_link_present)
         self.assertTrue(result.https_required_pass)
         self.assertTrue(result.approved_host_pass)
+        self.assertTrue(result.host_matches_dmm_co_jp)
+        self.assertFalse(result.host_matches_dmm_com)
+        self.assertFalse(result.host_matches_fanza_com)
+        self.assertFalse(result.host_matches_fanza_co_jp)
+        self.assertFalse(result.host_unclassified)
         self.assertTrue(result.embedded_credentials_absent)
         self.assertTrue(result.url_length_bounded)
         self.assertFalse(result.response_persisted)
@@ -142,6 +147,30 @@ class DmmAffiliateUrlSafeProbeTests(unittest.TestCase):
                 self.assertEqual(result.status, probe.BLOCKED)
                 self.assertIn(reason, result.reason_codes)
                 self.assertNotIn(value, json.dumps(result.to_dict()))
+
+    def test_fanza_co_jp_is_diagnostic_only_and_remains_blocked(self):
+        value = "https://al.fanza.co.jp/opaque-test"
+        result = probe.run_probe(
+            env_path=self.env_path,
+            fetcher=lambda *_args, **_kwargs: FakeResponse(payload(value)),
+        )
+
+        self.assertEqual(result.status, probe.BLOCKED)
+        self.assertFalse(result.approved_host_pass)
+        self.assertTrue(result.host_matches_fanza_co_jp)
+        self.assertFalse(result.host_unclassified)
+        self.assertNotIn(value, json.dumps(result.to_dict()))
+
+    def test_unknown_host_is_only_reported_as_unclassified_boolean(self):
+        value = "https://unknown.example.invalid/opaque-test"
+        result = probe.run_probe(
+            env_path=self.env_path,
+            fetcher=lambda *_args, **_kwargs: FakeResponse(payload(value)),
+        )
+
+        self.assertEqual(result.status, probe.BLOCKED)
+        self.assertTrue(result.host_unclassified)
+        self.assertNotIn(value, json.dumps(result.to_dict()))
 
     def test_missing_environment_performs_no_request(self):
         missing = Path(self.temporary.name) / "missing.env"
