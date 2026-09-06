@@ -66,6 +66,8 @@ When an affiliate URL is present, the probe may report only bounded booleans for
 fixed host families: `dmm.co.jp`, `dmm.com`, `fanza.com`, and
 `fanza.co.jp`, plus an unclassified flag. It never emits the hostname or URL.
 
-The diagnostic does not expand `ALLOWED_HOST_SUFFIXES`. In particular,
-`fanza.co.jp` remains blocked until its observed classification and official
-basis are reviewed separately.
+The diagnostic classification alone does not expand `ALLOWED_HOST_SUFFIXES`.
+After a bounded live probe confirmed that the official DMM ItemList API returns
+an HTTPS affiliate link in the `fanza.co.jp` family, that family was added to
+the technical URL-shape allowlist. This does not unlock Issue #66, publication,
+affiliate integration, or production deployment gates.

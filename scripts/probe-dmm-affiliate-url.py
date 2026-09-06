@@ -28,7 +28,7 @@ PASS = "PASS"
 DRY_RUN_READY = "DRY_RUN_READY"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
-ALLOWED_HOST_SUFFIXES = ("dmm.co.jp", "dmm.com", "fanza.com")
+ALLOWED_HOST_SUFFIXES = ("dmm.co.jp", "dmm.com", "fanza.com", "fanza.co.jp")
 
 
 @dataclass(frozen=True)
