@@ -106,8 +106,10 @@ def _environment(path: Path) -> tuple[str, str] | None:
 
 
 def _safe_affiliate_url(value: Any) -> tuple[bool, bool, bool, bool, bool]:
-    if not isinstance(value, str) or not value or len(value) > 2048:
+    if not isinstance(value, str) or not value:
         return False, False, False, False, False
+    if len(value) > 2048:
+        return True, False, False, False, False
     try:
         parsed = urllib.parse.urlsplit(value)
         hostname = (parsed.hostname or "").casefold().rstrip(".")
@@ -234,7 +236,7 @@ def run_probe(
             reasons.append("AFFILIATE_LINK_HOST_NOT_APPROVED")
         if present and not credentials_absent:
             reasons.append("AFFILIATE_LINK_EMBEDDED_CREDENTIALS")
-        if present and not length_bounded:
+        if not length_bounded:
             reasons.append("AFFILIATE_LINK_LENGTH_INVALID")
         return _result(
             PASS if passed else BLOCKED,
