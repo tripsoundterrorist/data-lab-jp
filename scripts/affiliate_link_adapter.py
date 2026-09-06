@@ -70,8 +70,8 @@ def _validate_url(value: Any) -> tuple[bool, tuple[str, ...]]:
         port = parsed.port
     except (TypeError, ValueError):
         return False, ("URL_MALFORMED",)
-    if parsed.scheme.lower() not in {"http", "https"}:
-        return False, ("URL_SCHEME_FORBIDDEN",)
+    if parsed.scheme.lower() != "https":
+        return False, ("URL_HTTPS_REQUIRED",)
     if not parsed.netloc or not parsed.hostname:
         return False, ("URL_HOST_REQUIRED",)
     if parsed.username is not None or parsed.password is not None:
@@ -87,6 +87,11 @@ def _validate_url(value: Any) -> tuple[bool, tuple[str, ...]]:
         return False, ("URL_LOOPBACK_FORBIDDEN",)
     if port is not None and not 1 <= port <= 65535:
         return False, ("URL_PORT_INVALID",)
+    if address is not None or not any(
+        hostname == suffix or hostname.endswith("." + suffix)
+        for suffix in ALLOWED_HOST_SUFFIXES
+    ):
+        return False, ("URL_HOST_NOT_APPROVED",)
     return True, ("LINK_VALUE_VALIDATED",)
 
 
