@@ -3,6 +3,7 @@ from io import BytesIO, StringIO
 import importlib.util
 import json
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 import urllib.error
@@ -14,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "probe-dmm-affiliate-url.py"
 SPEC = importlib.util.spec_from_file_location("dmm_affiliate_url_probe", SCRIPT)
 probe = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = probe
 SPEC.loader.exec_module(probe)
 
 
