@@ -13,7 +13,7 @@ import affiliate_link_adapter as adapter  # noqa: E402
 import affiliate_link_policy as policy  # noqa: E402
 
 
-DUMMY_URL = "https://example.invalid/item?ref=fixture"
+DUMMY_URL = "https://fixture.fanza.co.jp/item?ref=fixture"
 
 
 def adapt(**changes):
@@ -34,7 +34,7 @@ def adapt(**changes):
 class AffiliateLinkAdapterTests(unittest.TestCase):
     def test_a_version(self): self.assertEqual(adapter.ADAPTER_VERSION, "0.1")
     def test_b_valid_https(self): self.assertEqual(adapt().validation_status, adapter.VALID)
-    def test_c_valid_http(self): self.assertEqual(adapt(affiliate_url="http://example.invalid/item").validation_status, adapter.VALID)
+    def test_c_http_rejected(self): self.assertEqual(adapt(affiliate_url="http://fixture.fanza.co.jp/item").validation_status, adapter.INVALID)
     def test_d_javascript_rejected(self): self.assertEqual(adapt(affiliate_url="javascript:alert(1)").validation_status, adapter.INVALID)
     def test_e_data_rejected(self): self.assertEqual(adapt(affiliate_url="data:text/plain,x").validation_status, adapter.INVALID)
     def test_f_file_rejected(self): self.assertEqual(adapt(affiliate_url="file:///tmp/x").validation_status, adapter.INVALID)
@@ -45,14 +45,14 @@ class AffiliateLinkAdapterTests(unittest.TestCase):
     def test_k_ipv6_loopback_rejected(self): self.assertEqual(adapt(affiliate_url="https://[::1]/x").validation_status, adapter.INVALID)
     def test_l_unc_rejected(self): self.assertEqual(adapt(affiliate_url=r"\\server\share").validation_status, adapter.INVALID)
     def test_m_windows_path_rejected(self): self.assertEqual(adapt(affiliate_url="C:/local/file").validation_status, adapter.INVALID)
-    def test_n_embedded_username_rejected(self): self.assertEqual(adapt(affiliate_url="https://user@example.invalid/x").validation_status, adapter.INVALID)
-    def test_o_embedded_password_rejected(self): self.assertEqual(adapt(affiliate_url="https://user:pass@example.invalid/x").validation_status, adapter.INVALID)
+    def test_n_embedded_username_rejected(self): self.assertEqual(adapt(affiliate_url="https://user@fixture.fanza.co.jp/x").validation_status, adapter.INVALID)
+    def test_o_embedded_password_rejected(self): self.assertEqual(adapt(affiliate_url="https://user:pass@fixture.fanza.co.jp/x").validation_status, adapter.INVALID)
     def test_p_malformed_url(self): self.assertEqual(adapt(affiliate_url="not-a-url").validation_status, adapter.INVALID)
     def test_q_empty_host(self): self.assertEqual(adapt(affiliate_url="https:///path").validation_status, adapter.INVALID)
-    def test_r_crlf_rejected(self): self.assertEqual(adapt(affiliate_url="https://example.invalid/x\r\nHeader:x").validation_status, adapter.INVALID)
-    def test_s_control_rejected(self): self.assertEqual(adapt(affiliate_url="https://example.invalid/\x01").validation_status, adapter.INVALID)
-    def test_t_space_rejected(self): self.assertEqual(adapt(affiliate_url="https://example.invalid/a b").validation_status, adapter.INVALID)
-    def test_u_tab_rejected(self): self.assertEqual(adapt(affiliate_url="https://example.invalid/a\tb").validation_status, adapter.INVALID)
+    def test_r_crlf_rejected(self): self.assertEqual(adapt(affiliate_url="https://fixture.fanza.co.jp/x\r\nHeader:x").validation_status, adapter.INVALID)
+    def test_s_control_rejected(self): self.assertEqual(adapt(affiliate_url="https://fixture.fanza.co.jp/\x01").validation_status, adapter.INVALID)
+    def test_t_space_rejected(self): self.assertEqual(adapt(affiliate_url="https://fixture.fanza.co.jp/a b").validation_status, adapter.INVALID)
+    def test_u_tab_rejected(self): self.assertEqual(adapt(affiliate_url="https://fixture.fanza.co.jp/a\tb").validation_status, adapter.INVALID)
     def test_v_gate_closed(self): self.assertFalse(adapt(lifecycle_status="RESOLVED").production_render_allowed)
     def test_w_gate_open_fixture(self): self.assertTrue(adapt(lifecycle_status="RESOLVED", publication_gate_overall_eligible=True).production_render_allowed)
     def test_x_pr_absent_blocks(self): self.assertEqual(adapt(pr_disclosure_available=False).link_status, policy.LINK_BLOCKED)
@@ -92,10 +92,17 @@ class AffiliateLinkAdapterTests(unittest.TestCase):
 
     def test_ao_safe_result_exact_fields(self): self.assertEqual(set(adapt().to_dict()), {"adapter_version", "validation_status", "link_status", "ui_candidate", "production_render_allowed", "pr_disclosure_required", "reason_codes"})
     def test_ap_url_validation_alone_not_render(self): self.assertFalse(adapt().production_render_allowed)
-    def test_aq_invalid_port(self): self.assertEqual(adapt(affiliate_url="https://example.invalid:99999/x").validation_status, adapter.INVALID)
+    def test_aq_invalid_port(self): self.assertEqual(adapt(affiliate_url="https://fixture.fanza.co.jp:99999/x").validation_status, adapter.INVALID)
     def test_ar_empty_url(self): self.assertEqual(adapt(affiliate_url="").validation_status, adapter.INVALID)
     def test_as_gate_boolean_strict(self): self.assertEqual(adapt(publication_gate_overall_eligible=1).validation_status, adapter.INVALID)
     def test_at_public_json_still_blocked(self): self.assertEqual(adapt(publication_context="PUBLIC_JSON").link_status, policy.LINK_BLOCKED)
+
+    def test_au_unapproved_host_rejected(self): self.assertEqual(adapt(affiliate_url="https://example.invalid/x").validation_status, adapter.INVALID)
+    def test_av_official_host_families_allowed(self):
+        for host in ("dmm.co.jp", "x.dmm.com", "al.fanza.com", "fixture.fanza.co.jp"):
+            with self.subTest(host=host):
+                self.assertEqual(adapt(affiliate_url=f"https://{host}/x").validation_status, adapter.VALID)
+    def test_aw_suffix_confusion_rejected(self): self.assertEqual(adapt(affiliate_url="https://fanza.co.jp.example.invalid/x").validation_status, adapter.INVALID)
 
 
 if __name__ == "__main__":

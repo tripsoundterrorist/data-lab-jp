@@ -12,7 +12,7 @@ import affiliate_runtime_resolution as resolution  # noqa: E402
 
 PUBLIC_ID = "itm_" + "a" * 24
 CONTENT_ID = "cid-001"
-DUMMY_URL = "https://example.invalid/affiliate"
+DUMMY_URL = "https://fixture.fanza.co.jp/affiliate"
 
 
 def base_arguments() -> dict:
