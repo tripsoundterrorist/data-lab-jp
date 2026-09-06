@@ -42,6 +42,11 @@ class AffiliateUrlProbeResult:
     affiliate_link_present: bool
     https_required_pass: bool
     approved_host_pass: bool
+    host_matches_dmm_co_jp: bool
+    host_matches_dmm_com: bool
+    host_matches_fanza_com: bool
+    host_matches_fanza_co_jp: bool
+    host_unclassified: bool
     embedded_credentials_absent: bool
     url_length_bounded: bool
     response_persisted: bool
@@ -64,6 +69,11 @@ def _result(
     link_present: bool = False,
     https_pass: bool = False,
     host_pass: bool = False,
+    host_dmm_co_jp: bool = False,
+    host_dmm_com: bool = False,
+    host_fanza_com: bool = False,
+    host_fanza_co_jp: bool = False,
+    host_unclassified: bool = False,
     credentials_absent: bool = False,
     length_bounded: bool = False,
     reasons: tuple[str, ...],
@@ -78,6 +88,11 @@ def _result(
         link_present,
         https_pass,
         host_pass,
+        host_dmm_co_jp,
+        host_dmm_com,
+        host_fanza_com,
+        host_fanza_co_jp,
+        host_unclassified,
         credentials_absent,
         length_bounded,
         False,
@@ -133,6 +148,30 @@ def _safe_affiliate_url(value: Any) -> tuple[bool, bool, bool, bool, bool]:
         )
     )
     return True, https_pass, host_pass, credentials_absent, True
+
+
+def _diagnostic_host_classes(value: Any) -> tuple[bool, bool, bool, bool, bool]:
+    """Return bounded host-family booleans without exposing the hostname."""
+
+    if not isinstance(value, str) or not value or len(value) > 2048:
+        return False, False, False, False, False
+    try:
+        hostname = (urllib.parse.urlsplit(value).hostname or "").casefold().rstrip(".")
+    except (TypeError, ValueError):
+        return False, False, False, False, False
+    if not hostname:
+        return False, False, False, False, False
+
+    def matches(suffix: str) -> bool:
+        return hostname == suffix or hostname.endswith("." + suffix)
+
+    classes = (
+        matches("dmm.co.jp"),
+        matches("dmm.com"),
+        matches("fanza.com"),
+        matches("fanza.co.jp"),
+    )
+    return (*classes, not any(classes))
 
 
 def run_probe(
@@ -221,9 +260,17 @@ def run_probe(
                 reasons=("API_SINGLE_ITEM_REQUIRED",),
             )
 
+        affiliate_url = items[0].get("affiliateURL")
         present, https_pass, host_pass, credentials_absent, length_bounded = (
-            _safe_affiliate_url(items[0].get("affiliateURL"))
+            _safe_affiliate_url(affiliate_url)
         )
+        (
+            host_dmm_co_jp,
+            host_dmm_com,
+            host_fanza_com,
+            host_fanza_co_jp,
+            host_unclassified,
+        ) = _diagnostic_host_classes(affiliate_url)
         passed = all(
             (present, https_pass, host_pass, credentials_absent, length_bounded)
         )
@@ -247,6 +294,11 @@ def run_probe(
             link_present=present,
             https_pass=https_pass,
             host_pass=host_pass,
+            host_dmm_co_jp=host_dmm_co_jp,
+            host_dmm_com=host_dmm_com,
+            host_fanza_com=host_fanza_com,
+            host_fanza_co_jp=host_fanza_co_jp,
+            host_unclassified=host_unclassified,
             credentials_absent=credentials_absent,
             length_bounded=length_bounded,
             reasons=tuple(reasons) or ("AFFILIATE_LINK_SAFE_SHAPE_CONFIRMED",),
