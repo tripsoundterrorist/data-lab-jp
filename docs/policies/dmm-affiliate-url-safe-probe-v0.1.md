@@ -58,3 +58,14 @@ affiliate runtime接続、本番CTAを解除しない。
 
 `scripts/check-dmm-api.ps1` は調査用に商品情報や通常URLを表示する。
 affiliate runtime確認では出力最小化された本probeを優先する。
+
+
+## v0.1 diagnostic extension
+
+When an affiliate URL is present, the probe may report only bounded booleans for
+fixed host families: `dmm.co.jp`, `dmm.com`, `fanza.com`, and
+`fanza.co.jp`, plus an unclassified flag. It never emits the hostname or URL.
+
+The diagnostic does not expand `ALLOWED_HOST_SUFFIXES`. In particular,
+`fanza.co.jp` remains blocked until its observed classification and official
+basis are reviewed separately.
