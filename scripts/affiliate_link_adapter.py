@@ -18,6 +18,7 @@ import affiliate_link_policy as link_policy
 ADAPTER_VERSION = "0.1"
 VALID = "VALID"
 INVALID = "INVALID"
+ALLOWED_HOST_SUFFIXES = ("dmm.co.jp", "dmm.com", "fanza.com", "fanza.co.jp")
 WINDOWS_PATH = re.compile(r"(?i)^[a-z]:[\\/]")
 
 
@@ -71,7 +72,11 @@ def _validate_url(value: Any) -> tuple[bool, tuple[str, ...]]:
     except (TypeError, ValueError):
         return False, ("URL_MALFORMED",)
     if parsed.scheme.lower() != "https":
-        return False, ("URL_HTTPS_REQUIRED",)
+        return False, (
+            "URL_HTTPS_REQUIRED"
+            if parsed.scheme.lower() == "http"
+            else "URL_SCHEME_FORBIDDEN",
+        )
     if not parsed.netloc or not parsed.hostname:
         return False, ("URL_HOST_REQUIRED",)
     if parsed.username is not None or parsed.password is not None:
