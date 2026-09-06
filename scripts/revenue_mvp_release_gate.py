@@ -17,10 +17,15 @@ import revenue_mvp_search_console_gate
 import revenue_mvp_x_funnel_candidate
 
 
-GATE_VERSION = "0.5"
+GATE_VERSION = "0.6"
 READY_FOR_RELEASE_APPROVAL = "READY_FOR_RELEASE_APPROVAL"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
+
+# No production runtime provider currently supplies an API-issued affiliate URL
+# to the guarded Web UI handoff. This stays false until that concrete integration
+# is implemented and covered by an explicit release-gate test.
+AFFILIATE_RUNTIME_CONNECTED = False
 
 
 @dataclass(frozen=True)
@@ -80,6 +85,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             official_answer_entries=revenue_mvp_official_answer_matrix.current_entries(),
             explicit_human_approval=False,
         )
+        affiliate_ready = AFFILIATE_RUNTIME_CONNECTED
         ready = (
             deployment.status == revenue_mvp_deployment_preflight.READY
             and deployment.public_data_deployment_allowed is True
@@ -91,6 +97,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             and search_console.status == revenue_mvp_search_console_gate.READY
             and search_console.public_shell_indexing_allowed is True
             and official_answers.core_publication_candidate is True
+            and affiliate_ready is True
         )
         reasons = (
             set(deployment.reason_codes)
@@ -100,6 +107,8 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             | set(official_answers.reason_codes)
             | set(x_funnel.reason_codes)
         )
+        if not affiliate_ready:
+            reasons.add("AFFILIATE_RUNTIME_NOT_CONNECTED")
         if not ready:
             reasons.add("REVENUE_MVP_RELEASE_BLOCKED")
         return ReleaseGateResult(
@@ -123,12 +132,13 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             deployment.public_data_state,
             deployment.public_data_deployment_allowed,
             publication.overall_readiness,
-            ready,
+            affiliate_ready,
             tuple(sorted(reasons)),
             tuple(dict.fromkeys(
                 publication.next_actions
                 + search_console.next_actions
                 + (() if official_answers.core_publication_candidate else ("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE",))
+                + (() if affiliate_ready else ("IMPLEMENT_AFFILIATE_RUNTIME_PROVIDER",))
                 + (
                     ("REVIEW_X_MANUAL_POST_CANDIDATE",)
                     if x_funnel.manual_post_candidate

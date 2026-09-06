@@ -34,6 +34,8 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertEqual(result.status, gate.BLOCKED)
         self.assertFalse(result.production_release_allowed)
         self.assertFalse(result.affiliate_integration_allowed)
+        self.assertIn("AFFILIATE_RUNTIME_NOT_CONNECTED", result.reason_codes)
+        self.assertIn("IMPLEMENT_AFFILIATE_RUNTIME_PROVIDER", result.next_actions)
         self.assertEqual(result.shell_status, "SHELL_VALIDATED")
         self.assertEqual(result.production_smoke_status, "PRODUCTION_SHELL_VALIDATED")
         self.assertEqual(result.production_smoke_checked_url_count, 14)
@@ -137,6 +139,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
             mock.patch.object(gate.publication_readiness, "build_report", return_value=publication),
             mock.patch.object(gate.revenue_mvp_search_console_gate, "run_gate", return_value=search_console),
             mock.patch.object(gate.revenue_mvp_official_answer_matrix, "assess_answer_matrix", return_value=official_answers),
+            mock.patch.object(gate, "AFFILIATE_RUNTIME_CONNECTED", True),
         ):
             result = gate.run_gate()
         self.assertEqual(result.status, gate.READY_FOR_RELEASE_APPROVAL)
