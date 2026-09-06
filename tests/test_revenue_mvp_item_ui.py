@@ -1,5 +1,7 @@
 from pathlib import Path
 import re
+import shutil
+import subprocess
 import unittest
 
 
@@ -86,6 +88,18 @@ class RevenueMvpItemUiTests(unittest.TestCase):
         calls = re.findall(r'trackFunnelEvent\(([^)]*)\)', self.script)[1:]
         self.assertTrue(calls)
         self.assertTrue(all(re.fullmatch(r'"[a-z_]+"', arguments) for arguments in calls))
+
+    def test_runtime_funnel_integration(self):
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js is not installed or is not available on PATH")
+        result = subprocess.run(
+            [node, str(ROOT / "tests" / "items_funnel_runtime_harness.js")],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_runtime_revalidates_items_before_rendering(self):
         self.assertIn("index.items.every(validateIndexItem)", self.script)
