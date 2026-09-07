@@ -15,6 +15,7 @@ import affiliate_runtime_deployment_preflight as preflight  # noqa: E402
 def ready_candidate() -> preflight.AffiliateDeploymentCandidate:
     return preflight.AffiliateDeploymentCandidate(
         platform_adapter_candidate=True,
+        private_lookup_import_preflight_ready=True,
         secret_binding_names=("DMM_API_ID", "DMM_AFFILIATE_ID"),
         data_binding_names=("AFFILIATE_ITEM_LOOKUP",),
         route_path="/go/:public_id",
@@ -40,7 +41,9 @@ class AffiliateRuntimeDeploymentPreflightTests(unittest.TestCase):
         self.assertFalse(result.deployment_candidate)
         self.assertFalse(result.production_deployment_allowed)
         self.assertTrue(result.platform_adapter_candidate)
+        self.assertFalse(result.private_lookup_import_preflight_ready)
         self.assertEqual(result.secret_binding_name_count, 0)
+        self.assertIn("PRIVATE_LOOKUP_IMPORT_PREFLIGHT_NOT_READY", result.reason_codes)
         self.assertIn("SECRET_BINDINGS_NOT_READY", result.reason_codes)
         self.assertIn("OFFICIAL_ANSWER_GATE_CLOSED", result.reason_codes)
         self.assertIn(
@@ -56,6 +59,7 @@ class AffiliateRuntimeDeploymentPreflightTests(unittest.TestCase):
         self.assertTrue(result.deployment_candidate)
         self.assertFalse(result.production_deployment_allowed)
         self.assertTrue(result.platform_adapter_candidate)
+        self.assertTrue(result.private_lookup_import_preflight_ready)
         self.assertTrue(result.route_configured)
         self.assertTrue(result.rate_limit_configured)
         self.assertTrue(result.runtime_chain_connected)
@@ -123,6 +127,10 @@ class AffiliateRuntimeDeploymentPreflightTests(unittest.TestCase):
                 "platform_adapter_candidate",
                 "PLATFORM_ADAPTER_CANDIDATE_NOT_READY",
             ),
+            (
+                "private_lookup_import_preflight_ready",
+                "PRIVATE_LOOKUP_IMPORT_PREFLIGHT_NOT_READY",
+            ),
             ("log_redaction_enabled", "LOG_REDACTION_NOT_READY"),
             ("response_cache_disabled", "RESPONSE_CACHE_POLICY_NOT_READY"),
             ("official_answer_candidate", "OFFICIAL_ANSWER_GATE_CLOSED"),
@@ -151,6 +159,7 @@ class AffiliateRuntimeDeploymentPreflightTests(unittest.TestCase):
         self.assertEqual(result.status, preflight.FAIL_CLOSED)
         self.assertFalse(result.production_deployment_allowed)
         self.assertFalse(result.platform_adapter_candidate)
+        self.assertFalse(result.private_lookup_import_preflight_ready)
         self.assertEqual(
             result.reason_codes,
             ("AFFILIATE_DEPLOYMENT_PREFLIGHT_INTERNAL_ERROR",),
@@ -166,6 +175,7 @@ class AffiliateRuntimeDeploymentPreflightTests(unittest.TestCase):
         result = json.loads(output.getvalue())
         self.assertEqual(result["status"], preflight.BLOCKED)
         self.assertFalse(result["production_deployment_allowed"])
+        self.assertFalse(result["private_lookup_import_preflight_ready"])
 
 
 if __name__ == "__main__":
