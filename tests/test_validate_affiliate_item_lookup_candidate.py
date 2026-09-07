@@ -107,6 +107,30 @@ class ValidateAffiliateItemLookupCandidateTests(unittest.TestCase):
         self.assertEqual(FAIL_CLOSED, result.status)
         self.assertIn("CANDIDATE_UNAVAILABLE", result.reason_codes)
 
+    def test_candidate_symlink_is_rejected_before_resolution(self) -> None:
+        data = payload([("itm_" + "a" * 24, "abc-001")])
+        candidate, digest = self.write_candidate(data)
+        link = self.root / "candidate-link.sql"
+        try:
+            link.symlink_to(candidate)
+        except OSError as exc:
+            self.skipTest(f"symlink unavailable: {exc}")
+        result = validate_candidate(link, self.schema, expected_sha256=digest, expected_row_count=1)
+        self.assertEqual(FAIL_CLOSED, result.status)
+        self.assertEqual(("CANDIDATE_SYMLINK_REJECTED",), result.reason_codes)
+
+    def test_schema_symlink_is_rejected_before_resolution(self) -> None:
+        data = payload([("itm_" + "a" * 24, "abc-001")])
+        candidate, digest = self.write_candidate(data)
+        schema_link = self.root / "schema-link.sql"
+        try:
+            schema_link.symlink_to(self.schema)
+        except OSError as exc:
+            self.skipTest(f"symlink unavailable: {exc}")
+        result = validate_candidate(candidate, schema_link, expected_sha256=digest, expected_row_count=1)
+        self.assertEqual(FAIL_CLOSED, result.status)
+        self.assertEqual(("SCHEMA_SYMLINK_REJECTED",), result.reason_codes)
+
 
 if __name__ == "__main__":
     unittest.main()
