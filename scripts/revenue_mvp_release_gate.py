@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import affiliate_runtime_dmm_pipeline
+import affiliate_runtime_deployment_preflight
 import publication_readiness
 import revenue_mvp_deployment_preflight
 import revenue_mvp_official_answer_matrix
@@ -18,7 +19,7 @@ import revenue_mvp_search_console_gate
 import revenue_mvp_x_funnel_candidate
 
 
-GATE_VERSION = "0.7"
+GATE_VERSION = "0.8"
 READY_FOR_RELEASE_APPROVAL = "READY_FOR_RELEASE_APPROVAL"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
@@ -61,6 +62,10 @@ class ReleaseGateResult:
     public_data_deployment_allowed: bool
     publication_readiness: str
     affiliate_pipeline_ready: bool
+    affiliate_deployment_status: str
+    affiliate_deployment_candidate: bool
+    affiliate_route_configured: bool
+    affiliate_rate_limit_configured: bool
     affiliate_integration_allowed: bool
     reason_codes: tuple[str, ...]
     next_actions: tuple[str, ...]
@@ -88,6 +93,11 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
         official_answers = revenue_mvp_official_answer_matrix.assess_answer_matrix(
             revenue_mvp_official_answer_matrix.current_entries()
         )
+        affiliate_deployment = (
+            affiliate_runtime_deployment_preflight.assess_preflight(
+                affiliate_runtime_deployment_preflight.current_input()
+            )
+        )
         x_funnel = revenue_mvp_x_funnel_candidate.build_candidate(
             fact_text="DATA LABの公開準備状況を更新しました。",
             landing_path="/",
@@ -109,6 +119,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             and search_console.status == revenue_mvp_search_console_gate.READY
             and search_console.public_shell_indexing_allowed is True
             and official_answers.core_publication_candidate is True
+            and affiliate_deployment.deployment_candidate is True
             and affiliate_ready is True
         )
         reasons = (
@@ -117,6 +128,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             | set(production_smoke.reason_codes)
             | set(search_console.reason_codes)
             | set(official_answers.reason_codes)
+            | set(affiliate_deployment.reason_codes)
             | set(x_funnel.reason_codes)
         )
         if not affiliate_ready:
@@ -145,6 +157,10 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             deployment.public_data_deployment_allowed,
             publication.overall_readiness,
             pipeline_ready,
+            affiliate_deployment.status,
+            affiliate_deployment.deployment_candidate,
+            affiliate_deployment.route_configured,
+            affiliate_deployment.rate_limit_configured,
             affiliate_ready,
             tuple(sorted(reasons)),
             tuple(dict.fromkeys(
@@ -152,7 +168,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
                 + search_console.next_actions
                 + (() if official_answers.core_publication_candidate else ("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE",))
                 + (() if pipeline_ready else ("IMPLEMENT_AFFILIATE_RUNTIME_PIPELINE",))
-                + (() if affiliate_ready else ("IMPLEMENT_AFFILIATE_RUNTIME_ROUTE",))
+                + affiliate_deployment.next_actions
                 + (
                     ("REVIEW_X_MANUAL_POST_CANDIDATE",)
                     if x_funnel.manual_post_candidate
@@ -187,6 +203,10 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             public_data_deployment_allowed=False,
             publication_readiness=publication_readiness.FAIL_CLOSED,
             affiliate_pipeline_ready=False,
+            affiliate_deployment_status="UNKNOWN",
+            affiliate_deployment_candidate=False,
+            affiliate_route_configured=False,
+            affiliate_rate_limit_configured=False,
             affiliate_integration_allowed=False,
             reason_codes=("RELEASE_GATE_INTERNAL_ERROR",),
             next_actions=(),
