@@ -19,7 +19,7 @@ import revenue_mvp_search_console_gate
 import revenue_mvp_x_funnel_candidate
 
 
-GATE_VERSION = "0.8"
+GATE_VERSION = "0.9"
 READY_FOR_RELEASE_APPROVAL = "READY_FOR_RELEASE_APPROVAL"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
@@ -62,6 +62,7 @@ class ReleaseGateResult:
     public_data_deployment_allowed: bool
     publication_readiness: str
     affiliate_pipeline_ready: bool
+    affiliate_platform_candidate_ready: bool
     affiliate_deployment_status: str
     affiliate_deployment_candidate: bool
     affiliate_route_configured: bool
@@ -157,6 +158,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             deployment.public_data_deployment_allowed,
             publication.overall_readiness,
             pipeline_ready,
+            affiliate_deployment.platform_adapter_candidate,
             affiliate_deployment.status,
             affiliate_deployment.deployment_candidate,
             affiliate_deployment.route_configured,
@@ -203,6 +205,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             public_data_deployment_allowed=False,
             publication_readiness=publication_readiness.FAIL_CLOSED,
             affiliate_pipeline_ready=False,
+            affiliate_platform_candidate_ready=False,
             affiliate_deployment_status="UNKNOWN",
             affiliate_deployment_candidate=False,
             affiliate_route_configured=False,
