@@ -13,14 +13,15 @@ from typing import Any
 from validate_affiliate_item_lookup_candidate import (
     FAIL_CLOSED as VALIDATION_FAIL_CLOSED,
     VALIDATED,
-    validate_candidate,
+    _snapshot_regular_file,
+    validate_candidate_snapshot,
 )
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CANDIDATE = ROOT / "runtime" / "private" / "affiliate-item-lookup.sql"
 DEFAULT_SCHEMA = ROOT / "runtime-candidates" / "affiliate-item-lookup-schema.sql"
-PREFLIGHT_VERSION = "0.1"
+PREFLIGHT_VERSION = "0.2"
 PREFLIGHT_READY = "PREFLIGHT_READY"
 FAIL_CLOSED = "FAIL_CLOSED"
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
@@ -72,14 +73,6 @@ def _result(
     )
 
 
-def _digest(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as source:
-        for block in iter(lambda: source.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
 def preflight_d1_import(
     candidate_path: Path,
     schema_path: Path,
@@ -88,15 +81,13 @@ def preflight_d1_import(
     expected_schema_sha256: Any,
     expected_row_count: Any,
 ) -> D1ImportPreflightResult:
-    """Validate immutable import inputs without creating or writing a D1 resource."""
+    """Validate immutable import-input snapshots without creating or writing a D1 resource."""
 
     try:
-        candidate = candidate_path.resolve()
-        schema = schema_path.resolve()
-        if not candidate.is_file() or candidate.is_symlink():
-            return _result(FAIL_CLOSED, ("CANDIDATE_UNAVAILABLE",))
-        if not schema.is_file() or schema.is_symlink():
-            return _result(FAIL_CLOSED, ("SCHEMA_UNAVAILABLE",))
+        if candidate_path.is_symlink():
+            return _result(FAIL_CLOSED, ("CANDIDATE_SYMLINK_REJECTED",))
+        if schema_path.is_symlink():
+            return _result(FAIL_CLOSED, ("SCHEMA_SYMLINK_REJECTED",))
         if (
             not isinstance(expected_candidate_sha256, str)
             or SHA256_PATTERN.fullmatch(expected_candidate_sha256) is None
@@ -114,18 +105,20 @@ def preflight_d1_import(
         ):
             return _result(FAIL_CLOSED, ("EXPECTED_ROW_COUNT_REQUIRED",))
 
-        if _digest(schema) != expected_schema_sha256:
+        candidate_bytes = _snapshot_regular_file(candidate_path)
+        schema_bytes = _snapshot_regular_file(schema_path)
+        if hashlib.sha256(schema_bytes).hexdigest() != expected_schema_sha256:
             return _result(FAIL_CLOSED, ("SCHEMA_IDENTITY_MISMATCH",))
-        if _digest(candidate) != expected_candidate_sha256:
+        if hashlib.sha256(candidate_bytes).hexdigest() != expected_candidate_sha256:
             return _result(
                 FAIL_CLOSED,
                 ("CANDIDATE_IDENTITY_MISMATCH",),
                 schema_identity_verified=True,
             )
 
-        validation = validate_candidate(
-            candidate,
-            schema,
+        validation = validate_candidate_snapshot(
+            candidate_bytes,
+            schema_bytes,
             expected_sha256=expected_candidate_sha256,
             expected_row_count=expected_row_count,
         )
@@ -192,8 +185,12 @@ def preflight_d1_import(
             pending_defaults_verified=True,
             eligible_row_count=0,
         )
-    except (OSError, UnicodeError):
-        return _result(FAIL_CLOSED, ("PREFLIGHT_OPERATION_FAILED",))
+    except FileNotFoundError:
+        if not candidate_path.exists():
+            return _result(FAIL_CLOSED, ("CANDIDATE_UNAVAILABLE",))
+        return _result(FAIL_CLOSED, ("SCHEMA_UNAVAILABLE",))
+    except (OSError, RuntimeError):
+        return _result(FAIL_CLOSED, ("SNAPSHOT_UNSTABLE",))
     except Exception:
         return _result(FAIL_CLOSED, ("PREFLIGHT_INTERNAL_ERROR",))
 
