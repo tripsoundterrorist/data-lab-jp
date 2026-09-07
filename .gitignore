@@ -14,3 +14,4 @@ runtime/unattended-queue-v0.1.json
 runtime/unattended-queue-v0.1.json.lock
 runtime/unattended-queue-v0.1.json.tmp
 runtime/checkpoints/
+runtime/private/
