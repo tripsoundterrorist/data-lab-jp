@@ -33,9 +33,11 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         result = gate.run_gate()
         self.assertEqual(result.status, gate.BLOCKED)
         self.assertFalse(result.production_release_allowed)
+        self.assertTrue(result.affiliate_pipeline_ready)
         self.assertFalse(result.affiliate_integration_allowed)
         self.assertIn("AFFILIATE_RUNTIME_NOT_CONNECTED", result.reason_codes)
-        self.assertIn("IMPLEMENT_AFFILIATE_RUNTIME_PROVIDER", result.next_actions)
+        self.assertNotIn("IMPLEMENT_AFFILIATE_RUNTIME_PIPELINE", result.next_actions)
+        self.assertIn("IMPLEMENT_AFFILIATE_RUNTIME_ROUTE", result.next_actions)
         self.assertEqual(result.shell_status, "SHELL_VALIDATED")
         self.assertEqual(result.production_smoke_status, "PRODUCTION_SHELL_VALIDATED")
         self.assertEqual(result.production_smoke_checked_url_count, 14)
@@ -163,6 +165,16 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertEqual(result.status, gate.BLOCKED)
         self.assertFalse(result.affiliate_integration_allowed)
 
+    def test_missing_or_unknown_pipeline_is_reported_separately(self):
+        with mock.patch.object(
+            gate.affiliate_runtime_dmm_pipeline, "PIPELINE_VERSION", "UNKNOWN"
+        ):
+            result = gate.run_gate()
+        self.assertFalse(result.affiliate_pipeline_ready)
+        self.assertFalse(result.affiliate_integration_allowed)
+        self.assertIn("IMPLEMENT_AFFILIATE_RUNTIME_PIPELINE", result.next_actions)
+        self.assertIn("IMPLEMENT_AFFILIATE_RUNTIME_ROUTE", result.next_actions)
+
     def test_internal_failure_is_bounded_and_fail_closed(self):
         with mock.patch.object(
             gate.revenue_mvp_deployment_preflight, "run_preflight",
@@ -176,6 +188,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertEqual(result.production_smoke_checked_url_count, 0)
         self.assertEqual(result.official_answer_status, "UNKNOWN")
         self.assertEqual(result.x_funnel_status, "UNKNOWN")
+        self.assertFalse(result.affiliate_pipeline_ready)
         self.assertNotIn("secret", json.dumps(result.to_dict()))
 
     def test_cli_is_read_only_and_machine_readable(self):
@@ -186,6 +199,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         result = json.loads(output.getvalue())
         self.assertEqual(result["status"], gate.BLOCKED)
         self.assertFalse(result["production_release_allowed"])
+        self.assertTrue(result["affiliate_pipeline_ready"])
         self.assertEqual(result["x_funnel_status"], "PREVIEW_ONLY")
         self.assertEqual(result["production_smoke_status"], "PRODUCTION_SHELL_VALIDATED")
         self.assertGreaterEqual(result["production_smoke_checked_url_count"], 0)
