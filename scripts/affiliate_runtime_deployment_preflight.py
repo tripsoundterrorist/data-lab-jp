@@ -12,7 +12,7 @@ import re
 from typing import Any
 
 
-PREFLIGHT_VERSION = "0.2"
+PREFLIGHT_VERSION = "0.3"
 READY_FOR_DEPLOYMENT_REVIEW = "READY_FOR_DEPLOYMENT_REVIEW"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
@@ -30,6 +30,7 @@ BINDING_NAME = re.compile(r"[A-Z][A-Z0-9_]{0,63}\Z")
 @dataclass(frozen=True)
 class AffiliateDeploymentCandidate:
     platform_adapter_candidate: bool
+    private_lookup_import_preflight_ready: bool
     secret_binding_names: tuple[str, ...]
     data_binding_names: tuple[str, ...]
     route_path: str | None
@@ -53,6 +54,7 @@ class AffiliateDeploymentPreflightResult:
     deployment_candidate: bool
     production_deployment_allowed: bool
     platform_adapter_candidate: bool
+    private_lookup_import_preflight_ready: bool
     secret_binding_name_count: int
     data_binding_name_count: int
     route_configured: bool
@@ -73,6 +75,7 @@ def current_input() -> AffiliateDeploymentCandidate:
 
     return AffiliateDeploymentCandidate(
         platform_adapter_candidate=True,
+        private_lookup_import_preflight_ready=False,
         secret_binding_names=(),
         data_binding_names=(),
         route_path=None,
@@ -114,6 +117,13 @@ def assess_preflight(
         if not platform_ready:
             reasons.add("PLATFORM_ADAPTER_CANDIDATE_NOT_READY")
             actions.append("PREPARE_NON_DEPLOYED_PLATFORM_ADAPTER")
+
+        lookup_preflight_ready = (
+            candidate.private_lookup_import_preflight_ready is True
+        )
+        if not lookup_preflight_ready:
+            reasons.add("PRIVATE_LOOKUP_IMPORT_PREFLIGHT_NOT_READY")
+            actions.append("RUN_PRIVATE_LOOKUP_D1_IMPORT_PREFLIGHT")
 
         secret_names_valid = _valid_names(candidate.secret_binding_names)
         data_names_valid = _valid_names(candidate.data_binding_names)
@@ -177,6 +187,7 @@ def assess_preflight(
             ready,
             False,
             platform_ready,
+            lookup_preflight_ready,
             len(candidate.secret_binding_names) if secret_names_valid else 0,
             len(candidate.data_binding_names) if data_names_valid else 0,
             route_ready,
@@ -189,6 +200,7 @@ def assess_preflight(
         return AffiliateDeploymentPreflightResult(
             PREFLIGHT_VERSION,
             FAIL_CLOSED,
+            False,
             False,
             False,
             False,
