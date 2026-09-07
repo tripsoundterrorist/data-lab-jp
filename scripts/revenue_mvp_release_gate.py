@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import affiliate_runtime_dmm_pipeline
 import publication_readiness
 import revenue_mvp_deployment_preflight
 import revenue_mvp_official_answer_matrix
@@ -17,7 +18,7 @@ import revenue_mvp_search_console_gate
 import revenue_mvp_x_funnel_candidate
 
 
-GATE_VERSION = "0.6"
+GATE_VERSION = "0.7"
 READY_FOR_RELEASE_APPROVAL = "READY_FOR_RELEASE_APPROVAL"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
@@ -26,6 +27,15 @@ FAIL_CLOSED = "FAIL_CLOSED"
 # to the guarded Web UI handoff. This stays false until that concrete integration
 # is implemented and covered by an explicit release-gate test.
 AFFILIATE_RUNTIME_CONNECTED = False
+
+
+def _affiliate_pipeline_ready() -> bool:
+    """Report only the reviewed inert composition, never deployment readiness."""
+
+    return (
+        affiliate_runtime_dmm_pipeline.PIPELINE_VERSION == "0.1"
+        and callable(affiliate_runtime_dmm_pipeline.run_pipeline)
+    )
 
 
 @dataclass(frozen=True)
@@ -50,6 +60,7 @@ class ReleaseGateResult:
     public_data_state: str
     public_data_deployment_allowed: bool
     publication_readiness: str
+    affiliate_pipeline_ready: bool
     affiliate_integration_allowed: bool
     reason_codes: tuple[str, ...]
     next_actions: tuple[str, ...]
@@ -85,6 +96,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             official_answer_entries=revenue_mvp_official_answer_matrix.current_entries(),
             explicit_human_approval=False,
         )
+        pipeline_ready = _affiliate_pipeline_ready()
         affiliate_ready = AFFILIATE_RUNTIME_CONNECTED
         ready = (
             deployment.status == revenue_mvp_deployment_preflight.READY
@@ -132,13 +144,15 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             deployment.public_data_state,
             deployment.public_data_deployment_allowed,
             publication.overall_readiness,
+            pipeline_ready,
             affiliate_ready,
             tuple(sorted(reasons)),
             tuple(dict.fromkeys(
                 publication.next_actions
                 + search_console.next_actions
                 + (() if official_answers.core_publication_candidate else ("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE",))
-                + (() if affiliate_ready else ("IMPLEMENT_AFFILIATE_RUNTIME_PROVIDER",))
+                + (() if pipeline_ready else ("IMPLEMENT_AFFILIATE_RUNTIME_PIPELINE",))
+                + (() if affiliate_ready else ("IMPLEMENT_AFFILIATE_RUNTIME_ROUTE",))
                 + (
                     ("REVIEW_X_MANUAL_POST_CANDIDATE",)
                     if x_funnel.manual_post_candidate
@@ -172,6 +186,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             public_data_state="UNKNOWN",
             public_data_deployment_allowed=False,
             publication_readiness=publication_readiness.FAIL_CLOSED,
+            affiliate_pipeline_ready=False,
             affiliate_integration_allowed=False,
             reason_codes=("RELEASE_GATE_INTERNAL_ERROR",),
             next_actions=(),
