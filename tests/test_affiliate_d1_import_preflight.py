@@ -47,6 +47,7 @@ class AffiliateD1ImportPreflightTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         root = Path(self.temp.name)
+        self.root = root
         self.schema = root / "schema.sql"
         self.candidate = root / "candidate.sql"
         self.schema.write_text(SCHEMA, encoding="utf-8")
@@ -117,6 +118,28 @@ class AffiliateD1ImportPreflightTests(unittest.TestCase):
         result = self.run_preflight(expected_candidate_sha256="not-a-sha")
         self.assertEqual(result.status, FAIL_CLOSED)
         self.assertEqual(result.reason_codes, ("EXPECTED_CANDIDATE_SHA256_REQUIRED",))
+
+    def test_candidate_symlink_is_rejected_before_snapshot(self) -> None:
+        link = self.root / "candidate-link.sql"
+        try:
+            link.symlink_to(self.candidate)
+        except OSError as exc:
+            self.skipTest(f"symlink unavailable: {exc}")
+        result = self.run_preflight(candidate_path=link)
+        self.assertEqual(result.status, FAIL_CLOSED)
+        self.assertEqual(result.reason_codes, ("CANDIDATE_SYMLINK_REJECTED",))
+        self.assertFalse(result.cloudflare_write_performed)
+
+    def test_schema_symlink_is_rejected_before_snapshot(self) -> None:
+        link = self.root / "schema-link.sql"
+        try:
+            link.symlink_to(self.schema)
+        except OSError as exc:
+            self.skipTest(f"symlink unavailable: {exc}")
+        result = self.run_preflight(schema_path=link)
+        self.assertEqual(result.status, FAIL_CLOSED)
+        self.assertEqual(result.reason_codes, ("SCHEMA_SYMLINK_REJECTED",))
+        self.assertFalse(result.cloudflare_write_performed)
 
 
 if __name__ == "__main__":
