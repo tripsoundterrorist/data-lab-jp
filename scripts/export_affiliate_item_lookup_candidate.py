@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import argparse
 from dataclasses import asdict, dataclass
 import hashlib
+import json
 import os
 from pathlib import Path
+import re
 import sqlite3
 import tempfile
 from typing import Any
@@ -13,10 +16,14 @@ from typing import Any
 from affiliate_runtime_dmm_connector import CONTENT_ID, _public_item_id
 
 
-EXPORT_VERSION = "0.1"
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_OUTPUT_ROOT = ROOT / "runtime" / "private"
+DEFAULT_OUTPUT_PATH = DEFAULT_OUTPUT_ROOT / "affiliate-item-lookup.sql"
+EXPORT_VERSION = "0.2"
 EXPORTED = "EXPORTED"
 FAIL_CLOSED = "FAIL_CLOSED"
 EXPECTED_SCOPE = ("FANZA", "digital", "videoa")
+SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 
 
 @dataclass(frozen=True)
@@ -26,6 +33,7 @@ class ExportResult:
     row_count: int
     all_rows_disabled: bool
     source_query_only: bool
+    database_identity_verified: bool
     output_sha256: str | None
     reason_codes: tuple[str, ...]
 
@@ -41,9 +49,11 @@ def _result(
     *,
     rows: int = 0,
     digest: str | None = None,
+    identity_verified: bool = False,
 ) -> ExportResult:
     return ExportResult(
-        EXPORT_VERSION, status, rows, status == EXPORTED, True, digest, reasons
+        EXPORT_VERSION, status, rows, status == EXPORTED, True,
+        identity_verified, digest, reasons
     )
 
 
@@ -51,11 +61,20 @@ def _quote(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+def _digest(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def export_candidate(
     database_path: Path,
     output_path: Path,
     *,
     allowed_output_root: Path,
+    expected_sha256: Any,
 ) -> ExportResult:
     """Read one SQLite source query-only and atomically write a private SQL file."""
 
@@ -67,14 +86,23 @@ def export_candidate(
         target = output_path.resolve()
         if not source.is_file():
             return _result(FAIL_CLOSED, ("SOURCE_DATABASE_UNAVAILABLE",))
+        if source.is_symlink():
+            return _result(FAIL_CLOSED, ("UNSAFE_DATABASE_ENTRY",))
+        if (not isinstance(expected_sha256, str)
+                or SHA256_PATTERN.fullmatch(expected_sha256) is None):
+            return _result(FAIL_CLOSED, ("EXPECTED_SHA256_REQUIRED",))
         if target.parent != root or target.suffix.lower() != ".sql":
             return _result(FAIL_CLOSED, ("OUTPUT_TARGET_FORBIDDEN",))
-        root.mkdir(parents=True, exist_ok=True)
         if target.exists() or target.is_symlink():
             return _result(FAIL_CLOSED, ("OUTPUT_TARGET_ALREADY_EXISTS",))
 
+        before = _digest(source)
+        if before != expected_sha256:
+            return _result(FAIL_CLOSED, ("DATABASE_IDENTITY_MISMATCH",))
         connection = sqlite3.connect(f"{source.as_uri()}?mode=ro", uri=True)
         connection.execute("PRAGMA query_only = ON")
+        if connection.execute("PRAGMA query_only").fetchone() != (1,):
+            return _result(FAIL_CLOSED, ("READ_ONLY_ENFORCEMENT_FAILED",))
         records = connection.execute(
             "SELECT site, service, floor, content_id FROM items ORDER BY site, service, floor, content_id"
         ).fetchall()
@@ -99,6 +127,12 @@ def export_candidate(
             seen_content.add(content_id)
             rows.append((public_id, content_id))
 
+        after = _digest(source)
+        if before != after or after != expected_sha256:
+            return _result(
+                FAIL_CLOSED, ("DATABASE_CHANGED_DURING_EXPORT",)
+            )
+
         statements = ["BEGIN TRANSACTION;"]
         for public_id, content_id in rows:
             statements.append(
@@ -109,6 +143,7 @@ def export_candidate(
         statements.append("COMMIT;")
         payload = ("\n".join(statements) + "\n").encode("utf-8")
 
+        root.mkdir(parents=True, exist_ok=True)
         handle = tempfile.NamedTemporaryFile(
             mode="wb", dir=root, prefix=".affiliate-lookup-", suffix=".tmp", delete=False
         )
@@ -125,6 +160,7 @@ def export_candidate(
             ("PRIVATE_DISABLED_LOOKUP_EXPORTED",),
             rows=len(rows),
             digest=hashlib.sha256(payload).hexdigest(),
+            identity_verified=True,
         )
     except (OSError, sqlite3.Error):
         return _result(FAIL_CLOSED, ("EXPORT_OPERATION_FAILED",))
@@ -140,4 +176,25 @@ def export_candidate(
                 pass
 
 
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Create one disabled private affiliate lookup SQL candidate."
+    )
+    parser.add_argument("--db", type=Path, required=True)
+    parser.add_argument("--expected-sha256", required=True)
+    args = parser.parse_args(argv)
+    result = export_candidate(
+        args.db,
+        DEFAULT_OUTPUT_PATH,
+        allowed_output_root=DEFAULT_OUTPUT_ROOT,
+        expected_sha256=args.expected_sha256,
+    )
+    print(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
+    return 0 if result.status == EXPORTED else 2
+
+
 __all__ = ["EXPORTED", "EXPORT_VERSION", "ExportResult", "FAIL_CLOSED", "export_candidate"]
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
