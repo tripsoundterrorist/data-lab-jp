@@ -15,7 +15,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CANDIDATE = ROOT / "runtime" / "private" / "affiliate-item-lookup.sql"
 DEFAULT_SCHEMA = ROOT / "runtime-candidates" / "affiliate-item-lookup-schema.sql"
-VALIDATION_VERSION = "0.1"
+VALIDATION_VERSION = "0.2"
 VALIDATED = "VALIDATED"
 FAIL_CLOSED = "FAIL_CLOSED"
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
@@ -65,38 +65,43 @@ def _result(
     )
 
 
-def _digest(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as source:
-        for block in iter(lambda: source.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
+def _snapshot_regular_file(path: Path) -> bytes:
+    """Read one stable regular-file snapshot while rejecting direct symlink inputs."""
+
+    if path.is_symlink():
+        raise OSError("symlink input rejected")
+    resolved = path.resolve(strict=True)
+    if not resolved.is_file():
+        raise OSError("regular file required")
+    before = resolved.stat()
+    data = resolved.read_bytes()
+    after = resolved.stat()
+    before_identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+    after_identity = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+    if before_identity != after_identity or len(data) != after.st_size:
+        raise OSError("file changed while snapshotting")
+    return data
 
 
-def validate_candidate(
-    candidate_path: Path,
-    schema_path: Path,
+def validate_candidate_snapshot(
+    candidate_bytes: bytes,
+    schema_bytes: bytes,
     *,
     expected_sha256: Any,
     expected_row_count: Any,
 ) -> ValidationResult:
-    """Validate shape, identity, schema defaults, and zero runtime eligibility in memory."""
+    """Validate exact candidate/schema snapshots without reopening filesystem inputs."""
 
     try:
-        candidate = candidate_path.resolve()
-        schema = schema_path.resolve()
-        if not candidate.is_file() or candidate.is_symlink():
-            return _result(FAIL_CLOSED, ("CANDIDATE_UNAVAILABLE",))
-        if not schema.is_file() or schema.is_symlink():
-            return _result(FAIL_CLOSED, ("SCHEMA_UNAVAILABLE",))
         if not isinstance(expected_sha256, str) or SHA256_PATTERN.fullmatch(expected_sha256) is None:
             return _result(FAIL_CLOSED, ("EXPECTED_SHA256_REQUIRED",))
         if not isinstance(expected_row_count, int) or isinstance(expected_row_count, bool) or expected_row_count <= 0:
             return _result(FAIL_CLOSED, ("EXPECTED_ROW_COUNT_REQUIRED",))
-        if _digest(candidate) != expected_sha256:
+        if hashlib.sha256(candidate_bytes).hexdigest() != expected_sha256:
             return _result(FAIL_CLOSED, ("CANDIDATE_IDENTITY_MISMATCH",))
 
-        candidate_text = candidate.read_text(encoding="utf-8")
+        candidate_text = candidate_bytes.decode("utf-8")
+        schema_text = schema_bytes.decode("utf-8")
         lines = candidate_text.splitlines()
         if len(lines) != expected_row_count + 2:
             return _result(FAIL_CLOSED, ("CANDIDATE_STATEMENT_COUNT_MISMATCH",), identity_verified=True)
@@ -120,7 +125,7 @@ def validate_candidate(
 
         connection = sqlite3.connect(":memory:")
         try:
-            connection.executescript(schema.read_text(encoding="utf-8"))
+            connection.executescript(schema_text)
             connection.executescript(candidate_text)
             row_count = connection.execute("SELECT COUNT(*) FROM affiliate_item_lookup").fetchone()[0]
             disabled_count = connection.execute(
@@ -156,10 +161,43 @@ def validate_candidate(
             eligible_count=0,
             identity_verified=True,
         )
-    except (OSError, UnicodeError, sqlite3.Error):
+    except (UnicodeError, sqlite3.Error):
         return _result(FAIL_CLOSED, ("VALIDATION_OPERATION_FAILED",))
     except Exception:
         return _result(FAIL_CLOSED, ("VALIDATION_INTERNAL_ERROR",))
+
+
+def validate_candidate(
+    candidate_path: Path,
+    schema_path: Path,
+    *,
+    expected_sha256: Any,
+    expected_row_count: Any,
+) -> ValidationResult:
+    """Validate shape, identity, schema defaults, and zero runtime eligibility in memory."""
+
+    try:
+        if candidate_path.is_symlink():
+            return _result(FAIL_CLOSED, ("CANDIDATE_SYMLINK_REJECTED",))
+        if schema_path.is_symlink():
+            return _result(FAIL_CLOSED, ("SCHEMA_SYMLINK_REJECTED",))
+        candidate_bytes = _snapshot_regular_file(candidate_path)
+        schema_bytes = _snapshot_regular_file(schema_path)
+    except (OSError, RuntimeError):
+        if not candidate_path.exists():
+            return _result(FAIL_CLOSED, ("CANDIDATE_UNAVAILABLE",))
+        if not schema_path.exists():
+            return _result(FAIL_CLOSED, ("SCHEMA_UNAVAILABLE",))
+        return _result(FAIL_CLOSED, ("SNAPSHOT_UNSTABLE",))
+    except Exception:
+        return _result(FAIL_CLOSED, ("VALIDATION_INTERNAL_ERROR",))
+
+    return validate_candidate_snapshot(
+        candidate_bytes,
+        schema_bytes,
+        expected_sha256=expected_sha256,
+        expected_row_count=expected_row_count,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -179,7 +217,14 @@ def main(argv: list[str] | None = None) -> int:
     return 0 if result.status == VALIDATED else 2
 
 
-__all__ = ["FAIL_CLOSED", "VALIDATED", "VALIDATION_VERSION", "ValidationResult", "validate_candidate"]
+__all__ = [
+    "FAIL_CLOSED",
+    "VALIDATED",
+    "VALIDATION_VERSION",
+    "ValidationResult",
+    "validate_candidate",
+    "validate_candidate_snapshot",
+]
 
 
 if __name__ == "__main__":
