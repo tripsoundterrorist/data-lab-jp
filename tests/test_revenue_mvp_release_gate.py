@@ -34,10 +34,17 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertEqual(result.status, gate.BLOCKED)
         self.assertFalse(result.production_release_allowed)
         self.assertTrue(result.affiliate_pipeline_ready)
+        self.assertEqual(result.affiliate_deployment_status, "BLOCKED")
+        self.assertFalse(result.affiliate_deployment_candidate)
+        self.assertFalse(result.affiliate_route_configured)
+        self.assertFalse(result.affiliate_rate_limit_configured)
         self.assertFalse(result.affiliate_integration_allowed)
         self.assertIn("AFFILIATE_RUNTIME_NOT_CONNECTED", result.reason_codes)
         self.assertNotIn("IMPLEMENT_AFFILIATE_RUNTIME_PIPELINE", result.next_actions)
-        self.assertIn("IMPLEMENT_AFFILIATE_RUNTIME_ROUTE", result.next_actions)
+        self.assertIn("CONFIGURE_DEDICATED_GET_HEAD_ROUTE", result.next_actions)
+        self.assertIn("CONFIGURE_REQUIRED_SECRET_BINDINGS", result.next_actions)
+        self.assertIn("CONFIGURE_PRIVATE_ITEM_LOOKUP", result.next_actions)
+        self.assertIn("CONFIGURE_BOUNDED_PER_CLIENT_RATE_LIMIT", result.next_actions)
         self.assertEqual(result.shell_status, "SHELL_VALIDATED")
         self.assertEqual(result.production_smoke_status, "PRODUCTION_SHELL_VALIDATED")
         self.assertEqual(result.production_smoke_checked_url_count, 14)
@@ -136,11 +143,20 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
             sns_operation_candidate=False, gate_unlock_allowed=False,
             reason_codes=("UNRESOLVED_OR_UNVERIFIED_TOPICS",),
         )
+        affiliate_deployment = SimpleNamespace(
+            status="READY_FOR_DEPLOYMENT_REVIEW",
+            deployment_candidate=True,
+            route_configured=True,
+            rate_limit_configured=True,
+            reason_codes=("AFFILIATE_DEPLOYMENT_PREFLIGHT_PASS",),
+            next_actions=(),
+        )
         with (
             mock.patch.object(gate.revenue_mvp_deployment_preflight, "run_preflight", return_value=deployment),
             mock.patch.object(gate.publication_readiness, "build_report", return_value=publication),
             mock.patch.object(gate.revenue_mvp_search_console_gate, "run_gate", return_value=search_console),
             mock.patch.object(gate.revenue_mvp_official_answer_matrix, "assess_answer_matrix", return_value=official_answers),
+            mock.patch.object(gate.affiliate_runtime_deployment_preflight, "assess_preflight", return_value=affiliate_deployment),
             mock.patch.object(gate, "AFFILIATE_RUNTIME_CONNECTED", True),
         ):
             result = gate.run_gate()
@@ -173,7 +189,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertFalse(result.affiliate_pipeline_ready)
         self.assertFalse(result.affiliate_integration_allowed)
         self.assertIn("IMPLEMENT_AFFILIATE_RUNTIME_PIPELINE", result.next_actions)
-        self.assertIn("IMPLEMENT_AFFILIATE_RUNTIME_ROUTE", result.next_actions)
+        self.assertIn("CONFIGURE_DEDICATED_GET_HEAD_ROUTE", result.next_actions)
 
     def test_internal_failure_is_bounded_and_fail_closed(self):
         with mock.patch.object(
@@ -189,6 +205,8 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertEqual(result.official_answer_status, "UNKNOWN")
         self.assertEqual(result.x_funnel_status, "UNKNOWN")
         self.assertFalse(result.affiliate_pipeline_ready)
+        self.assertEqual(result.affiliate_deployment_status, "UNKNOWN")
+        self.assertFalse(result.affiliate_deployment_candidate)
         self.assertNotIn("secret", json.dumps(result.to_dict()))
 
     def test_cli_is_read_only_and_machine_readable(self):
@@ -200,6 +218,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertEqual(result["status"], gate.BLOCKED)
         self.assertFalse(result["production_release_allowed"])
         self.assertTrue(result["affiliate_pipeline_ready"])
+        self.assertEqual(result["affiliate_deployment_status"], "BLOCKED")
         self.assertEqual(result["x_funnel_status"], "PREVIEW_ONLY")
         self.assertEqual(result["production_smoke_status"], "PRODUCTION_SHELL_VALIDATED")
         self.assertGreaterEqual(result["production_smoke_checked_url_count"], 0)
