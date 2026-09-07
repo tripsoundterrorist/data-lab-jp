@@ -34,6 +34,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertEqual(result.status, gate.BLOCKED)
         self.assertFalse(result.production_release_allowed)
         self.assertTrue(result.affiliate_pipeline_ready)
+        self.assertTrue(result.affiliate_platform_candidate_ready)
         self.assertEqual(result.affiliate_deployment_status, "BLOCKED")
         self.assertFalse(result.affiliate_deployment_candidate)
         self.assertFalse(result.affiliate_route_configured)
@@ -146,6 +147,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         affiliate_deployment = SimpleNamespace(
             status="READY_FOR_DEPLOYMENT_REVIEW",
             deployment_candidate=True,
+            platform_adapter_candidate=True,
             route_configured=True,
             rate_limit_configured=True,
             reason_codes=("AFFILIATE_DEPLOYMENT_PREFLIGHT_PASS",),
@@ -187,6 +189,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         ):
             result = gate.run_gate()
         self.assertFalse(result.affiliate_pipeline_ready)
+        self.assertTrue(result.affiliate_platform_candidate_ready)
         self.assertFalse(result.affiliate_integration_allowed)
         self.assertIn("IMPLEMENT_AFFILIATE_RUNTIME_PIPELINE", result.next_actions)
         self.assertIn("CONFIGURE_DEDICATED_GET_HEAD_ROUTE", result.next_actions)
@@ -205,6 +208,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertEqual(result.official_answer_status, "UNKNOWN")
         self.assertEqual(result.x_funnel_status, "UNKNOWN")
         self.assertFalse(result.affiliate_pipeline_ready)
+        self.assertFalse(result.affiliate_platform_candidate_ready)
         self.assertEqual(result.affiliate_deployment_status, "UNKNOWN")
         self.assertFalse(result.affiliate_deployment_candidate)
         self.assertNotIn("secret", json.dumps(result.to_dict()))
@@ -218,6 +222,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertEqual(result["status"], gate.BLOCKED)
         self.assertFalse(result["production_release_allowed"])
         self.assertTrue(result["affiliate_pipeline_ready"])
+        self.assertTrue(result["affiliate_platform_candidate_ready"])
         self.assertEqual(result["affiliate_deployment_status"], "BLOCKED")
         self.assertEqual(result["x_funnel_status"], "PREVIEW_ONLY")
         self.assertEqual(result["production_smoke_status"], "PRODUCTION_SHELL_VALIDATED")

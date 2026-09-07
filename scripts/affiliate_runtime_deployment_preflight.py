@@ -12,7 +12,7 @@ import re
 from typing import Any
 
 
-PREFLIGHT_VERSION = "0.1"
+PREFLIGHT_VERSION = "0.2"
 READY_FOR_DEPLOYMENT_REVIEW = "READY_FOR_DEPLOYMENT_REVIEW"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
@@ -29,6 +29,7 @@ BINDING_NAME = re.compile(r"[A-Z][A-Z0-9_]{0,63}\Z")
 
 @dataclass(frozen=True)
 class AffiliateDeploymentCandidate:
+    platform_adapter_candidate: bool
     secret_binding_names: tuple[str, ...]
     data_binding_names: tuple[str, ...]
     route_path: str | None
@@ -51,6 +52,7 @@ class AffiliateDeploymentPreflightResult:
     status: str
     deployment_candidate: bool
     production_deployment_allowed: bool
+    platform_adapter_candidate: bool
     secret_binding_name_count: int
     data_binding_name_count: int
     route_configured: bool
@@ -70,6 +72,7 @@ def current_input() -> AffiliateDeploymentCandidate:
     """Return the current fail-closed state without reading environment values."""
 
     return AffiliateDeploymentCandidate(
+        platform_adapter_candidate=True,
         secret_binding_names=(),
         data_binding_names=(),
         route_path=None,
@@ -106,6 +109,11 @@ def assess_preflight(
 
         reasons: set[str] = set()
         actions: list[str] = []
+
+        platform_ready = candidate.platform_adapter_candidate is True
+        if not platform_ready:
+            reasons.add("PLATFORM_ADAPTER_CANDIDATE_NOT_READY")
+            actions.append("PREPARE_NON_DEPLOYED_PLATFORM_ADAPTER")
 
         secret_names_valid = _valid_names(candidate.secret_binding_names)
         data_names_valid = _valid_names(candidate.data_binding_names)
@@ -168,6 +176,7 @@ def assess_preflight(
             READY_FOR_DEPLOYMENT_REVIEW if ready else BLOCKED,
             ready,
             False,
+            platform_ready,
             len(candidate.secret_binding_names) if secret_names_valid else 0,
             len(candidate.data_binding_names) if data_names_valid else 0,
             route_ready,
@@ -180,6 +189,7 @@ def assess_preflight(
         return AffiliateDeploymentPreflightResult(
             PREFLIGHT_VERSION,
             FAIL_CLOSED,
+            False,
             False,
             False,
             0,
