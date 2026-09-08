@@ -28,7 +28,7 @@ bindingは名前だけを受け付け、値は入力にもsafe resultにも含�
 
 全条件が揃っても `READY_FOR_DEPLOYMENT_REVIEW` までとし、
 `production_deployment_allowed` は常にfalseとする。
-現在値は未設定・未接続・公式回答待ちのため `BLOCKED` である。
+現在値は未設定・未接続・公式回答の条件実装証跡未確認のため `BLOCKED` である。
 
 個別の不足はreason codeとnext actionで報告する。入力不正や内部例外は
 `FAIL_CLOSED` とし、入力内容・秘密値・URL・識別子・例外文を返さない。
