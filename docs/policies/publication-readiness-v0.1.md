@@ -1,5 +1,10 @@
 # DATA LAB Publication Readiness Report v0.1
 
+DMM/FANZA support responses are recorded separately from implementation
+evidence. After a response is recorded, unresolved lifecycle and sort items use
+`IMPLEMENT_*_CONDITIONS` actions; this wording does not pass either Gate or
+authorize publication.
+
 `report_version=0.1`。本reportは既存Gate、Rights Decision Matrix、Official Blocker Registry、Data Policyのread-only集約であり、公開を許可または実行する機能ではない。
 
 ## Current result
@@ -24,8 +29,8 @@ Temporal sectionはDay 1 baseline、Day 2 comparison、history count、`NOT_EVAL
 
 ## Current blockers and next actions
 
-1. `WAIT_FOR_DMM_LIFECYCLE_RESPONSE`
-2. `WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE`
+1. `IMPLEMENT_DMM_LIFECYCLE_CONDITIONS`
+2. `IMPLEMENT_DMM_SORT_SEMANTICS_CONDITIONS`
 3. `CONTINUE_TEMPORAL_OBSERVATION`
 4. `PREPARE_PUBLICATION_ARTIFACT_VALIDATION`
 
