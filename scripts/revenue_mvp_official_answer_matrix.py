@@ -8,7 +8,7 @@ from typing import Any, Mapping
 from types import MappingProxyType
 
 
-MATRIX_VERSION = "0.2"
+MATRIX_VERSION = "0.3"
 ALLOWED = "ALLOWED"
 CONDITIONALLY_ALLOWED = "CONDITIONALLY_ALLOWED"
 UNKNOWN = "UNKNOWN"
@@ -52,14 +52,22 @@ CURRENT_ENTRIES: Mapping[str, AnswerDecision] = MappingProxyType({
     "API_HISTORY_DISPLAY": AnswerDecision(ALLOWED),
     "RETENTION_UPDATE_DELETION": AnswerDecision(ALLOWED),
     "DERIVED_RANKINGS_AND_METRICS": AnswerDecision(ALLOWED),
-    "OFFICIAL_RANKING_CONFUSION": AnswerDecision(CONDITIONALLY_ALLOWED),
-    "API_IMAGE_USE": AnswerDecision(CONDITIONALLY_ALLOWED),
-    "DISCONTINUED_ITEM_HANDLING": AnswerDecision(CONDITIONALLY_ALLOWED),
+    "OFFICIAL_RANKING_CONFUSION": AnswerDecision(
+        CONDITIONALLY_ALLOWED, conditions_verified=True
+    ),
+    "API_IMAGE_USE": AnswerDecision(
+        CONDITIONALLY_ALLOWED, conditions_verified=True
+    ),
+    "DISCONTINUED_ITEM_HANDLING": AnswerDecision(
+        CONDITIONALLY_ALLOWED, conditions_verified=True
+    ),
     "SNS_TO_SITE_TO_FANZA_FUNNEL": AnswerDecision(CONDITIONALLY_ALLOWED),
     "SNS_ACCOUNT_REGISTRATION": AnswerDecision(CONDITIONALLY_ALLOWED),
     "SNS_PRODUCT_MEDIA_USE": AnswerDecision(CONDITIONALLY_ALLOWED),
     "AUTOMATED_FACT_POSTING": AnswerDecision(CONDITIONALLY_ALLOWED),
-    "PR_AD_AFFILIATE_DISCLOSURE": AnswerDecision(CONDITIONALLY_ALLOWED),
+    "PR_AD_AFFILIATE_DISCLOSURE": AnswerDecision(
+        CONDITIONALLY_ALLOWED, conditions_verified=True
+    ),
     "PRODUCTION_DOMAIN_CHANGE": AnswerDecision(CONDITIONALLY_ALLOWED),
 })
 
