@@ -20,7 +20,8 @@ Matrixがreview candidateでも既存Blocker RegistryやPublication Gateを自�
 
 X Funnel Candidateもsafe summaryだけを統合する。現在の`PREVIEW_ONLY`、手動投稿候補、
 自動投稿可否を表示するが、候補本文やURLはRelease Gate結果へ含めない。SNS未解決は
-`WAIT_FOR_DMM_FANZA_SNS_RESPONSE`として報告し、core公開候補の判定条件には加えない。
+回答未記録なら`WAIT_FOR_DMM_FANZA_SNS_RESPONSE`、回答記録後の条件未検証なら
+`WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS`として報告し、core公開候補の判定条件には加えない。
 
 データ候補が検証済みでも、DMM/FANZAのlifecycleまたはsort semanticsが未解決なら
 `BLOCKED`を維持する。全条件が揃った場合も結果は

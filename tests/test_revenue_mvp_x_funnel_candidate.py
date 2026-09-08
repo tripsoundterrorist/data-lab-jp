@@ -28,7 +28,8 @@ class XFunnelCandidateTests(unittest.TestCase):
         result = build()
         self.assertEqual(result.status, gate.PREVIEW_ONLY)
         self.assertFalse(result.manual_post_candidate)
-        self.assertIn("SNS_OFFICIAL_ANSWERS_PENDING", result.reason_codes)
+        self.assertIn("SNS_CONDITIONS_NOT_VERIFIED", result.reason_codes)
+        self.assertNotIn("SNS_OFFICIAL_ANSWERS_PENDING", result.reason_codes)
 
     def test_complete_answers_still_require_human_approval(self):
         result = build(official_answer_entries=answers())

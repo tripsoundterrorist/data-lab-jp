@@ -72,7 +72,7 @@ def build_candidate(
     entries = current_entries() if official_answer_entries is None else official_answer_entries
     answers = assess_answer_matrix(entries)
     if not answers.sns_operation_candidate:
-        reasons.add("SNS_OFFICIAL_ANSWERS_PENDING")
+        reasons.add("SNS_CONDITIONS_NOT_VERIFIED")
 
     content_safe = not reasons.intersection({
         "BOOLEAN_INPUT_INVALID", "FACT_TEXT_INVALID", "LANDING_PATH_BLOCKED",
