@@ -91,8 +91,13 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
         )
         search_console = revenue_mvp_search_console_gate.run_gate()
         production_smoke = revenue_mvp_production_smoke_gate.run_gate()
+        official_answer_entries = revenue_mvp_official_answer_matrix.current_entries()
         official_answers = revenue_mvp_official_answer_matrix.assess_answer_matrix(
-            revenue_mvp_official_answer_matrix.current_entries()
+            official_answer_entries
+        )
+        official_response_recorded = (
+            set(official_answer_entries)
+            == set(revenue_mvp_official_answer_matrix.TOPIC_IDS)
         )
         affiliate_deployment = (
             affiliate_runtime_deployment_preflight.assess_preflight(
@@ -168,14 +173,21 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             tuple(dict.fromkeys(
                 publication.next_actions
                 + search_console.next_actions
-                + (() if official_answers.core_publication_candidate else ("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE",))
+                + (() if official_answers.core_publication_candidate else (
+                    ("IMPLEMENT_DMM_FANZA_RESPONSE_CONDITIONS",)
+                    if official_response_recorded
+                    else ("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE",)
+                ))
                 + (() if pipeline_ready else ("IMPLEMENT_AFFILIATE_RUNTIME_PIPELINE",))
                 + affiliate_deployment.next_actions
                 + (
                     ("REVIEW_X_MANUAL_POST_CANDIDATE",)
                     if x_funnel.manual_post_candidate
                     else (
-                        ("WAIT_FOR_DMM_FANZA_SNS_RESPONSE",)
+                        ("WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",)
+                        if official_response_recorded
+                        and not official_answers.sns_operation_candidate
+                        else ("WAIT_FOR_DMM_FANZA_SNS_RESPONSE",)
                         if not official_answers.sns_operation_candidate
                         else ("PREPARE_X_MANUAL_APPROVAL",)
                     )

@@ -8,7 +8,7 @@ from typing import Any, Mapping
 from types import MappingProxyType
 
 
-MATRIX_VERSION = "0.1"
+MATRIX_VERSION = "0.2"
 ALLOWED = "ALLOWED"
 CONDITIONALLY_ALLOWED = "CONDITIONALLY_ALLOWED"
 UNKNOWN = "UNKNOWN"
@@ -36,13 +36,32 @@ CORE_TOPIC_IDS = frozenset({
     "PR_AD_AFFILIATE_DISCLOSURE", "PRODUCTION_DOMAIN_CHANGE",
 })
 SNS_TOPIC_IDS = frozenset(set(TOPIC_IDS) - CORE_TOPIC_IDS)
-CURRENT_ENTRIES: Mapping[str, "AnswerDecision"] = MappingProxyType({})
+OFFICIAL_RESPONSE_RECORDED_ON = "2026-09-08"
 
 
 @dataclass(frozen=True)
 class AnswerDecision:
     status: str
     conditions_verified: bool = False
+
+
+# Sanitized decisions only. The raw message, sender, identifiers, and URLs are
+# deliberately excluded. Conditional entries remain blocking until their
+# implementation evidence is reviewed in a separate change.
+CURRENT_ENTRIES: Mapping[str, AnswerDecision] = MappingProxyType({
+    "API_HISTORY_DISPLAY": AnswerDecision(ALLOWED),
+    "RETENTION_UPDATE_DELETION": AnswerDecision(ALLOWED),
+    "DERIVED_RANKINGS_AND_METRICS": AnswerDecision(ALLOWED),
+    "OFFICIAL_RANKING_CONFUSION": AnswerDecision(CONDITIONALLY_ALLOWED),
+    "API_IMAGE_USE": AnswerDecision(CONDITIONALLY_ALLOWED),
+    "DISCONTINUED_ITEM_HANDLING": AnswerDecision(CONDITIONALLY_ALLOWED),
+    "SNS_TO_SITE_TO_FANZA_FUNNEL": AnswerDecision(CONDITIONALLY_ALLOWED),
+    "SNS_ACCOUNT_REGISTRATION": AnswerDecision(CONDITIONALLY_ALLOWED),
+    "SNS_PRODUCT_MEDIA_USE": AnswerDecision(CONDITIONALLY_ALLOWED),
+    "AUTOMATED_FACT_POSTING": AnswerDecision(CONDITIONALLY_ALLOWED),
+    "PR_AD_AFFILIATE_DISCLOSURE": AnswerDecision(CONDITIONALLY_ALLOWED),
+    "PRODUCTION_DOMAIN_CHANGE": AnswerDecision(CONDITIONALLY_ALLOWED),
+})
 
 
 @dataclass(frozen=True)
@@ -130,9 +149,9 @@ def current_entries() -> Mapping[str, AnswerDecision]:
 
 
 def main() -> int:
-    result = assess_answer_matrix({})
+    result = assess_answer_matrix(current_entries())
     print(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
-    return 0  # Current unanswered state is an expected, safe state.
+    return 0  # Recorded conditional state is an expected, safe state.
 
 
 if __name__ == "__main__":

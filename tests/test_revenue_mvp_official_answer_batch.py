@@ -100,9 +100,10 @@ class OfficialAnswerBatchTests(unittest.TestCase):
         self.assertNotIn("DMM_AFFILIATE_SUPPORT", serialized)
         self.assertNotIn("received_at", serialized)
 
-    def test_no_mutation_api_and_current_matrix_remains_empty(self):
+    def test_no_mutation_api_and_current_matrix_remains_unchanged(self):
+        before = dict(matrix.current_entries())
         batch.validate_batch(payload({"API_IMAGE_USE": decision()}))
-        self.assertEqual(dict(matrix.current_entries()), {})
+        self.assertEqual(dict(matrix.current_entries()), before)
         self.assertFalse(any(
             name.startswith("set_") or name.startswith("update_")
             for name in dir(batch)
