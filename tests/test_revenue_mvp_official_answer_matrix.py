@@ -28,7 +28,13 @@ class RevenueMvpOfficialAnswerMatrixTests(unittest.TestCase):
             ),
             9,
         )
-        self.assertFalse(any(value.conditions_verified for value in entries.values()))
+        self.assertEqual(
+            sum(value.conditions_verified for value in entries.values()), 4
+        )
+        self.assertFalse(
+            entries["PRODUCTION_DOMAIN_CHANGE"].conditions_verified
+        )
+        self.assertFalse(entries["SNS_ACCOUNT_REGISTRATION"].conditions_verified)
         with self.assertRaises(TypeError):
             matrix.current_entries()["API_HISTORY_DISPLAY"] = matrix.AnswerDecision(matrix.ALLOWED)
 
@@ -96,6 +102,16 @@ class RevenueMvpOfficialAnswerMatrixTests(unittest.TestCase):
         self.assertFalse(result["gate_unlock_allowed"])
         self.assertEqual(result["counts"][matrix.UNKNOWN], 0)
         self.assertEqual(result["counts"][matrix.CONDITIONALLY_ALLOWED], 9)
+        self.assertEqual(
+            result["blocking_topic_ids"],
+            [
+                "SNS_TO_SITE_TO_FANZA_FUNNEL",
+                "SNS_ACCOUNT_REGISTRATION",
+                "SNS_PRODUCT_MEDIA_USE",
+                "AUTOMATED_FACT_POSTING",
+                "PRODUCTION_DOMAIN_CHANGE",
+            ],
+        )
 
 
 if __name__ == "__main__":
