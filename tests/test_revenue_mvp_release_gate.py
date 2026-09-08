@@ -69,7 +69,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertIn("MONITOR_INDEX_COVERAGE", result.next_actions)
         self.assertIn("DO_NOT_REQUEST_ITEM_INDEXING", result.next_actions)
         self.assertNotIn("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE", result.next_actions)
-        self.assertIn("IMPLEMENT_DMM_FANZA_RESPONSE_CONDITIONS", result.next_actions)
+        self.assertIn("VERIFY_PRODUCTION_DOMAIN_APPROVAL", result.next_actions)
         self.assertNotIn("WAIT_FOR_DMM_FANZA_SNS_RESPONSE", result.next_actions)
         self.assertIn(
             "WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",
