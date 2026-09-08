@@ -174,7 +174,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
                 publication.next_actions
                 + search_console.next_actions
                 + (() if official_answers.core_publication_candidate else (
-                    ("IMPLEMENT_DMM_FANZA_RESPONSE_CONDITIONS",)
+                    ("VERIFY_PRODUCTION_DOMAIN_APPROVAL",)
                     if official_response_recorded
                     else ("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE",)
                 ))

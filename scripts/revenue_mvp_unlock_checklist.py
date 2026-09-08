@@ -59,7 +59,7 @@ def build_checklist(
     ):
         blockers.append("FIX_DB_HANDOFF_PREFLIGHT")
     if not release.core_official_answer_candidate:
-        blockers.append("WAIT_FOR_DMM_FANZA_CORE_RESPONSE")
+        blockers.append("VERIFY_PRODUCTION_DOMAIN_APPROVAL")
     if release.production_smoke_status != "PRODUCTION_SHELL_VALIDATED":
         blockers.append("RESTORE_PRODUCTION_SHELL")
     if release.search_console_status != "PUBLIC_SHELL_READY":

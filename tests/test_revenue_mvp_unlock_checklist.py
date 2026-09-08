@@ -36,7 +36,7 @@ class RevenueMvpUnlockChecklistTests(unittest.TestCase):
             result.ordered_blockers,
             (
                 "PROVIDE_ORIGINAL_DB_AND_SHA256",
-                "WAIT_FOR_DMM_FANZA_CORE_RESPONSE",
+                "VERIFY_PRODUCTION_DOMAIN_APPROVAL",
                 "PREPARE_VALIDATED_PUBLIC_DATA_ARTIFACT",
                 "COMPLETE_PUBLICATION_READINESS",
             ),
@@ -75,7 +75,7 @@ class RevenueMvpUnlockChecklistTests(unittest.TestCase):
         self.assertEqual(
             result.ordered_blockers[:3],
             (
-                "WAIT_FOR_DMM_FANZA_CORE_RESPONSE",
+                "VERIFY_PRODUCTION_DOMAIN_APPROVAL",
                 "RESTORE_PRODUCTION_SHELL",
                 "FIX_SEARCH_CONSOLE_GATE",
             ),
