@@ -26,6 +26,20 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         values.update(overrides)
         return SimpleNamespace(**values)
 
+    @staticmethod
+    def sort_evidence(**overrides):
+        values = {
+            "version": plan.revenue_mvp_sort_condition_evidence.VERSION,
+            "status": plan.revenue_mvp_sort_condition_evidence.EVIDENCE_READY,
+            "implementation_evidence_candidate": True,
+            "official_semantics_resolved": False,
+            "publication_gate_unlock_allowed": False,
+            "checks_passed": 6,
+            "checks_required": 6,
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
     def test_actions_are_split_without_authorization(self):
         release = SimpleNamespace(
             status="BLOCKED",
@@ -37,13 +51,14 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
                 "CONTINUE_TEMPORAL_OBSERVATION",
             ),
         )
-        result = plan.build_plan(release, self.lifecycle_evidence())
+        result = plan.build_plan(
+            release, self.lifecycle_evidence(), self.sort_evidence()
+        )
         self.assertEqual(result.status, plan.BLOCKED)
         self.assertFalse(result.production_release_allowed)
         self.assertEqual(
             result.safe_local_actions,
             (
-                "IMPLEMENT_DMM_SORT_SEMANTICS_CONDITIONS",
                 "CONTINUE_TEMPORAL_OBSERVATION",
             ),
         )
@@ -51,13 +66,14 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             result.external_boundary_actions,
             (
                 "OBTAIN_SEPARATE_DMM_LIFECYCLE_SEMANTICS_CONFIRMATION",
+                "OBTAIN_SEPARATE_DMM_SORT_SEMANTICS_CONFIRMATION",
                 "VERIFY_PRODUCTION_DOMAIN_APPROVAL",
                 "CONFIGURE_REQUIRED_SECRET_BINDINGS",
             ),
         )
         self.assertEqual(
             result.next_safe_local_action,
-            "IMPLEMENT_DMM_SORT_SEMANTICS_CONDITIONS",
+            "CONTINUE_TEMPORAL_OBSERVATION",
         )
 
     def test_incomplete_evidence_retains_local_lifecycle_action(self):
@@ -72,12 +88,16 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
                 implementation_evidence_candidate=False,
                 checks_passed=4,
             ),
+            self.sort_evidence(),
         )
         self.assertEqual(
             result.safe_local_actions,
             ("IMPLEMENT_DMM_LIFECYCLE_CONDITIONS",),
         )
-        self.assertEqual(result.external_boundary_actions, ())
+        self.assertEqual(
+            result.external_boundary_actions,
+            ("OBTAIN_SEPARATE_DMM_SORT_SEMANTICS_CONFIRMATION",),
+        )
 
     def test_unknown_duplicate_or_non_tuple_actions_fail_closed(self):
         for actions in (
@@ -89,6 +109,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
                 result = plan.build_plan(
                     SimpleNamespace(status="BLOCKED", next_actions=actions),
                     self.lifecycle_evidence(),
+                    self.sort_evidence(),
                 )
                 self.assertEqual(result.status, plan.FAIL_CLOSED)
                 self.assertFalse(result.production_release_allowed)
@@ -100,6 +121,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
                 next_actions=("secret URL https://invalid",),
             ),
             self.lifecycle_evidence(),
+            self.sort_evidence(),
         )
         serialized = json.dumps(result.to_dict())
         self.assertEqual(result.status, plan.FAIL_CLOSED)
@@ -111,6 +133,40 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         result = plan.build_plan(
             release,
             self.lifecycle_evidence(official_semantics_resolved=True),
+            self.sort_evidence(),
+        )
+        self.assertEqual(result.status, plan.FAIL_CLOSED)
+        self.assertFalse(result.production_release_allowed)
+
+    def test_incomplete_sort_evidence_retains_local_sort_action(self):
+        release = SimpleNamespace(
+            status="BLOCKED",
+            next_actions=("IMPLEMENT_DMM_SORT_SEMANTICS_CONDITIONS",),
+        )
+        result = plan.build_plan(
+            release,
+            self.lifecycle_evidence(),
+            self.sort_evidence(
+                status=plan.revenue_mvp_sort_condition_evidence.BLOCKED,
+                implementation_evidence_candidate=False,
+                checks_passed=5,
+            ),
+        )
+        self.assertEqual(
+            result.safe_local_actions,
+            ("IMPLEMENT_DMM_SORT_SEMANTICS_CONDITIONS",),
+        )
+        self.assertNotIn(
+            "OBTAIN_SEPARATE_DMM_SORT_SEMANTICS_CONFIRMATION",
+            result.external_boundary_actions,
+        )
+
+    def test_malformed_sort_evidence_fails_closed(self):
+        release = SimpleNamespace(status="BLOCKED", next_actions=())
+        result = plan.build_plan(
+            release,
+            self.lifecycle_evidence(),
+            self.sort_evidence(publication_gate_unlock_allowed=True),
         )
         self.assertEqual(result.status, plan.FAIL_CLOSED)
         self.assertFalse(result.production_release_allowed)
@@ -127,9 +183,15 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             "assess_lifecycle_condition_evidence",
             return_value=self.lifecycle_evidence(),
         ) as lifecycle:
-            result = plan.run_plan()
+            with mock.patch.object(
+                plan.revenue_mvp_sort_condition_evidence,
+                "assess_sort_condition_evidence",
+                return_value=self.sort_evidence(),
+            ) as sort:
+                result = plan.run_plan()
         gate.assert_called_once_with()
         lifecycle.assert_called_once_with()
+        sort.assert_called_once_with()
         self.assertEqual(result.safe_local_actions, ("MONITOR_INDEX_COVERAGE",))
 
     def test_release_gate_exception_fails_closed(self):
