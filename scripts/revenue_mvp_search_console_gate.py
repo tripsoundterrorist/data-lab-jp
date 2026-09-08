@@ -13,11 +13,13 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 ORIGIN = "https://datalabx.jp"
-GATE_VERSION = "0.2"
+GATE_VERSION = "0.3"
 READY = "PUBLIC_SHELL_READY"
 FAIL_CLOSED = "FAIL_CLOSED"
 SITEMAP_SUBMITTED_AT = "2026-09-05"
 HOME_INDEX_REQUESTED_AT = "2026-09-05"
+SITEMAP_PROCESSED_AT = "2026-09-08"
+HOME_INDEX_CONFIRMED_AT = "2026-09-08"
 INDEXABLE = {
     "index.html": f"{ORIGIN}/",
     "column-price.html": f"{ORIGIN}/column-price",
@@ -68,9 +70,11 @@ class SearchConsoleGateResult:
     sitemap_submission_recorded: bool
     sitemap_submitted_at: str | None
     sitemap_processing_confirmed: bool
+    sitemap_processed_at: str | None
     home_index_request_recorded: bool
     home_index_requested_at: str | None
     home_indexed_confirmed: bool
+    home_index_confirmed_at: str | None
     indexable_url_count: int
     reason_codes: tuple[str, ...]
     next_actions: tuple[str, ...]
@@ -138,20 +142,23 @@ def run_gate(root: Path = ROOT) -> SearchConsoleGateResult:
         False,
         True,
         SITEMAP_SUBMITTED_AT,
-        False,
+        True,
+        SITEMAP_PROCESSED_AT,
         True,
         HOME_INDEX_REQUESTED_AT,
-        False,
+        True,
+        HOME_INDEX_CONFIRMED_AT,
         len(INDEXABLE) if ready else 0,
         tuple(sorted(reasons)) or (
             "PUBLIC_SHELL_SEO_VALIDATED",
             "SITEMAP_SUBMISSION_RECORDED",
+            "SITEMAP_PROCESSING_CONFIRMED",
             "HOME_INDEX_REQUEST_RECORDED",
+            "HOME_INDEX_CONFIRMED",
             "ITEM_INDEXING_BLOCKED",
         ),
         (
-            "MONITOR_SITEMAP_PROCESSING",
-            "MONITOR_HOME_INDEX_STATUS",
+            "MONITOR_INDEX_COVERAGE",
             "DO_NOT_REQUEST_ITEM_INDEXING",
         ) if ready else ("FIX_SEO_GATE_FAILURE",),
     )

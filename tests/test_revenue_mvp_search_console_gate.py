@@ -21,15 +21,16 @@ class RevenueMvpSearchConsoleGateTests(unittest.TestCase):
         self.assertFalse(result.search_console_write_performed)
         self.assertTrue(result.sitemap_submission_recorded)
         self.assertEqual(result.sitemap_submitted_at, "2026-09-05")
-        self.assertFalse(result.sitemap_processing_confirmed)
+        self.assertTrue(result.sitemap_processing_confirmed)
+        self.assertEqual(result.sitemap_processed_at, "2026-09-08")
         self.assertTrue(result.home_index_request_recorded)
         self.assertEqual(result.home_index_requested_at, "2026-09-05")
-        self.assertFalse(result.home_indexed_confirmed)
+        self.assertTrue(result.home_indexed_confirmed)
+        self.assertEqual(result.home_index_confirmed_at, "2026-09-08")
         self.assertEqual(result.indexable_url_count, 9)
         self.assertNotIn("SUBMIT_SITEMAP_IN_SEARCH_CONSOLE", result.next_actions)
         self.assertNotIn("REQUEST_HOME_URL_INSPECTION", result.next_actions)
-        self.assertIn("MONITOR_SITEMAP_PROCESSING", result.next_actions)
-        self.assertIn("MONITOR_HOME_INDEX_STATUS", result.next_actions)
+        self.assertIn("MONITOR_INDEX_COVERAGE", result.next_actions)
         self.assertIn("DO_NOT_REQUEST_ITEM_INDEXING", result.next_actions)
 
     def test_canonical_drift_fails_closed(self):
@@ -48,7 +49,10 @@ class RevenueMvpSearchConsoleGateTests(unittest.TestCase):
     def test_item_noindex_removal_fails_closed(self):
         with tempfile.TemporaryDirectory() as temporary:
             replica = Path(temporary)
-            shutil.copytree(ROOT, replica, dirs_exist_ok=True)
+            for filename in (*gate.INDEXABLE, "sitemap.xml", "robots.txt", "404.html", "items/index.html", "items/item.html"):
+                target = replica / filename
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / filename, target)
             path = replica / "items/item.html"
             path.write_text(path.read_text(encoding="utf-8").replace("noindex,nofollow", "index,follow"), encoding="utf-8")
             result = gate.run_gate(replica)
@@ -65,9 +69,11 @@ class RevenueMvpSearchConsoleGateTests(unittest.TestCase):
         self.assertEqual(result["status"], gate.READY)
         self.assertFalse(result["search_console_write_performed"])
         self.assertTrue(result["sitemap_submission_recorded"])
-        self.assertFalse(result["sitemap_processing_confirmed"])
+        self.assertTrue(result["sitemap_processing_confirmed"])
+        self.assertEqual(result["sitemap_processed_at"], "2026-09-08")
         self.assertTrue(result["home_index_request_recorded"])
-        self.assertFalse(result["home_indexed_confirmed"])
+        self.assertTrue(result["home_indexed_confirmed"])
+        self.assertEqual(result["home_index_confirmed_at"], "2026-09-08")
 
 
 if __name__ == "__main__":
