@@ -68,8 +68,13 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertNotIn("REQUEST_HOME_URL_INSPECTION", result.next_actions)
         self.assertIn("MONITOR_INDEX_COVERAGE", result.next_actions)
         self.assertIn("DO_NOT_REQUEST_ITEM_INDEXING", result.next_actions)
-        self.assertIn("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE", result.next_actions)
-        self.assertIn("WAIT_FOR_DMM_FANZA_SNS_RESPONSE", result.next_actions)
+        self.assertNotIn("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE", result.next_actions)
+        self.assertIn("IMPLEMENT_DMM_FANZA_RESPONSE_CONDITIONS", result.next_actions)
+        self.assertNotIn("WAIT_FOR_DMM_FANZA_SNS_RESPONSE", result.next_actions)
+        self.assertIn(
+            "WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",
+            result.next_actions,
+        )
 
     def test_search_console_failure_blocks_otherwise_ready_release(self):
         deployment = SimpleNamespace(
@@ -167,7 +172,10 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertFalse(result.sns_official_answer_candidate)
         self.assertFalse(result.official_answer_gate_unlock_allowed)
         self.assertEqual(result.x_funnel_status, "PREVIEW_ONLY")
-        self.assertIn("WAIT_FOR_DMM_FANZA_SNS_RESPONSE", result.next_actions)
+        self.assertIn(
+            "WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",
+            result.next_actions,
+        )
 
     def test_deployment_ready_cannot_override_official_blockers(self):
         deployment = SimpleNamespace(

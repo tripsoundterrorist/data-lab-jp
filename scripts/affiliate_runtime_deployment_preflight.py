@@ -168,7 +168,7 @@ def assess_preflight(
             actions.append("DISABLE_AFFILIATE_REDIRECT_CACHE")
         if candidate.official_answer_candidate is not True:
             reasons.add("OFFICIAL_ANSWER_GATE_CLOSED")
-            actions.append("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE")
+            actions.append("IMPLEMENT_DMM_FANZA_RESPONSE_CONDITIONS")
         runtime_ready = (
             candidate.runtime_provider_connected is True
             and candidate.runtime_resolution_connected is True

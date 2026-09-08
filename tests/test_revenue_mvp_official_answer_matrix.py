@@ -15,8 +15,20 @@ def allowed(topics=matrix.TOPIC_IDS):
 
 
 class RevenueMvpOfficialAnswerMatrixTests(unittest.TestCase):
-    def test_current_entries_are_empty_and_immutable(self):
-        self.assertEqual(dict(matrix.current_entries()), {})
+    def test_current_entries_record_sanitized_response_and_are_immutable(self):
+        entries = matrix.current_entries()
+        self.assertEqual(set(entries), set(matrix.TOPIC_IDS))
+        self.assertEqual(
+            sum(value.status == matrix.ALLOWED for value in entries.values()), 3
+        )
+        self.assertEqual(
+            sum(
+                value.status == matrix.CONDITIONALLY_ALLOWED
+                for value in entries.values()
+            ),
+            9,
+        )
+        self.assertFalse(any(value.conditions_verified for value in entries.values()))
         with self.assertRaises(TypeError):
             matrix.current_entries()["API_HISTORY_DISPLAY"] = matrix.AnswerDecision(matrix.ALLOWED)
 
@@ -73,7 +85,7 @@ class RevenueMvpOfficialAnswerMatrixTests(unittest.TestCase):
         self.assertIn("CONTRADICTORY_CONDITION_STATE", result.reason_codes)
         self.assertFalse(result.core_publication_candidate)
 
-    def test_cli_reports_safe_current_state(self):
+    def test_cli_reports_safe_recorded_state(self):
         process = subprocess.run(
             [sys.executable, str(ROOT / "scripts/revenue_mvp_official_answer_matrix.py")],
             capture_output=True, text=True, check=False,
@@ -82,6 +94,8 @@ class RevenueMvpOfficialAnswerMatrixTests(unittest.TestCase):
         result = json.loads(process.stdout)
         self.assertEqual(result["status"], "FAIL_CLOSED")
         self.assertFalse(result["gate_unlock_allowed"])
+        self.assertEqual(result["counts"][matrix.UNKNOWN], 0)
+        self.assertEqual(result["counts"][matrix.CONDITIONALLY_ALLOWED], 9)
 
 
 if __name__ == "__main__":
