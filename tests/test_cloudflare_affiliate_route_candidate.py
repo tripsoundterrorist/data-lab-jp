@@ -20,14 +20,19 @@ class CloudflareAffiliateRouteCandidateTests(unittest.TestCase):
         self.assertNotIn("functions", candidate.parts)
         self.assertFalse((ROOT / "functions").exists())
 
-    def test_candidate_has_no_handler_export_or_deployment_configuration(self):
+    def test_candidate_has_no_handler_export_and_binding_remains_fail_closed(self):
         source = (
             ROOT / "runtime-candidates" / "cloudflare-affiliate-route.mjs"
         ).read_text(encoding="utf-8")
         self.assertNotIn("onRequest", source)
         self.assertNotIn("export default", source)
-        self.assertFalse((ROOT / "wrangler.toml").exists())
         self.assertFalse((ROOT / "wrangler.jsonc").exists())
+
+        wrangler = (ROOT / "wrangler.toml").read_text(encoding="utf-8")
+        self.assertIn('binding = "AFFILIATE_ITEM_LOOKUP"', wrangler)
+        self.assertIn('database_name = "data-lab-affiliate-lookup"', wrangler)
+        self.assertNotIn("/go/:public_id", wrangler)
+        self.assertNotIn("affiliate_enabled = true", wrangler)
 
     def test_candidate_runtime_boundary_in_node(self):
         result = subprocess.run(
@@ -44,3 +49,4 @@ class CloudflareAffiliateRouteCandidateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
