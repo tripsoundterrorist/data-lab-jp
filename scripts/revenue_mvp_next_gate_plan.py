@@ -6,10 +6,11 @@ from dataclasses import asdict, dataclass
 import json
 from typing import Any
 
+import revenue_mvp_lifecycle_condition_evidence
 import revenue_mvp_release_gate
 
 
-VERSION = "0.1"
+VERSION = "0.2"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
 
@@ -27,6 +28,7 @@ SAFE_LOCAL_ORDER = (
     "ADD_PROXIMATE_PR_DISCLOSURE",
 )
 EXTERNAL_BOUNDARY_ORDER = (
+    "OBTAIN_SEPARATE_DMM_LIFECYCLE_SEMANTICS_CONFIRMATION",
     "VERIFY_PRODUCTION_DOMAIN_APPROVAL",
     "WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",
     "CONFIGURE_REQUIRED_SECRET_BINDINGS",
@@ -34,7 +36,17 @@ EXTERNAL_BOUNDARY_ORDER = (
     "CONFIGURE_DEDICATED_GET_HEAD_ROUTE",
     "CONFIGURE_BOUNDED_PER_CLIENT_RATE_LIMIT",
 )
-KNOWN_ACTIONS = frozenset(SAFE_LOCAL_ORDER + EXTERNAL_BOUNDARY_ORDER)
+DERIVED_EXTERNAL_ACTIONS = frozenset(
+    ("OBTAIN_SEPARATE_DMM_LIFECYCLE_SEMANTICS_CONFIRMATION",)
+)
+KNOWN_RELEASE_ACTIONS = frozenset(
+    SAFE_LOCAL_ORDER
+    + tuple(
+        action
+        for action in EXTERNAL_BOUNDARY_ORDER
+        if action not in DERIVED_EXTERNAL_ACTIONS
+    )
+)
 
 
 @dataclass(frozen=True)
@@ -43,6 +55,7 @@ class NextGatePlan:
     status: str
     production_release_allowed: bool
     release_gate_status: str
+    lifecycle_condition_evidence_status: str
     safe_local_actions: tuple[str, ...]
     external_boundary_actions: tuple[str, ...]
     next_safe_local_action: str | None
@@ -56,7 +69,7 @@ class NextGatePlan:
         return value
 
 
-def build_plan(release: Any) -> NextGatePlan:
+def build_plan(release: Any, lifecycle_evidence: Any) -> NextGatePlan:
     """Classify exact known actions without authorizing either lane."""
 
     try:
@@ -65,19 +78,54 @@ def build_plan(release: Any) -> NextGatePlan:
             not isinstance(actions, tuple)
             or any(not isinstance(action, str) for action in actions)
             or len(actions) != len(set(actions))
-            or not set(actions).issubset(KNOWN_ACTIONS)
+            or not set(actions).issubset(KNOWN_RELEASE_ACTIONS)
             or not isinstance(release.status, str)
+            or lifecycle_evidence.version
+            != revenue_mvp_lifecycle_condition_evidence.VERSION
+            or lifecycle_evidence.status not in {
+                revenue_mvp_lifecycle_condition_evidence.EVIDENCE_READY,
+                revenue_mvp_lifecycle_condition_evidence.BLOCKED,
+            }
+            or not isinstance(
+                lifecycle_evidence.implementation_evidence_candidate, bool
+            )
+            or lifecycle_evidence.official_semantics_resolved is not False
+            or lifecycle_evidence.publication_gate_unlock_allowed is not False
+            or not isinstance(lifecycle_evidence.checks_passed, int)
+            or not isinstance(lifecycle_evidence.checks_required, int)
         ):
             raise ValueError("invalid release summary")
-        local = tuple(action for action in SAFE_LOCAL_ORDER if action in actions)
+        evidence_ready = (
+            lifecycle_evidence.status
+            == revenue_mvp_lifecycle_condition_evidence.EVIDENCE_READY
+            and lifecycle_evidence.implementation_evidence_candidate is True
+            and lifecycle_evidence.checks_required == 5
+            and lifecycle_evidence.checks_passed
+            == lifecycle_evidence.checks_required
+        )
+        local = tuple(
+            action
+            for action in SAFE_LOCAL_ORDER
+            if action in actions
+            and not (
+                evidence_ready
+                and action == "IMPLEMENT_DMM_LIFECYCLE_CONDITIONS"
+            )
+        )
+        external_actions = set(actions)
+        if evidence_ready:
+            external_actions.update(DERIVED_EXTERNAL_ACTIONS)
         external = tuple(
-            action for action in EXTERNAL_BOUNDARY_ORDER if action in actions
+            action
+            for action in EXTERNAL_BOUNDARY_ORDER
+            if action in external_actions
         )
         return NextGatePlan(
             VERSION,
             BLOCKED,
             False,
             release.status,
+            lifecycle_evidence.status,
             local,
             external,
             local[0] if local else None,
@@ -85,17 +133,21 @@ def build_plan(release: Any) -> NextGatePlan:
         )
     except Exception:
         return NextGatePlan(
-            VERSION, FAIL_CLOSED, False, "UNKNOWN", (), (), None,
+            VERSION, FAIL_CLOSED, False, "UNKNOWN", "UNKNOWN", (), (), None,
             ("NEXT_GATE_PLAN_INPUT_INVALID",),
         )
 
 
 def run_plan() -> NextGatePlan:
     try:
-        return build_plan(revenue_mvp_release_gate.run_gate())
+        return build_plan(
+            revenue_mvp_release_gate.run_gate(),
+            revenue_mvp_lifecycle_condition_evidence
+            .assess_lifecycle_condition_evidence(),
+        )
     except Exception:
         return NextGatePlan(
-            VERSION, FAIL_CLOSED, False, "UNKNOWN", (), (), None,
+            VERSION, FAIL_CLOSED, False, "UNKNOWN", "UNKNOWN", (), (), None,
             ("NEXT_GATE_PLAN_INTERNAL_ERROR",),
         )
 
