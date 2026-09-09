@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Mapping, Sequence
 
@@ -17,6 +17,31 @@ INTEGRATION_READY = "INTEGRATION_DRY_RUN_COMPLETE"
 INTEGRATION_BLOCKED = "INTEGRATION_DRY_RUN_BLOCKED"
 PAYLOAD_FIELDS = frozenset({"source_sort", "offset", "hits", "result_count", "items"})
 ITEM_FIELDS = frozenset({"content_id"})
+
+
+@dataclass(frozen=True)
+class ValidatedSeriesStateBundle:
+    version: str
+    success: bool
+    validated_population_count: int
+    states: tuple[series_state.TemporalProbeSeriesState, ...] = field(
+        repr=False
+    )
+    active_pipeline_connected: bool = False
+    api_request_authorized: bool = False
+    state_write_authorized: bool = False
+    reason_codes: tuple[str, ...] = ()
+
+    def safe_dict(self) -> dict[str, Any]:
+        return {
+            "version": self.version,
+            "success": self.success,
+            "validated_population_count": self.validated_population_count,
+            "active_pipeline_connected": self.active_pipeline_connected,
+            "api_request_authorized": self.api_request_authorized,
+            "state_write_authorized": self.state_write_authorized,
+            "reason_codes": list(self.reason_codes),
+        }
 
 
 @dataclass(frozen=True)
@@ -84,6 +109,53 @@ def _content_ids(payload: Any, identity: tuple[str, int, int]) -> tuple[str, ...
     return tuple(values)
 
 
+def build_validated_series_state_bundle(
+    *, series_id: str, captured_at: datetime, as_of: datetime,
+    payloads: Sequence[Any],
+) -> ValidatedSeriesStateBundle:
+    """Validate all payloads atomically and return one in-memory state bundle."""
+    try:
+        if (
+            not isinstance(payloads, Sequence)
+            or isinstance(payloads, (str, bytes))
+            or len(payloads) != len(FIXED_POPULATIONS)
+        ):
+            raise PayloadValidationError("FIXED_POPULATION_PAYLOADS_REQUIRED")
+        values = tuple(
+            _content_ids(payload, identity)
+            for payload, identity in zip(payloads, FIXED_POPULATIONS)
+        )
+        states = tuple(
+            series_state.create_temporal_probe_series_state(
+                series_id=series_id, captured_at=captured_at,
+                site=SITE, service=SERVICE, floor=FLOOR,
+                source_sort=identity[0], offset=identity[1], hits=identity[2],
+                content_ids=content_ids,
+            )
+            for identity, content_ids in zip(FIXED_POPULATIONS, values)
+        )
+        if any(
+            not series_state.validate_temporal_probe_series_state(
+                state, as_of=as_of
+            ).valid
+            for state in states
+        ):
+            raise PayloadValidationError("GENERATED_SERIES_STATE_INVALID")
+        return ValidatedSeriesStateBundle(
+            ADAPTER_VERSION, True, len(states), states,
+            reason_codes=("ATOMIC_PAYLOAD_VALIDATION_COMPLETE",),
+        )
+    except PayloadValidationError as error:
+        return ValidatedSeriesStateBundle(
+            ADAPTER_VERSION, False, 0, (), reason_codes=(str(error),)
+        )
+    except Exception:
+        return ValidatedSeriesStateBundle(
+            ADAPTER_VERSION, False, 0, (),
+            reason_codes=("SERIES_STATE_BUNDLE_ERROR",),
+        )
+
+
 def run_series_integration_dry_run(
     *,
     series_id: str,
@@ -96,32 +168,14 @@ def run_series_integration_dry_run(
     """Validate all four payloads before performing a pure in-memory dry run."""
 
     try:
-        if (
-            not isinstance(payloads, Sequence)
-            or isinstance(payloads, (str, bytes))
-            or len(payloads) != len(FIXED_POPULATIONS)
-        ):
-            return _blocked("FIXED_POPULATION_PAYLOADS_REQUIRED")
-        content_ids = tuple(
-            _content_ids(payload, identity)
-            for payload, identity in zip(payloads, FIXED_POPULATIONS)
+        bundle = build_validated_series_state_bundle(
+            series_id=series_id, captured_at=captured_at, as_of=as_of,
+            payloads=payloads,
         )
-        states = tuple(
-            series_state.create_temporal_probe_series_state(
-                series_id=series_id,
-                captured_at=captured_at,
-                site=SITE,
-                service=SERVICE,
-                floor=FLOOR,
-                source_sort=identity[0],
-                offset=identity[1],
-                hits=identity[2],
-                content_ids=values,
-            )
-            for identity, values in zip(FIXED_POPULATIONS, content_ids)
-        )
+        if not bundle.success:
+            return _blocked(bundle.reason_codes[0])
         result = orchestrator.run_fixed_series_dry_orchestrator(
-            current_states=states,
+            current_states=bundle.states,
             documents_by_population=documents_by_population,
             history_counts=history_counts,
             as_of=as_of,
@@ -143,5 +197,6 @@ def run_series_integration_dry_run(
 
 __all__ = [
     "ADAPTER_VERSION", "INTEGRATION_BLOCKED", "INTEGRATION_READY",
-    "SeriesIntegrationResult", "run_series_integration_dry_run",
+    "SeriesIntegrationResult", "ValidatedSeriesStateBundle",
+    "build_validated_series_state_bundle", "run_series_integration_dry_run",
 ]

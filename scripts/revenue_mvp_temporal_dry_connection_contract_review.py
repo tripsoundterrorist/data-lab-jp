@@ -9,10 +9,11 @@ import revenue_mvp_temporal_series_connection_readiness as readiness
 import temporal_probe_series_connection_harness as harness
 import temporal_probe_series_integration_adapter as adapter
 
-VERSION = "0.1"
+VERSION = "0.2"
 CONTRACT_CHANGE_REQUIRED = "VALIDATED_STATE_BUNDLE_CONTRACT_REQUIRED"
+CONTRACT_READY = "VALIDATED_STATE_BUNDLE_CONTRACT_READY"
 FAIL_CLOSED = "FAIL_CLOSED"
-NEXT_GATE = "ADD_VALIDATED_STATE_BUNDLE_CONTRACT"
+NEXT_GATE = "CONNECT_ISOLATED_BUNDLE_TO_DRY_HARNESS"
 
 
 @dataclass(frozen=True)
@@ -62,25 +63,28 @@ def review_dry_connection_contract() -> DryConnectionContractReview:
         public_bundle = callable(getattr(
             adapter, "build_validated_series_state_bundle", None
         ))
-        expected_gap = (
+        valid_boundary = (
             readiness_verified and adapter_accepts_payloads
-            and harness_accepts_states and not public_bundle
+            and harness_accepts_states
         )
-        if not expected_gap:
+        if not valid_boundary:
             return DryConnectionContractReview(
                 VERSION, FAIL_CLOSED, readiness_verified,
                 adapter_accepts_payloads, harness_accepts_states,
                 public_bundle, False, False, False, False, None,
                 ("DRY_CONNECTION_CONTRACT_CHANGED_OR_INCOMPLETE",),
             )
+        if not public_bundle:
+            return DryConnectionContractReview(
+                VERSION, CONTRACT_CHANGE_REQUIRED, True, True, True,
+                False, False, False, False, False, None,
+                ("PUBLIC_VALIDATED_STATE_HANDOFF_MISSING",),
+            )
         return DryConnectionContractReview(
-            VERSION, CONTRACT_CHANGE_REQUIRED, True, True, True,
-            False, False, False, False, False, NEXT_GATE,
-            (
-                "PUBLIC_VALIDATED_STATE_HANDOFF_MISSING",
-                "PRIVATE_VALIDATOR_REUSE_FORBIDDEN",
-                "SINGLE_VALIDATION_BOUNDARY_REQUIRED",
-            ),
+            VERSION, CONTRACT_READY, True, True, True,
+            True, False, False, False, False, NEXT_GATE,
+            ("PUBLIC_VALIDATED_STATE_HANDOFF_READY",
+             "SINGLE_VALIDATION_BOUNDARY_REQUIRED"),
         )
     except Exception:
         return DryConnectionContractReview(
@@ -93,7 +97,7 @@ def review_dry_connection_contract() -> DryConnectionContractReview:
 def main() -> int:
     result = review_dry_connection_contract()
     print(json.dumps(result.to_dict(), sort_keys=True))
-    return 0 if result.status == CONTRACT_CHANGE_REQUIRED else 2
+    return 0 if result.status == CONTRACT_READY else 2
 
 
 if __name__ == "__main__":
