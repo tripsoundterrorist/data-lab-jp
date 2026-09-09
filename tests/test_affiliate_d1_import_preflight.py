@@ -53,7 +53,7 @@ class AffiliateD1ImportPreflightTests(unittest.TestCase):
         self.schema.write_text(SCHEMA, encoding="utf-8")
         self.payload = candidate_payload()
         self.candidate.write_bytes(self.payload)
-        self.schema_sha = hashlib.sha256(SCHEMA.encode("utf-8")).hexdigest()
+        self.schema_sha = hashlib.sha256(self.schema.read_bytes()).hexdigest()
         self.candidate_sha = digest(self.payload)
 
     def tearDown(self) -> None:
@@ -108,7 +108,7 @@ class AffiliateD1ImportPreflightTests(unittest.TestCase):
         unsafe_schema = SCHEMA.replace("DEFAULT 0", "DEFAULT 1")
         self.schema.write_text(unsafe_schema, encoding="utf-8")
         result = self.run_preflight(
-            expected_schema_sha256=hashlib.sha256(unsafe_schema.encode("utf-8")).hexdigest()
+            expected_schema_sha256=hashlib.sha256(self.schema.read_bytes()).hexdigest()
         )
         self.assertEqual(result.status, FAIL_CLOSED)
         self.assertEqual(result.reason_codes, ("PRIVATE_ARTIFACT_VALIDATION_FAILED",))

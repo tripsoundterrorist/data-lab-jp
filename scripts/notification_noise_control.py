@@ -54,7 +54,8 @@ def _parse_time(value: object) -> datetime | None:
     if type(value) is not str or len(value) > 40:
         return None
     try:
-        parsed = datetime.fromisoformat(value)
+        normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+        parsed = datetime.fromisoformat(normalized)
     except ValueError:
         return None
     if parsed.tzinfo is None or parsed.utcoffset() is None:
