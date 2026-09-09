@@ -11,10 +11,11 @@ import revenue_mvp_temporal_series_boundary_gate as active_boundary
 import temporal_probe_series_discovery as discovery
 import temporal_probe_series_dry_orchestrator as orchestrator
 import temporal_probe_series_dry_run as dry_run
+import temporal_probe_series_integration_adapter as integration
 import temporal_probe_series_state as state_contract
 
 
-VERSION = "0.1"
+VERSION = "0.2"
 EVIDENCE_READY = "IMPLEMENTATION_EVIDENCE_READY"
 BLOCKED = "BLOCKED"
 BASE = datetime(2026, 9, 9, tzinfo=timezone.utc)
@@ -28,6 +29,7 @@ class TemporalSeriesCandidateEvidence:
     version: str
     status: str
     implementation_evidence_candidate: bool
+    isolated_integration_adapter_verified: bool
     active_pipeline_connected: bool
     api_request_authorized: bool
     state_write_authorized: bool
@@ -111,6 +113,25 @@ def assess_temporal_series_candidate_evidence(
             history_counts=histories,
             as_of=AS_OF,
         )
+        payloads = tuple(
+            {
+                "source_sort": value[0], "offset": value[1], "hits": value[2],
+                "result_count": 2,
+                "items": [
+                    {"content_id": "fixture-1"},
+                    {"content_id": "fixture-2"},
+                ],
+            }
+            for value in orchestrator.FIXED_POPULATIONS
+        )
+        integrated = integration.run_series_integration_dry_run(
+            series_id=SERIES_A,
+            captured_at=BASE + timedelta(days=1),
+            as_of=AS_OF,
+            payloads=payloads,
+            documents_by_population=documents,
+            history_counts=histories,
+        )
         active = active_boundary.assess_temporal_series_boundary()
         checks = (
             "series_id" in state_contract.POPULATION_IDENTITY_FIELDS,
@@ -131,6 +152,12 @@ def assess_temporal_series_candidate_evidence(
             and not fixed.api_request_authorized
             and not fixed.state_write_authorized
             and not fixed.baseline_activation_authorized,
+            integrated.status == integration.INTEGRATION_READY
+            and integrated.validated_population_count == 4
+            and not integrated.active_pipeline_connected
+            and not integrated.api_request_authorized
+            and not integrated.state_write_authorized
+            and not integrated.baseline_activation_authorized,
             active.status == active_boundary.SCHEMA_CHANGE_REQUIRED
             and not active.current_schema_supports_series_boundary
             and not active.current_runner_supports_series_boundary
@@ -143,6 +170,7 @@ def assess_temporal_series_candidate_evidence(
             VERSION,
             EVIDENCE_READY if ready else BLOCKED,
             ready,
+            ready,
             False,
             False,
             False,
@@ -151,12 +179,13 @@ def assess_temporal_series_candidate_evidence(
             len(checks),
             (
                 "ISOLATED_SERIES_CANDIDATE_CHAIN_VERIFIED",
-                "ACTIVE_PIPELINE_INTEGRATION_NOT_IMPLEMENTED",
+                "ISOLATED_INTEGRATION_ADAPTER_VERIFIED",
+                "ACTIVE_PIPELINE_CONNECTION_NOT_AUTHORIZED",
             ) if ready else ("SERIES_CANDIDATE_EVIDENCE_INCOMPLETE",),
         )
     except Exception:
         return TemporalSeriesCandidateEvidence(
-            VERSION, BLOCKED, False, False, False, False, False, 0, 7,
+            VERSION, BLOCKED, False, False, False, False, False, False, 0, 8,
             ("SERIES_CANDIDATE_EVIDENCE_ERROR",),
         )
 

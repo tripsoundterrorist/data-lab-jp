@@ -59,12 +59,13 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             "version": plan.revenue_mvp_temporal_series_candidate_evidence.VERSION,
             "status": plan.revenue_mvp_temporal_series_candidate_evidence.EVIDENCE_READY,
             "implementation_evidence_candidate": True,
+            "isolated_integration_adapter_verified": True,
             "active_pipeline_connected": False,
             "api_request_authorized": False,
             "state_write_authorized": False,
             "baseline_activation_authorized": False,
-            "checks_passed": 7,
-            "checks_required": 7,
+            "checks_passed": 8,
+            "checks_required": 8,
         }
         values.update(overrides)
         return SimpleNamespace(**values)
@@ -242,6 +243,16 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         )
         self.assertEqual(result.status, plan.FAIL_CLOSED)
         self.assertFalse(result.production_release_allowed)
+
+    def test_unverified_integration_adapter_fails_closed(self):
+        release = SimpleNamespace(status="BLOCKED", next_actions=())
+        result = self.build_plan(
+            release,
+            temporal_series_evidence=self.temporal_series_evidence(
+                isolated_integration_adapter_verified=False
+            ),
+        )
+        self.assertEqual(result.status, plan.FAIL_CLOSED)
 
     def test_run_plan_uses_release_gate_read_only_summary(self):
         release = SimpleNamespace(
