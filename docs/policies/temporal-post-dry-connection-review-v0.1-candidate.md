@@ -39,11 +39,22 @@ explicit approval point. The evaluator consumes booleans only; it does not read
 files, inspect directories, accept paths, call APIs, execute the active pipeline,
 invoke the dry harness, schedule work, publish artifacts, or activate routes.
 
+The repository evidence collector checks only public dataclass fields,
+constants, and function signatures. Current evidence verifies
+`PREREQUISITES`, `SECRET_PII`, `PUBLICATION_COMPLIANCE`, and
+`EXPLICIT_APPROVAL_POINT`. It deliberately leaves `TRUST_BOUNDARY`,
+`ROLLBACK_RECOVERY`, `IDEMPOTENCY`, and `RATE_COST` false because no public
+contract yet defines confined path ownership plus atomic read-back, uncertain
+write recovery, collision/replay behavior, or write-frequency and retention
+bounds. The resulting current status is therefore `REVIEW_BLOCKED`.
+
 ## Next Gate
 
-If the result is `REVIEW_READY_FOR_EXPLICIT_APPROVAL`, a human may separately
-review whether to authorize an isolated filesystem persistence/read-back
-candidate. This contract itself never records approval and never authorizes or
-performs a connection, read, write, migration, deployment, publication, API
+The next minimum Gate is to define an isolated filesystem persistence/read-back
+contract covering the four unmet areas without performing filesystem access.
+Only after evidence reaches `REVIEW_READY_FOR_EXPLICIT_APPROVAL` may a human
+separately review whether to authorize its implementation. This contract itself
+never records approval and never authorizes or performs a connection, read,
+write, migration, deployment, publication, API
 request, scheduler change, affiliate eligibility change, or production route
 activation.
