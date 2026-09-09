@@ -80,6 +80,18 @@ class NotificationNoiseControlTests(unittest.TestCase):
         ))
         self.assertEqual(result.status, "DUPLICATE_SUPPRESSED")
 
+    def test_utc_z_timestamp_is_accepted_without_relaxing_time_validation(self):
+        result = policy.evaluate(evidence(
+            occurred_at="2026-08-31T04:00:00Z",
+            last_delivered_event_key=KEY,
+            last_delivered_at="2026-08-31T03:30:01Z",
+        ))
+        self.assertEqual(result.status, "DUPLICATE_SUPPRESSED")
+        for timestamp in ("2026-08-31T04:00:00", "not-a-time", 1):
+            with self.subTest(timestamp=timestamp):
+                blocked = policy.evaluate(evidence(occurred_at=timestamp))
+                self.assertEqual(blocked.reason_codes, ("OCCURRED_AT_INVALID",))
+
     def test_critical_boundary_never_downgraded_or_rerouted(self):
         result = policy.evaluate(evidence(
             "CRITICAL_STOP", last_delivered_event_key=KEY,

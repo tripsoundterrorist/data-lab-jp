@@ -58,7 +58,10 @@ class DatabaseHandoffPreflightTests(unittest.TestCase):
     def test_symlink_is_rejected(self):
         self.create_db()
         link = Path(self.temp.name) / "link.db"
-        link.symlink_to(self.db)
+        try:
+            link.symlink_to(self.db)
+        except OSError as exc:
+            self.skipTest(f"symlink unavailable: {exc}")
         self.assertIn("UNSAFE_DATABASE_ENTRY", gate.preflight(link, self.digest()).reason_codes)
 
     def test_preflight_does_not_modify_database(self):
