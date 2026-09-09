@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 import json
 from typing import Any
 
 import revenue_mvp_lifecycle_condition_evidence
 import revenue_mvp_release_gate
 import revenue_mvp_sort_condition_evidence
+import revenue_mvp_temporal_continuation_assessment
+import revenue_mvp_temporal_series_candidate_evidence
 
 
-VERSION = "0.3"
+VERSION = "0.4"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
 
@@ -28,6 +31,7 @@ SAFE_LOCAL_ORDER = (
     "CONNECT_AFFILIATE_RUNTIME_CHAIN",
     "ADD_PROXIMATE_PR_DISCLOSURE",
 )
+DERIVED_SAFE_ACTION = "IMPLEMENT_ISOLATED_TEMPORAL_SERIES_PIPELINE_INTEGRATION"
 EXTERNAL_BOUNDARY_ORDER = (
     "OBTAIN_SEPARATE_DMM_LIFECYCLE_SEMANTICS_CONFIRMATION",
     "OBTAIN_SEPARATE_DMM_SORT_SEMANTICS_CONFIRMATION",
@@ -62,6 +66,8 @@ class NextGatePlan:
     release_gate_status: str
     lifecycle_condition_evidence_status: str
     sort_condition_evidence_status: str
+    temporal_continuation_status: str
+    temporal_series_candidate_evidence_status: str
     safe_local_actions: tuple[str, ...]
     external_boundary_actions: tuple[str, ...]
     next_safe_local_action: str | None
@@ -76,11 +82,25 @@ class NextGatePlan:
 
 
 def build_plan(
-    release: Any, lifecycle_evidence: Any, sort_evidence: Any
+    release: Any,
+    lifecycle_evidence: Any,
+    sort_evidence: Any,
+    temporal_continuation: Any | None = None,
+    temporal_series_evidence: Any | None = None,
 ) -> NextGatePlan:
     """Classify exact known actions without authorizing either lane."""
 
     try:
+        if temporal_continuation is None:
+            temporal_continuation = (
+                revenue_mvp_temporal_continuation_assessment
+                .assess_temporal_continuation(as_of=datetime.now(timezone.utc))
+            )
+        if temporal_series_evidence is None:
+            temporal_series_evidence = (
+                revenue_mvp_temporal_series_candidate_evidence
+                .assess_temporal_series_candidate_evidence()
+            )
         actions = release.next_actions
         if (
             not isinstance(actions, tuple)
@@ -114,6 +134,35 @@ def build_plan(
             or sort_evidence.publication_gate_unlock_allowed is not False
             or not isinstance(sort_evidence.checks_passed, int)
             or not isinstance(sort_evidence.checks_required, int)
+            or temporal_continuation.version
+            != revenue_mvp_temporal_continuation_assessment.VERSION
+            or temporal_continuation.status not in {
+                revenue_mvp_temporal_continuation_assessment.WINDOW_CANDIDATE,
+                revenue_mvp_temporal_continuation_assessment.WAIT,
+                revenue_mvp_temporal_continuation_assessment.LONG_GAP_BLOCKED,
+            }
+            or temporal_continuation.api_request_authorized is not False
+            or temporal_continuation.state_write_authorized is not False
+            or not isinstance(
+                temporal_continuation.fresh_baseline_policy_required, bool
+            )
+            or not isinstance(temporal_continuation.populations_found, int)
+            or temporal_series_evidence.version
+            != revenue_mvp_temporal_series_candidate_evidence.VERSION
+            or temporal_series_evidence.status not in {
+                revenue_mvp_temporal_series_candidate_evidence.EVIDENCE_READY,
+                revenue_mvp_temporal_series_candidate_evidence.BLOCKED,
+            }
+            or not isinstance(
+                temporal_series_evidence.implementation_evidence_candidate,
+                bool,
+            )
+            or temporal_series_evidence.active_pipeline_connected is not False
+            or temporal_series_evidence.api_request_authorized is not False
+            or temporal_series_evidence.state_write_authorized is not False
+            or temporal_series_evidence.baseline_activation_authorized is not False
+            or not isinstance(temporal_series_evidence.checks_passed, int)
+            or not isinstance(temporal_series_evidence.checks_required, int)
         ):
             raise ValueError("invalid release summary")
         evidence_ready = (
@@ -131,6 +180,19 @@ def build_plan(
             and sort_evidence.checks_required == 6
             and sort_evidence.checks_passed == sort_evidence.checks_required
         )
+        temporal_integration_candidate = (
+            "CONTINUE_TEMPORAL_OBSERVATION" in actions
+            and temporal_continuation.status
+            == revenue_mvp_temporal_continuation_assessment.LONG_GAP_BLOCKED
+            and temporal_continuation.fresh_baseline_policy_required is True
+            and temporal_continuation.populations_found == 4
+            and temporal_series_evidence.status
+            == revenue_mvp_temporal_series_candidate_evidence.EVIDENCE_READY
+            and temporal_series_evidence.implementation_evidence_candidate is True
+            and temporal_series_evidence.checks_required == 7
+            and temporal_series_evidence.checks_passed
+            == temporal_series_evidence.checks_required
+        )
         local = tuple(
             action
             for action in SAFE_LOCAL_ORDER
@@ -140,8 +202,12 @@ def build_plan(
                 and action == "IMPLEMENT_DMM_LIFECYCLE_CONDITIONS"
                 or sort_evidence_ready
                 and action == "IMPLEMENT_DMM_SORT_SEMANTICS_CONDITIONS"
+                or temporal_integration_candidate
+                and action == "CONTINUE_TEMPORAL_OBSERVATION"
             )
         )
+        if temporal_integration_candidate:
+            local = (DERIVED_SAFE_ACTION,) + local
         external_actions = set(actions)
         if evidence_ready:
             external_actions.add(
@@ -163,6 +229,8 @@ def build_plan(
             release.status,
             lifecycle_evidence.status,
             sort_evidence.status,
+            temporal_continuation.status,
+            temporal_series_evidence.status,
             local,
             external,
             local[0] if local else None,
@@ -171,6 +239,7 @@ def build_plan(
     except Exception:
         return NextGatePlan(
             VERSION, FAIL_CLOSED, False, "UNKNOWN", "UNKNOWN", "UNKNOWN",
+            "UNKNOWN", "UNKNOWN",
             (), (), None,
             ("NEXT_GATE_PLAN_INPUT_INVALID",),
         )
@@ -184,10 +253,15 @@ def run_plan() -> NextGatePlan:
             .assess_lifecycle_condition_evidence(),
             revenue_mvp_sort_condition_evidence
             .assess_sort_condition_evidence(),
+            revenue_mvp_temporal_continuation_assessment
+            .assess_temporal_continuation(as_of=datetime.now(timezone.utc)),
+            revenue_mvp_temporal_series_candidate_evidence
+            .assess_temporal_series_candidate_evidence(),
         )
     except Exception:
         return NextGatePlan(
             VERSION, FAIL_CLOSED, False, "UNKNOWN", "UNKNOWN", "UNKNOWN",
+            "UNKNOWN", "UNKNOWN",
             (), (), None,
             ("NEXT_GATE_PLAN_INTERNAL_ERROR",),
         )
