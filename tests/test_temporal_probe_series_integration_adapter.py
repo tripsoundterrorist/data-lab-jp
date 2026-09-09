@@ -69,6 +69,32 @@ def run(values, *, captured_at=BASE, documents=None, history=0):
 
 
 class TemporalProbeSeriesIntegrationAdapterTests(unittest.TestCase):
+    def test_public_bundle_is_atomic_and_safe_to_inspect(self):
+        bundle = adapter.build_validated_series_state_bundle(
+            series_id=SERIES_ID, captured_at=BASE, as_of=AS_OF,
+            payloads=payloads(),
+        )
+        self.assertTrue(bundle.success)
+        self.assertEqual(bundle.validated_population_count, 4)
+        self.assertEqual(len(bundle.states), 4)
+        encoded = json.dumps(bundle.safe_dict()) + repr(bundle)
+        self.assertNotIn(SERIES_ID, encoded)
+        self.assertNotIn("secret-rank-1", encoded)
+        self.assertNotIn("states=", repr(bundle))
+        self.assertFalse(bundle.active_pipeline_connected)
+        self.assertFalse(bundle.state_write_authorized)
+
+    def test_bundle_failure_returns_no_partial_states(self):
+        values = payloads()
+        values[-1]["result_count"] = 2
+        bundle = adapter.build_validated_series_state_bundle(
+            series_id=SERIES_ID, captured_at=BASE, as_of=AS_OF,
+            payloads=values,
+        )
+        self.assertFalse(bundle.success)
+        self.assertEqual(bundle.validated_population_count, 0)
+        self.assertEqual(bundle.states, ())
+
     def test_validates_four_payloads_and_plans_explicit_baselines(self):
         result = run(payloads())
         self.assertTrue(result.success)
