@@ -15,7 +15,8 @@ class TemporalSeriesCandidateEvidenceTests(unittest.TestCase):
         result = evidence.assess_temporal_series_candidate_evidence()
         self.assertEqual(result.status, evidence.EVIDENCE_READY)
         self.assertTrue(result.implementation_evidence_candidate)
-        self.assertEqual((result.checks_passed, result.checks_required), (7, 7))
+        self.assertEqual((result.checks_passed, result.checks_required), (8, 8))
+        self.assertTrue(result.isolated_integration_adapter_verified)
         self.assertFalse(result.active_pipeline_connected)
         self.assertFalse(result.api_request_authorized)
         self.assertFalse(result.state_write_authorized)
@@ -33,6 +34,17 @@ class TemporalSeriesCandidateEvidenceTests(unittest.TestCase):
         self.assertFalse(result.implementation_evidence_candidate)
         self.assertNotIn("secret", encoded)
         self.assertNotIn("path", encoded)
+
+    def test_integration_adapter_regression_blocks_evidence(self):
+        with mock.patch.object(
+            evidence.integration,
+            "run_series_integration_dry_run",
+            side_effect=RuntimeError("private identifier detail"),
+        ):
+            result = evidence.assess_temporal_series_candidate_evidence()
+        self.assertEqual(result.status, evidence.BLOCKED)
+        self.assertFalse(result.isolated_integration_adapter_verified)
+        self.assertNotIn("private", json.dumps(result.to_dict()))
 
     def test_source_has_no_filesystem_or_external_io(self):
         source = Path(evidence.__file__).read_text(encoding="utf-8")

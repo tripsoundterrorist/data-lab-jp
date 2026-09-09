@@ -14,7 +14,7 @@ import revenue_mvp_temporal_continuation_assessment
 import revenue_mvp_temporal_series_candidate_evidence
 
 
-VERSION = "0.4"
+VERSION = "0.5"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
 
@@ -31,7 +31,7 @@ SAFE_LOCAL_ORDER = (
     "CONNECT_AFFILIATE_RUNTIME_CHAIN",
     "ADD_PROXIMATE_PR_DISCLOSURE",
 )
-DERIVED_SAFE_ACTION = "IMPLEMENT_ISOLATED_TEMPORAL_SERIES_PIPELINE_INTEGRATION"
+DERIVED_SAFE_ACTION = "PREPARE_TEMPORAL_SERIES_PIPELINE_CONNECTION_REVIEW"
 EXTERNAL_BOUNDARY_ORDER = (
     "OBTAIN_SEPARATE_DMM_LIFECYCLE_SEMANTICS_CONFIRMATION",
     "OBTAIN_SEPARATE_DMM_SORT_SEMANTICS_CONFIRMATION",
@@ -157,6 +157,8 @@ def build_plan(
                 temporal_series_evidence.implementation_evidence_candidate,
                 bool,
             )
+            or temporal_series_evidence.isolated_integration_adapter_verified
+            is not True
             or temporal_series_evidence.active_pipeline_connected is not False
             or temporal_series_evidence.api_request_authorized is not False
             or temporal_series_evidence.state_write_authorized is not False
@@ -189,7 +191,7 @@ def build_plan(
             and temporal_series_evidence.status
             == revenue_mvp_temporal_series_candidate_evidence.EVIDENCE_READY
             and temporal_series_evidence.implementation_evidence_candidate is True
-            and temporal_series_evidence.checks_required == 7
+            and temporal_series_evidence.checks_required == 8
             and temporal_series_evidence.checks_passed
             == temporal_series_evidence.checks_required
         )
