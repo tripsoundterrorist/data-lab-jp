@@ -12,23 +12,21 @@ import temporal_filesystem_state_review_evidence as evidence  # noqa: E402
 
 
 class FilesystemStateReviewEvidenceTests(unittest.TestCase):
-    def test_current_public_contracts_leave_four_areas_blocked(self):
+    def test_current_public_contracts_complete_review_without_authorizing_io(self):
         facts = evidence.collect_filesystem_state_review_evidence()
         self.assertTrue(facts.prerequisites_verified)
         self.assertTrue(facts.secret_pii_controls_verified)
         self.assertTrue(facts.publication_compliance_separation_verified)
         self.assertTrue(facts.explicit_approval_point_defined)
-        self.assertFalse(facts.trust_boundary_verified)
-        self.assertFalse(facts.rollback_recovery_verified)
-        self.assertFalse(facts.idempotency_verified)
-        self.assertFalse(facts.rate_cost_bounds_verified)
+        self.assertTrue(facts.trust_boundary_verified)
+        self.assertTrue(facts.rollback_recovery_verified)
+        self.assertTrue(facts.idempotency_verified)
+        self.assertTrue(facts.rate_cost_bounds_verified)
         self.assertFalse(facts.explicit_approval_granted)
 
         result = evidence.assess_current_filesystem_state_review()
-        self.assertEqual(result.status, review.REVIEW_BLOCKED)
-        self.assertEqual(result.unmet_areas, (
-            "TRUST_BOUNDARY", "ROLLBACK_RECOVERY", "IDEMPOTENCY", "RATE_COST",
-        ))
+        self.assertEqual(result.status, review.REVIEW_READY_FOR_EXPLICIT_APPROVAL)
+        self.assertEqual(result.unmet_areas, ())
         self.assertFalse(result.connection_authorized)
         self.assertFalse(result.write_authorized)
         self.assertFalse(result.deploy_allowed)
@@ -58,8 +56,8 @@ class FilesystemStateReviewEvidenceTests(unittest.TestCase):
             capture_output=True, text=True, check=False,
         )
         payload = json.loads(result.stdout)
-        self.assertEqual(result.returncode, 2)
-        self.assertEqual(payload["status"], review.REVIEW_BLOCKED)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(payload["status"], review.REVIEW_READY_FOR_EXPLICIT_APPROVAL)
         self.assertEqual(
             payload["next_minimum_gate"], evidence.NEXT_MINIMUM_GATE
         )
@@ -75,6 +73,16 @@ class FilesystemStateReviewEvidenceTests(unittest.TestCase):
             "run_dry_connection_harness(",
         ):
             self.assertNotIn(forbidden, source)
+
+    def test_changed_persistence_contract_fails_closed(self):
+        with mock.patch.object(evidence.persistence_contract,
+                               "MAX_WRITES_PER_RUN", 5):
+            facts = evidence.collect_filesystem_state_review_evidence()
+        self.assertFalse(facts.trust_boundary_verified)
+        self.assertEqual(
+            review.review_filesystem_state_connection(facts).status,
+            review.REVIEW_BLOCKED,
+        )
 
 
 if __name__ == "__main__":

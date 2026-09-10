@@ -7,6 +7,7 @@ import inspect
 import json
 
 import temporal_filesystem_state_connection_review as review
+import temporal_filesystem_persistence_readback_contract as persistence_contract
 import temporal_probe_series_integration_adapter as adapter
 import temporal_probe_series_state_store_candidate as store
 import temporal_probe_validated_bundle_dry_connection as connection
@@ -22,7 +23,7 @@ EXPECTED_PLAN_FIELDS = (
     "document_bytes", "series_aware_identity", "filesystem_access_performed",
     "state_write_authorized", "reason_codes",
 )
-NEXT_MINIMUM_GATE = "DEFINE_ISOLATED_FILESYSTEM_PERSISTENCE_READBACK_CONTRACT"
+NEXT_MINIMUM_GATE = "REQUEST_ISOLATED_FILESYSTEM_IMPLEMENTATION_APPROVAL"
 
 
 def collect_filesystem_state_review_evidence() -> review.FilesystemStateConnectionEvidence:
@@ -65,15 +66,32 @@ def collect_filesystem_state_review_evidence() -> review.FilesystemStateConnecti
             and review.REVIEW_READY_FOR_EXPLICIT_APPROVAL
             == "REVIEW_READY_FOR_EXPLICIT_APPROVAL"
         )
+        persistence = persistence_contract.evaluate(
+            persistence_contract.PersistenceReadbackEvidence(
+                True, True, True, True, True, True, True,
+            )
+        )
+        persistence_ready = (
+            persistence.version == persistence_contract.VERSION
+            and persistence.status == "CONTRACT_READY_FOR_REVIEW"
+            and persistence.max_document_bytes == store.MAX_STATE_BYTES
+            and persistence.max_writes_per_run == 4
+            and persistence.retention_days == 45
+            and persistence.filesystem_access_performed is False
+            and persistence.write_authorized is False
+            and persistence.connection_authorized is False
+            and persistence.reason_codes
+            == ("FILESYSTEM_PERSISTENCE_READBACK_CONTRACT_DEFINED",)
+        )
         return review.FilesystemStateConnectionEvidence(
             version=review.VERSION,
             selected_target=review.SELECTED_TARGET,
             prerequisites_verified=prerequisites,
-            trust_boundary_verified=False,
-            rollback_recovery_verified=False,
+            trust_boundary_verified=persistence_ready,
+            rollback_recovery_verified=persistence_ready,
             secret_pii_controls_verified=secret_pii,
-            idempotency_verified=False,
-            rate_cost_bounds_verified=False,
+            idempotency_verified=persistence_ready,
+            rate_cost_bounds_verified=persistence_ready,
             publication_compliance_separation_verified=publication_separated,
             explicit_approval_point_defined=explicit_approval_point,
             explicit_approval_granted=False,
