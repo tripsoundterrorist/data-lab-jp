@@ -1,0 +1,16 @@
+{
+  "version": "0.1",
+  "mode": "COLLECTION_ONLY",
+  "targets": [
+    {"content_type":"doujin","site":"FANZA","service":"doujin","floor":"digital_doujin"},
+    {"content_type":"doujin_bl","site":"FANZA","service":"doujin","floor":"digital_doujin_bl"},
+    {"content_type":"doujin_tl","site":"FANZA","service":"doujin","floor":"digital_doujin_tl"},
+    {"content_type":"ebook_comic","site":"FANZA","service":"ebook","floor":"comic"},
+    {"content_type":"ebook_novel","site":"FANZA","service":"ebook","floor":"novel"},
+    {"content_type":"ebook_photo","site":"FANZA","service":"ebook","floor":"photo"},
+    {"content_type":"ebook_bl","site":"FANZA","service":"ebook","floor":"bl"},
+    {"content_type":"ebook_tl","site":"FANZA","service":"ebook","floor":"tl"},
+    {"content_type":"photo_book","site":"DMM.com","service":"ebook","floor":"photo"},
+    {"content_type":"pc_game","site":"FANZA","service":"pcgame","floor":"digital_pcgame"}
+  ]
+}
