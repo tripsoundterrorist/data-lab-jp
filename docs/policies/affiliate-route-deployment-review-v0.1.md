@@ -20,10 +20,10 @@ privacy、rollback、Free plan境界をsanitized booleanだけで確認する。
 - API-issued URLを一時的にtrusted callbackへ渡すWorkers DMM provider候補
 - `functions/`外で全runtime境界を接続するPages entrypoint候補
 - 専用Worker用Rate Limiting binding候補（10回/60秒、routeなし）
+- 同一表示単位内でPR表記をCTA直前に必須化するDOM renderer候補
 
 未完了：
 
-- CTA直近のPR表示との接続
 - route rollback手順
 
 ## Fail-closed boundary
