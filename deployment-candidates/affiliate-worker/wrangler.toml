@@ -4,6 +4,10 @@ compatibility_date = "2026-09-11"
 workers_dev = false
 preview_urls = false
 
+[route]
+pattern = "datalabx.jp/go/*"
+zone_name = "datalabx.jp"
+
 [observability]
 enabled = false
 
