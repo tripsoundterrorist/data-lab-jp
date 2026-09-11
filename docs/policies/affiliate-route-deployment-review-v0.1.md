@@ -21,10 +21,11 @@ privacy、rollback、Free plan境界をsanitized booleanだけで確認する。
 - `functions/`外で全runtime境界を接続するPages entrypoint候補
 - 専用Worker用Rate Limiting binding候補（10回/60秒、routeなし）
 - 同一表示単位内でPR表記をCTA直前に必須化するDOM renderer候補
+- route切断を第一操作とするfail-closed rollback手順
 
 未完了：
 
-- route rollback手順
+なし。全候補境界のreview完了後も、配備には別の明示承認が必要。
 
 ## Fail-closed boundary
 

@@ -108,7 +108,10 @@ def current_evidence() -> RouteDeploymentEvidence:
             (ROOT / "runtime-candidates" / "affiliate-cta-dom-renderer.mjs").is_file()
             and (ROOT / "docs" / "policies" / "affiliate-cta-dom-renderer-candidate-v0.1.md").is_file()
         ),
-        rollback_plan_recorded=False,
+        rollback_plan_recorded=(
+            (ROOT / "scripts" / "affiliate_route_rollback_plan.py").is_file()
+            and (ROOT / "docs" / "policies" / "affiliate-route-rollback-plan-v0.1.md").is_file()
+        ),
         free_plan_boundary_confirmed=d1_state.free_plan_compatible is True,
         production_deployment_performed=False,
     )
