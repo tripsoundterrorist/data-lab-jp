@@ -11,6 +11,8 @@ import json
 import re
 from typing import Any
 
+import revenue_mvp_official_answer_matrix
+
 
 PREFLIGHT_VERSION = "0.3"
 READY_FOR_DEPLOYMENT_REVIEW = "READY_FOR_DEPLOYMENT_REVIEW"
@@ -73,6 +75,10 @@ class AffiliateDeploymentPreflightResult:
 def current_input() -> AffiliateDeploymentCandidate:
     """Return the current fail-closed state without reading environment values."""
 
+    official_answers = revenue_mvp_official_answer_matrix.assess_answer_matrix(
+        revenue_mvp_official_answer_matrix.current_entries()
+    )
+
     return AffiliateDeploymentCandidate(
         platform_adapter_candidate=True,
         private_lookup_import_preflight_ready=False,
@@ -86,7 +92,10 @@ def current_input() -> AffiliateDeploymentCandidate:
         burst_limit=None,
         log_redaction_enabled=False,
         response_cache_disabled=False,
-        official_answer_candidate=False,
+        official_answer_candidate=(
+            official_answers.core_publication_candidate is True
+            and official_answers.gate_unlock_allowed is False
+        ),
         runtime_provider_connected=False,
         runtime_resolution_connected=False,
         pr_disclosure_available=False,

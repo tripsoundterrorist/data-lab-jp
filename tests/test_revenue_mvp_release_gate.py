@@ -53,8 +53,8 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertEqual(result.production_smoke_failed_check_group_count, 0)
         self.assertEqual(result.search_console_status, "PUBLIC_SHELL_READY")
         self.assertTrue(result.public_shell_indexing_allowed)
-        self.assertEqual(result.official_answer_status, "FAIL_CLOSED")
-        self.assertFalse(result.core_official_answer_candidate)
+        self.assertEqual(result.official_answer_status, "REVIEW_CANDIDATE")
+        self.assertTrue(result.core_official_answer_candidate)
         self.assertFalse(result.sns_official_answer_candidate)
         self.assertFalse(result.official_answer_gate_unlock_allowed)
         self.assertEqual(result.x_funnel_status, "PREVIEW_ONLY")
@@ -71,7 +71,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertIn("MONITOR_INDEX_COVERAGE", result.next_actions)
         self.assertIn("DO_NOT_REQUEST_ITEM_INDEXING", result.next_actions)
         self.assertNotIn("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE", result.next_actions)
-        self.assertIn("VERIFY_PRODUCTION_DOMAIN_APPROVAL", result.next_actions)
+        self.assertNotIn("VERIFY_PRODUCTION_DOMAIN_APPROVAL", result.next_actions)
         self.assertNotIn("WAIT_FOR_DMM_FANZA_SNS_RESPONSE", result.next_actions)
         self.assertIn(
             "WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",

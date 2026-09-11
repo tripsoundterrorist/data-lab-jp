@@ -68,7 +68,9 @@ CURRENT_ENTRIES: Mapping[str, AnswerDecision] = MappingProxyType({
     "PR_AD_AFFILIATE_DISCLOSURE": AnswerDecision(
         CONDITIONALLY_ALLOWED, conditions_verified=True
     ),
-    "PRODUCTION_DOMAIN_CHANGE": AnswerDecision(CONDITIONALLY_ALLOWED),
+    "PRODUCTION_DOMAIN_CHANGE": AnswerDecision(
+        CONDITIONALLY_ALLOWED, conditions_verified=True
+    ),
 })
 
 

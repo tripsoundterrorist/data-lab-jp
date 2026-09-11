@@ -29,9 +29,9 @@ class RevenueMvpOfficialAnswerMatrixTests(unittest.TestCase):
             9,
         )
         self.assertEqual(
-            sum(value.conditions_verified for value in entries.values()), 4
+            sum(value.conditions_verified for value in entries.values()), 5
         )
-        self.assertFalse(
+        self.assertTrue(
             entries["PRODUCTION_DOMAIN_CHANGE"].conditions_verified
         )
         self.assertFalse(entries["SNS_ACCOUNT_REGISTRATION"].conditions_verified)
@@ -98,7 +98,7 @@ class RevenueMvpOfficialAnswerMatrixTests(unittest.TestCase):
         )
         self.assertEqual(process.returncode, 0, process.stderr)
         result = json.loads(process.stdout)
-        self.assertEqual(result["status"], "FAIL_CLOSED")
+        self.assertEqual(result["status"], "REVIEW_CANDIDATE")
         self.assertFalse(result["gate_unlock_allowed"])
         self.assertEqual(result["counts"][matrix.UNKNOWN], 0)
         self.assertEqual(result["counts"][matrix.CONDITIONALLY_ALLOWED], 9)
@@ -109,7 +109,6 @@ class RevenueMvpOfficialAnswerMatrixTests(unittest.TestCase):
                 "SNS_ACCOUNT_REGISTRATION",
                 "SNS_PRODUCT_MEDIA_USE",
                 "AUTOMATED_FACT_POSTING",
-                "PRODUCTION_DOMAIN_CHANGE",
             ],
         )
 
