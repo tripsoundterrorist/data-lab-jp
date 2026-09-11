@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: approved for exact-route blocked smoke
+Status: exact route attached; blocked smoke passed
 
 ## Context
 
