@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import json
+from pathlib import Path
 from typing import Any
 
 import affiliate_d1_production_state
@@ -14,6 +15,7 @@ VERSION = "0.1"
 READY = "READY_FOR_SEPARATE_DEPLOYMENT_APPROVAL"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
+ROOT = Path(__file__).resolve().parents[1]
 
 
 @dataclass(frozen=True)
@@ -73,7 +75,10 @@ def current_evidence() -> RouteDeploymentEvidence:
         ),
         pages_function_entrypoint_present=False,
         rate_limit_binding_configured=False,
-        trusted_opaque_client_key_derivation_present=False,
+        trusted_opaque_client_key_derivation_present=(
+            (ROOT / "runtime-candidates" / "affiliate-client-key-derivation.mjs").is_file()
+            and (ROOT / "docs" / "policies" / "affiliate-client-key-derivation-candidate-v0.1.md").is_file()
+        ),
         workers_runtime_provider_present=False,
         proximate_pr_disclosure_connected=False,
         rollback_plan_recorded=False,
