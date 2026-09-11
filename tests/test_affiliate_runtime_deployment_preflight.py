@@ -34,16 +34,18 @@ def ready_candidate() -> preflight.AffiliateDeploymentCandidate:
 
 
 class AffiliateRuntimeDeploymentPreflightTests(unittest.TestCase):
-    def test_current_state_is_blocked_without_reading_secret_values(self):
+    def test_current_state_records_inert_d1_but_remains_blocked(self):
         result = preflight.assess_preflight(preflight.current_input())
 
         self.assertEqual(result.status, preflight.BLOCKED)
         self.assertFalse(result.deployment_candidate)
         self.assertFalse(result.production_deployment_allowed)
         self.assertTrue(result.platform_adapter_candidate)
-        self.assertFalse(result.private_lookup_import_preflight_ready)
+        self.assertTrue(result.private_lookup_import_preflight_ready)
         self.assertEqual(result.secret_binding_name_count, 0)
-        self.assertIn("PRIVATE_LOOKUP_IMPORT_PREFLIGHT_NOT_READY", result.reason_codes)
+        self.assertEqual(result.data_binding_name_count, 1)
+        self.assertNotIn("PRIVATE_LOOKUP_IMPORT_PREFLIGHT_NOT_READY", result.reason_codes)
+        self.assertNotIn("DATA_BINDING_NOT_READY", result.reason_codes)
         self.assertIn("SECRET_BINDINGS_NOT_READY", result.reason_codes)
         self.assertNotIn("OFFICIAL_ANSWER_GATE_CLOSED", result.reason_codes)
         self.assertIn(
@@ -175,7 +177,8 @@ class AffiliateRuntimeDeploymentPreflightTests(unittest.TestCase):
         result = json.loads(output.getvalue())
         self.assertEqual(result["status"], preflight.BLOCKED)
         self.assertFalse(result["production_deployment_allowed"])
-        self.assertFalse(result["private_lookup_import_preflight_ready"])
+        self.assertTrue(result["private_lookup_import_preflight_ready"])
+        self.assertEqual(1, result["data_binding_name_count"])
 
 
 if __name__ == "__main__":

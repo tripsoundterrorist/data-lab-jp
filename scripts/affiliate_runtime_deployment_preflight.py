@@ -11,10 +11,11 @@ import json
 import re
 from typing import Any
 
+import affiliate_d1_production_state
 import revenue_mvp_official_answer_matrix
 
 
-PREFLIGHT_VERSION = "0.3"
+PREFLIGHT_VERSION = "0.4"
 READY_FOR_DEPLOYMENT_REVIEW = "READY_FOR_DEPLOYMENT_REVIEW"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
@@ -75,15 +76,21 @@ class AffiliateDeploymentPreflightResult:
 def current_input() -> AffiliateDeploymentCandidate:
     """Return the current fail-closed state without reading environment values."""
 
+    d1_state = affiliate_d1_production_state.assess(
+        affiliate_d1_production_state.current_evidence()
+    )
     official_answers = revenue_mvp_official_answer_matrix.assess_answer_matrix(
         revenue_mvp_official_answer_matrix.current_entries()
     )
 
     return AffiliateDeploymentCandidate(
         platform_adapter_candidate=True,
-        private_lookup_import_preflight_ready=False,
+        private_lookup_import_preflight_ready=(
+            d1_state.status == affiliate_d1_production_state.READY
+            and d1_state.lookup_ready is True
+        ),
         secret_binding_names=(),
-        data_binding_names=(),
+        data_binding_names=("AFFILIATE_ITEM_LOOKUP",),
         route_path=None,
         allowed_methods=(),
         redirect_status=None,

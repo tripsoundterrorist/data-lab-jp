@@ -44,7 +44,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertNotIn("IMPLEMENT_AFFILIATE_RUNTIME_PIPELINE", result.next_actions)
         self.assertIn("CONFIGURE_DEDICATED_GET_HEAD_ROUTE", result.next_actions)
         self.assertIn("CONFIGURE_REQUIRED_SECRET_BINDINGS", result.next_actions)
-        self.assertIn("CONFIGURE_PRIVATE_ITEM_LOOKUP", result.next_actions)
+        self.assertNotIn("CONFIGURE_PRIVATE_ITEM_LOOKUP", result.next_actions)
         self.assertIn("CONFIGURE_BOUNDED_PER_CLIENT_RATE_LIMIT", result.next_actions)
         self.assertEqual(result.shell_status, "SHELL_VALIDATED")
         self.assertEqual(result.production_smoke_status, "PRODUCTION_SHELL_VALIDATED")
