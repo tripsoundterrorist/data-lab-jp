@@ -79,7 +79,10 @@ def current_evidence() -> RouteDeploymentEvidence:
             (ROOT / "runtime-candidates" / "affiliate-client-key-derivation.mjs").is_file()
             and (ROOT / "docs" / "policies" / "affiliate-client-key-derivation-candidate-v0.1.md").is_file()
         ),
-        workers_runtime_provider_present=False,
+        workers_runtime_provider_present=(
+            (ROOT / "runtime-candidates" / "affiliate-workers-dmm-provider.mjs").is_file()
+            and (ROOT / "docs" / "policies" / "affiliate-workers-dmm-provider-candidate-v0.1.md").is_file()
+        ),
         proximate_pr_disclosure_connected=False,
         rollback_plan_recorded=False,
         free_plan_boundary_confirmed=d1_state.free_plan_compatible is True,

@@ -31,7 +31,6 @@ class AffiliateRouteDeploymentReviewTests(unittest.TestCase):
         for reason in (
             "PAGES_FUNCTION_ENTRYPOINT_NOT_PRESENT",
             "RATE_LIMIT_BINDING_NOT_CONFIGURED",
-            "WORKERS_RUNTIME_PROVIDER_NOT_PRESENT",
             "PROXIMATE_PR_DISCLOSURE_NOT_CONNECTED",
             "ROLLBACK_PLAN_NOT_RECORDED",
         ):
@@ -39,6 +38,7 @@ class AffiliateRouteDeploymentReviewTests(unittest.TestCase):
         self.assertNotIn("D1_LOOKUP_NOT_READY", result.reason_codes)
         self.assertNotIn("SECRET_BINDING_NAMES_NOT_READY", result.reason_codes)
         self.assertNotIn("TRUSTED_CLIENT_KEY_DERIVATION_NOT_PRESENT", result.reason_codes)
+        self.assertNotIn("WORKERS_RUNTIME_PROVIDER_NOT_PRESENT", result.reason_codes)
 
     def test_complete_packet_reaches_separate_approval_only(self):
         result = review.assess(ready_evidence())
