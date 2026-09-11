@@ -24,7 +24,7 @@ Prepare a dedicated module Worker candidate with:
 - all release facts hard-coded false;
 - the existing read-only affiliate D1 binding;
 - `AFFILIATE_CLIENT_RATE_LIMITER`, 10 calls per 60 seconds per opaque key;
-- 10 ms CPU limit matching the Workers Free plan boundary;
+- no explicit CPU override; the Workers Free plan applies its platform limit;
 - observability disabled to avoid automatic request-data logging;
 - secrets absent from Git and added only through an approved encrypted channel.
 
@@ -55,3 +55,7 @@ On 2026-09-12, Wrangler 4.131.1 accepted the candidate with `deploy --dry-run`.
 The bundle was 16.91 KiB uncompressed / 4.42 KiB gzip and reported exactly the
 reviewed D1 binding plus `AFFILIATE_CLIENT_RATE_LIMITER` at 10 requests per 60
 seconds. No upload or deployment occurred.
+
+An approved inert deployment attempt was rejected before creation because
+Cloudflare does not accept an explicit `cpu_ms` setting on the Free plan. The
+setting was removed; no paid-plan change is required or authorized.
