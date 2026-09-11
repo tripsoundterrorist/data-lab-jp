@@ -59,3 +59,7 @@ seconds. No upload or deployment occurred.
 An approved inert deployment attempt was rejected before creation because
 Cloudflare does not accept an explicit `cpu_ms` setting on the Free plan. The
 setting was removed; no paid-plan change is required or authorized.
+
+A following attempt was also rejected before creation because the JST calendar
+date was still in the future in UTC. The compatibility date was pinned to the
+latest already-complete UTC date (`2026-09-11`).

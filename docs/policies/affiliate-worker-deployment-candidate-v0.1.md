@@ -14,5 +14,9 @@ The configuration deliberately omits `[limits].cpu_ms`. Cloudflare rejected
 that explicit setting on the Free plan; the candidate relies on the platform's
 Free-plan CPU limit instead and does not request a paid-plan override.
 
+The compatibility date is pinned to `2026-09-11`, the latest UTC date accepted
+during the 2026-09-12 JST deployment window. A future UTC date fails before
+Worker creation.
+
 This package is not a deployment authorization. Running `wrangler deploy`,
 adding secrets, or attaching `datalabx.jp/go/*` requires separate approval.

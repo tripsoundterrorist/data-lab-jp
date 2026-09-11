@@ -20,6 +20,7 @@ class AffiliateWorkerDeploymentCandidateTests(unittest.TestCase):
         self.assertNotIn("[limits]", self.config)
 
     def test_candidate_has_no_route_or_observability(self):
+        self.assertIn('compatibility_date = "2026-09-11"', self.config)
         self.assertIn("workers_dev = false", self.config)
         self.assertIn("preview_urls = false", self.config)
         self.assertIn("enabled = false", self.config)
