@@ -19,10 +19,10 @@ privacy、rollback、Free plan境界をsanitized booleanだけで確認する。
 - 生IPを外へ出さずserver-side secretでHMAC化する匿名client key候補
 - API-issued URLを一時的にtrusted callbackへ渡すWorkers DMM provider候補
 - `functions/`外で全runtime境界を接続するPages entrypoint候補
+- 専用Worker用Rate Limiting binding候補（10回/60秒、routeなし）
 
 未完了：
 
-- Rate Limiting bindingの設定
 - CTA直近のPR表示との接続
 - route rollback手順
 
