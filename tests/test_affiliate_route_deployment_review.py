@@ -25,11 +25,10 @@ class AffiliateRouteDeploymentReviewTests(unittest.TestCase):
         self.assertEqual(review.BLOCKED, result.status)
         self.assertTrue(result.d1_lookup_ready)
         self.assertTrue(result.secret_binding_names_ready)
-        self.assertFalse(result.runtime_boundary_ready)
+        self.assertTrue(result.runtime_boundary_ready)
         self.assertFalse(result.rollback_ready)
         self.assertFalse(result.deployment_review_candidate)
         for reason in (
-            "PROXIMATE_PR_DISCLOSURE_NOT_CONNECTED",
             "ROLLBACK_PLAN_NOT_RECORDED",
         ):
             self.assertIn(reason, result.reason_codes)
@@ -39,6 +38,7 @@ class AffiliateRouteDeploymentReviewTests(unittest.TestCase):
         self.assertNotIn("WORKERS_RUNTIME_PROVIDER_NOT_PRESENT", result.reason_codes)
         self.assertNotIn("PAGES_FUNCTION_ENTRYPOINT_NOT_PRESENT", result.reason_codes)
         self.assertNotIn("RATE_LIMIT_BINDING_NOT_CONFIGURED", result.reason_codes)
+        self.assertNotIn("PROXIMATE_PR_DISCLOSURE_NOT_CONNECTED", result.reason_codes)
 
     def test_complete_packet_reaches_separate_approval_only(self):
         result = review.assess(ready_evidence())
