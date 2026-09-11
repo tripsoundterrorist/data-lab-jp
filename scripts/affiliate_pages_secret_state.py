@@ -8,7 +8,7 @@ import re
 from typing import Any
 
 
-VERSION = "0.1"
+VERSION = "0.2"
 READY = "SECRET_BINDING_NAMES_READY"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
@@ -46,9 +46,13 @@ class PagesSecretStateResult:
 
 
 def current_evidence() -> PagesSecretEvidence:
-    """Return the names-only result of the 2026-09-11 production check."""
+    """Return the names-only result of the post-registration production check."""
 
-    return PagesSecretEvidence(True, True, ())
+    return PagesSecretEvidence(
+        True,
+        True,
+        ("DMM_API_ID", "DMM_AFFILIATE_ID"),
+    )
 
 
 def assess(evidence: Any) -> PagesSecretStateResult:

@@ -42,11 +42,11 @@ class AffiliateRuntimeDeploymentPreflightTests(unittest.TestCase):
         self.assertFalse(result.production_deployment_allowed)
         self.assertTrue(result.platform_adapter_candidate)
         self.assertTrue(result.private_lookup_import_preflight_ready)
-        self.assertEqual(result.secret_binding_name_count, 0)
+        self.assertEqual(result.secret_binding_name_count, 2)
         self.assertEqual(result.data_binding_name_count, 1)
         self.assertNotIn("PRIVATE_LOOKUP_IMPORT_PREFLIGHT_NOT_READY", result.reason_codes)
         self.assertNotIn("DATA_BINDING_NOT_READY", result.reason_codes)
-        self.assertIn("SECRET_BINDINGS_NOT_READY", result.reason_codes)
+        self.assertNotIn("SECRET_BINDINGS_NOT_READY", result.reason_codes)
         self.assertNotIn("OFFICIAL_ANSWER_GATE_CLOSED", result.reason_codes)
         self.assertIn(
             "AFFILIATE_RUNTIME_CHAIN_NOT_CONNECTED", result.reason_codes

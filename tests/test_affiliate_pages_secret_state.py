@@ -14,15 +14,19 @@ import affiliate_pages_secret_state as state  # noqa: E402
 
 
 class AffiliatePagesSecretStateTests(unittest.TestCase):
-    def test_current_state_records_empty_production_secret_names(self):
+    def test_current_state_records_exact_production_secret_names(self):
         result = state.assess(state.current_evidence())
-        self.assertEqual(state.BLOCKED, result.status)
+        self.assertEqual(state.READY, result.status)
         self.assertTrue(result.production_environment_checked)
         self.assertTrue(result.values_not_read)
         self.assertEqual(2, result.required_binding_count)
-        self.assertEqual(0, result.observed_required_binding_count)
-        self.assertEqual((), result.verified_binding_names)
-        self.assertIn("REQUIRED_SECRET_BINDING_NAMES_MISSING", result.reason_codes)
+        self.assertEqual(2, result.observed_required_binding_count)
+        self.assertEqual(
+            ("DMM_AFFILIATE_ID", "DMM_API_ID"), result.verified_binding_names
+        )
+        self.assertEqual(
+            ("REQUIRED_SECRET_BINDING_NAMES_VERIFIED",), result.reason_codes
+        )
         self.assertFalse(result.secret_configuration_allowed)
         self.assertFalse(result.deployment_allowed)
 
@@ -65,7 +69,7 @@ class AffiliatePagesSecretStateTests(unittest.TestCase):
             return_code = state.main()
         result = json.loads(output.getvalue())
         self.assertEqual(0, return_code)
-        self.assertEqual(state.BLOCKED, result["status"])
+        self.assertEqual(state.READY, result["status"])
         self.assertNotIn("secret_values", result)
 
     def test_malformed_input_fails_closed(self):
