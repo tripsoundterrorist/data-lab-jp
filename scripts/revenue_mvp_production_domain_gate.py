@@ -38,9 +38,9 @@ class DomainApprovalResult:
 
 
 def current_evidence() -> DomainApprovalEvidence:
-    """Return safe defaults without reading account data, URLs, or credentials."""
+    """Return the sanitized operator-confirmed production-domain evidence."""
 
-    return DomainApprovalEvidence(False, False, False)
+    return DomainApprovalEvidence(True, True, False)
 
 
 def assess(value: Any) -> DomainApprovalResult:

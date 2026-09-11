@@ -45,7 +45,7 @@ class AffiliateRuntimeDeploymentPreflightTests(unittest.TestCase):
         self.assertEqual(result.secret_binding_name_count, 0)
         self.assertIn("PRIVATE_LOOKUP_IMPORT_PREFLIGHT_NOT_READY", result.reason_codes)
         self.assertIn("SECRET_BINDINGS_NOT_READY", result.reason_codes)
-        self.assertIn("OFFICIAL_ANSWER_GATE_CLOSED", result.reason_codes)
+        self.assertNotIn("OFFICIAL_ANSWER_GATE_CLOSED", result.reason_codes)
         self.assertIn(
             "AFFILIATE_RUNTIME_CHAIN_NOT_CONNECTED", result.reason_codes
         )

@@ -11,13 +11,13 @@ import revenue_mvp_production_domain_gate as gate  # noqa: E402
 
 
 class RevenueMvpProductionDomainGateTests(unittest.TestCase):
-    def test_current_state_requires_operator_confirmation(self):
+    def test_current_state_records_sanitized_operator_confirmation(self):
         result = gate.assess(gate.current_evidence())
-        self.assertEqual(result.status, gate.PENDING)
-        self.assertFalse(result.condition_verified)
+        self.assertEqual(result.status, gate.READY)
+        self.assertTrue(result.condition_verified)
         self.assertFalse(result.gate_unlock_allowed)
         self.assertFalse(result.production_change_allowed)
-        self.assertIn("CONFIRM_DMM_APPROVED_SITE_IN_ACCOUNT", result.next_actions)
+        self.assertEqual(result.next_actions, ())
 
     def test_complete_evidence_is_review_only(self):
         result = gate.assess(gate.DomainApprovalEvidence(True, True, False))
