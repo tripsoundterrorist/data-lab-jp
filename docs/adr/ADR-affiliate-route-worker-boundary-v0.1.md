@@ -2,7 +2,7 @@
 
 Date: 2026-09-12
 
-Status: accepted for candidate preparation; not deployed
+Status: approved for exact-route blocked smoke
 
 ## Context
 

@@ -19,12 +19,14 @@ class AffiliateWorkerDeploymentCandidateTests(unittest.TestCase):
         self.assertNotRegex(self.config, r"(?m)^\s*cpu_ms\s*=")
         self.assertNotIn("[limits]", self.config)
 
-    def test_candidate_has_no_route_or_observability(self):
+    def test_candidate_has_exact_route_and_no_public_worker_hostname(self):
         self.assertIn('compatibility_date = "2026-09-11"', self.config)
         self.assertIn("workers_dev = false", self.config)
         self.assertIn("preview_urls = false", self.config)
         self.assertIn("enabled = false", self.config)
-        self.assertIsNone(re.search(r"(?m)^\s*routes?\s*=", self.config))
+        self.assertIn('pattern = "datalabx.jp/go/*"', self.config)
+        self.assertIn('zone_name = "datalabx.jp"', self.config)
+        self.assertEqual(self.config.count('pattern = "'), 1)
 
     def test_all_release_facts_are_hard_closed(self):
         for name in (

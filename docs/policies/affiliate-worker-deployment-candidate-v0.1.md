@@ -1,9 +1,10 @@
 # Affiliate Worker Deployment Candidate v0.1
 
 The candidate under `deployment-candidates/affiliate-worker/` packages the
-reviewed affiliate runtime for a dedicated Cloudflare Worker. It is inert:
-Workers.dev and preview URLs are disabled, no production route exists, and all
-release facts are hard closed.
+reviewed affiliate runtime for a dedicated Cloudflare Worker. Workers.dev and
+preview URLs are disabled. The only production route is `datalabx.jp/go/*`, and
+all release facts remain hard closed so the route can only return blocked
+responses during the initial smoke phase.
 
 The committed configuration contains no API ID, affiliate ID, client-key
 secret, token, or account credential. The reviewed D1 resource identity is the
