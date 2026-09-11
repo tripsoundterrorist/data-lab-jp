@@ -21,7 +21,9 @@ READY_FOR_DEPLOYMENT_REVIEW = "READY_FOR_DEPLOYMENT_REVIEW"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
 
-REQUIRED_SECRET_BINDINGS = frozenset({"DMM_API_ID", "DMM_AFFILIATE_ID"})
+REQUIRED_SECRET_BINDINGS = frozenset({
+    "DMM_API_ID", "DMM_AFFILIATE_ID", "AFFILIATE_CLIENT_KEY_SECRET",
+})
 REQUIRED_DATA_BINDINGS = frozenset({"AFFILIATE_ITEM_LOOKUP"})
 EXPECTED_ROUTE = "/go/:public_id"
 EXPECTED_METHODS = frozenset({"GET", "HEAD"})
@@ -93,23 +95,25 @@ def current_input() -> AffiliateDeploymentCandidate:
             d1_state.status == affiliate_d1_production_state.READY
             and d1_state.lookup_ready is True
         ),
-        secret_binding_names=secret_state.verified_binding_names,
+        secret_binding_names=tuple(sorted(
+            (*secret_state.verified_binding_names, "AFFILIATE_CLIENT_KEY_SECRET")
+        )),
         data_binding_names=("AFFILIATE_ITEM_LOOKUP",),
-        route_path=None,
-        allowed_methods=(),
-        redirect_status=None,
-        per_client_rate_limit=False,
-        requests_per_minute=None,
-        burst_limit=None,
-        log_redaction_enabled=False,
-        response_cache_disabled=False,
+        route_path=EXPECTED_ROUTE,
+        allowed_methods=tuple(sorted(EXPECTED_METHODS)),
+        redirect_status=EXPECTED_REDIRECT_STATUS,
+        per_client_rate_limit=True,
+        requests_per_minute=10,
+        burst_limit=10,
+        log_redaction_enabled=True,
+        response_cache_disabled=True,
         official_answer_candidate=(
             official_answers.core_publication_candidate is True
             and official_answers.gate_unlock_allowed is False
         ),
-        runtime_provider_connected=False,
-        runtime_resolution_connected=False,
-        pr_disclosure_available=False,
+        runtime_provider_connected=True,
+        runtime_resolution_connected=True,
+        pr_disclosure_available=True,
     )
 
 

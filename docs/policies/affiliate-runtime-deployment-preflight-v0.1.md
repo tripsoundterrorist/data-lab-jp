@@ -8,7 +8,7 @@ Cloudflareへ配備する前の候補構成を、秘密値やURLを読まずに�
 
 ## Required candidate
 
-- secret binding名：`DMM_API_ID`、`DMM_AFFILIATE_ID`
+- secret binding名：`DMM_API_ID`、`DMM_AFFILIATE_ID`、`AFFILIATE_CLIENT_KEY_SECRET`
 - private item lookup binding名：`AFFILIATE_ITEM_LOOKUP`
 - 専用route：`/go/:public_id`
 - method：`GET`、`HEAD`のみ
@@ -28,7 +28,7 @@ bindingは名前だけを受け付け、値は入力にもsafe resultにも含�
 
 全条件が揃っても `READY_FOR_DEPLOYMENT_REVIEW` までとし、
 `production_deployment_allowed` は常にfalseとする。
-現在値は未設定・未接続・公式回答の条件実装証跡未確認のため `BLOCKED` である。
+2026-09-12時点でroute、rate limit、runtime chain、PR表示候補、secret名は確認済みで、preflightは`READY_FOR_DEPLOYMENT_REVIEW`である。ただしPublication/Lifecycle/Semantics Gateを解除せず、実際のredirect許可にはならない。
 
 個別の不足はreason codeとnext actionで報告する。入力不正や内部例外は
 `FAIL_CLOSED` とし、入力内容・秘密値・URL・識別子・例外文を返さない。
