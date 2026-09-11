@@ -7,9 +7,6 @@ preview_urls = false
 [observability]
 enabled = false
 
-[limits]
-cpu_ms = 10
-
 [[d1_databases]]
 binding = "AFFILIATE_ITEM_LOOKUP"
 database_name = "data-lab-affiliate-lookup"

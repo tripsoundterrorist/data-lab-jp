@@ -12,11 +12,12 @@ class AffiliateWorkerDeploymentCandidateTests(unittest.TestCase):
         self.config = (self.root / "wrangler.toml").read_text(encoding="utf-8")
         self.entrypoint = (self.root / "src" / "index.mjs").read_text(encoding="utf-8")
 
-    def test_rate_limit_is_bounded_and_free_cpu_limit_is_explicit(self):
+    def test_rate_limit_is_bounded_and_paid_cpu_setting_is_absent(self):
         self.assertIn('name = "AFFILIATE_CLIENT_RATE_LIMITER"', self.config)
         self.assertRegex(self.config, r"(?m)^\s*limit = 10$")
         self.assertRegex(self.config, r"(?m)^\s*period = 60$")
-        self.assertRegex(self.config, r"(?m)^cpu_ms = 10$")
+        self.assertNotRegex(self.config, r"(?m)^\s*cpu_ms\s*=")
+        self.assertNotIn("[limits]", self.config)
 
     def test_candidate_has_no_route_or_observability(self):
         self.assertIn("workers_dev = false", self.config)

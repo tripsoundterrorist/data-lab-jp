@@ -12,7 +12,7 @@ privacy、rollback、Free plan境界をsanitized booleanだけで確認する。
 
 - D1 lookup 861件、enabled 0件、runtime eligible 0件
 - D1 binding名
-- production secret binding名2件（値は未参照）
+- Pages production secret binding名2件（値は未参照）
 - 現行Workers型定義上のD1およびRate Limit binding API
 - 既存candidate chainが`runtime-candidates/`に隔離されていること
 - production Pages Function entrypointが存在しないこと
@@ -25,7 +25,9 @@ privacy、rollback、Free plan境界をsanitized booleanだけで確認する。
 
 未完了：
 
-なし。全候補境界のreview完了後も、配備には別の明示承認が必要。
+- 専用Worker側の暗号化secret 3件（API ID、affiliate ID、client-key secret）の登録と名前のみの再確認。Pages側のbinding名はWorker側の登録証跡として扱わない。
+
+2026-09-12の不活性配備試行は、Free planで明示的な`cpu_ms`指定が非対応のためCloudflareが作成前に拒否した。課金せず設定を削除した。Worker、route、affiliateはいずれも有効化されていない。
 
 ## Fail-closed boundary
 

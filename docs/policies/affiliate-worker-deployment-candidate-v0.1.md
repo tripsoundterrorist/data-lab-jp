@@ -10,5 +10,9 @@ secret, token, or account credential. The reviewed D1 resource identity is the
 same resource already bound to the Pages production environment. The rate limit
 is 10 calls per 60 seconds per opaque client/item key.
 
+The configuration deliberately omits `[limits].cpu_ms`. Cloudflare rejected
+that explicit setting on the Free plan; the candidate relies on the platform's
+Free-plan CPU limit instead and does not request a paid-plan override.
+
 This package is not a deployment authorization. Running `wrangler deploy`,
 adding secrets, or attaching `datalabx.jp/go/*` requires separate approval.
