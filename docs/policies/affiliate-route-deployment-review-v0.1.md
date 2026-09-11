@@ -25,9 +25,11 @@ privacy、rollback、Free plan境界をsanitized booleanだけで確認する。
 
 未完了：
 
-- 専用Worker側の暗号化secret 3件（API ID、affiliate ID、client-key secret）の登録と名前のみの再確認。Pages側のbinding名はWorker側の登録証跡として扱わない。
+- なし。専用Worker側の暗号化secret 3件は値を読まず名前のみ再確認済み。
 
 2026-09-12の不活性配備試行は、Free planで明示的な`cpu_ms`指定が非対応のためCloudflareが作成前に拒否した。課金せず設定を削除した。Worker、route、affiliateはいずれも有効化されていない。
+
+修正後はWorker versionのuploadに成功したが、Cloudflare結果は`No targets deployed`である。workers.dev、preview URL、production routeは未接続で、全release factsはfalseのまま。専用Workerのsecret名3件を値なしで確認した。
 
 ## Fail-closed boundary
 

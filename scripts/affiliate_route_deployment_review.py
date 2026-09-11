@@ -83,10 +83,9 @@ def current_evidence() -> RouteDeploymentEvidence:
         candidate_chain_reviewed=True,
         current_workers_types_reviewed=True,
         d1_lookup_ready=d1_state.lookup_ready is True,
-        # Pages secret names do not prove that the dedicated Worker owns the
-        # same encrypted bindings. Keep this closed until names-only Worker
-        # evidence confirms all three Worker-specific secrets.
-        secret_binding_names_ready=False,
+        # Names-only verification of the dedicated Worker on 2026-09-12.
+        # Secret values were neither read nor emitted.
+        secret_binding_names_ready=True,
         pages_function_entrypoint_present=(
             (ROOT / "runtime-candidates" / "affiliate-pages-entrypoint-candidate.mjs").is_file()
             and (ROOT / "docs" / "policies" / "affiliate-pages-entrypoint-candidate-v0.1.md").is_file()
