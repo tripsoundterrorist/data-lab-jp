@@ -1,0 +1,24 @@
+name = "data-lab-affiliate-route"
+main = "src/index.mjs"
+compatibility_date = "2026-09-12"
+workers_dev = false
+preview_urls = false
+
+[observability]
+enabled = false
+
+[limits]
+cpu_ms = 10
+
+[[d1_databases]]
+binding = "AFFILIATE_ITEM_LOOKUP"
+database_name = "data-lab-affiliate-lookup"
+database_id = "bde6cc85-d2bb-48c9-a90e-4055a7a131be"
+
+[[ratelimits]]
+name = "AFFILIATE_CLIENT_RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60

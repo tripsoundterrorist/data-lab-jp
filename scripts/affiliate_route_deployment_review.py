@@ -18,6 +18,23 @@ FAIL_CLOSED = "FAIL_CLOSED"
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _worker_rate_limit_candidate_present() -> bool:
+    path = ROOT / "deployment-candidates" / "affiliate-worker" / "wrangler.toml"
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    required = (
+        'name = "AFFILIATE_CLIENT_RATE_LIMITER"',
+        'namespace_id = "1001"',
+        "limit = 10",
+        "period = 60",
+        "workers_dev = false",
+        "preview_urls = false",
+    )
+    return all(value in content for value in required)
+
+
 @dataclass(frozen=True)
 class RouteDeploymentEvidence:
     candidate_chain_reviewed: bool
@@ -78,7 +95,7 @@ def current_evidence() -> RouteDeploymentEvidence:
             and (ROOT / "docs" / "policies" / "affiliate-pages-entrypoint-candidate-v0.1.md").is_file()
             and not (ROOT / "functions").exists()
         ),
-        rate_limit_binding_configured=False,
+        rate_limit_binding_configured=_worker_rate_limit_candidate_present(),
         trusted_opaque_client_key_derivation_present=(
             (ROOT / "runtime-candidates" / "affiliate-client-key-derivation.mjs").is_file()
             and (ROOT / "docs" / "policies" / "affiliate-client-key-derivation-candidate-v0.1.md").is_file()
