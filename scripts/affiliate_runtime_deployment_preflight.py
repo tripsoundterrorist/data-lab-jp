@@ -16,7 +16,7 @@ import affiliate_pages_secret_state
 import revenue_mvp_official_answer_matrix
 
 
-PREFLIGHT_VERSION = "0.5"
+PREFLIGHT_VERSION = "0.6"
 READY_FOR_DEPLOYMENT_REVIEW = "READY_FOR_DEPLOYMENT_REVIEW"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
