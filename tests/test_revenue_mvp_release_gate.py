@@ -73,10 +73,16 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertNotIn("WAIT_FOR_DMM_FANZA_OFFICIAL_RESPONSE", result.next_actions)
         self.assertNotIn("VERIFY_PRODUCTION_DOMAIN_APPROVAL", result.next_actions)
         self.assertNotIn("WAIT_FOR_DMM_FANZA_SNS_RESPONSE", result.next_actions)
-        self.assertIn(
+        self.assertNotIn(
             "WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",
             result.next_actions,
         )
+        self.assertIn(
+            "WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",
+            result.sns_next_actions,
+        )
+        self.assertTrue(any(code.startswith("SNS_TOPIC_BLOCKED:") for code in result.sns_reason_codes))
+        self.assertFalse(any(code.startswith("SNS_TOPIC_BLOCKED:") for code in result.reason_codes))
 
     def test_search_console_failure_blocks_otherwise_ready_release(self):
         deployment = SimpleNamespace(
@@ -174,9 +180,13 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertFalse(result.sns_official_answer_candidate)
         self.assertFalse(result.official_answer_gate_unlock_allowed)
         self.assertEqual(result.x_funnel_status, "PREVIEW_ONLY")
-        self.assertIn(
+        self.assertNotIn(
             "WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",
             result.next_actions,
+        )
+        self.assertIn(
+            "WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",
+            result.sns_next_actions,
         )
 
     def test_deployment_ready_cannot_override_official_blockers(self):
@@ -221,6 +231,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertEqual(result.affiliate_deployment_status, "UNKNOWN")
         self.assertFalse(result.affiliate_deployment_candidate)
         self.assertNotIn("secret", json.dumps(result.to_dict()))
+        self.assertEqual(result.sns_reason_codes, ("SNS_GATE_STATE_UNKNOWN",))
 
     def test_cli_is_read_only_and_machine_readable(self):
         output = StringIO()

@@ -19,7 +19,7 @@ import revenue_mvp_search_console_gate
 import revenue_mvp_x_funnel_candidate
 
 
-GATE_VERSION = "0.9"
+GATE_VERSION = "1.0"
 READY_FOR_RELEASE_APPROVAL = "READY_FOR_RELEASE_APPROVAL"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
@@ -70,6 +70,8 @@ class ReleaseGateResult:
     affiliate_integration_allowed: bool
     reason_codes: tuple[str, ...]
     next_actions: tuple[str, ...]
+    sns_reason_codes: tuple[str, ...]
+    sns_next_actions: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
@@ -133,9 +135,20 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             | set(publication.reason_codes)
             | set(production_smoke.reason_codes)
             | set(search_console.reason_codes)
-            | set(official_answers.reason_codes)
             | set(affiliate_deployment.reason_codes)
-            | set(x_funnel.reason_codes)
+        )
+        if not official_answers.core_publication_candidate:
+            reasons.add("CORE_OFFICIAL_CONDITIONS_NOT_VERIFIED")
+            reasons.update(
+                f"CORE_TOPIC_BLOCKED:{topic}"
+                for topic in getattr(official_answers, "blocking_topic_ids", ())
+                if topic in revenue_mvp_official_answer_matrix.CORE_TOPIC_IDS
+            )
+        sns_reasons = set(x_funnel.reason_codes)
+        sns_reasons.update(
+            f"SNS_TOPIC_BLOCKED:{topic}"
+            for topic in getattr(official_answers, "blocking_topic_ids", ())
+            if topic in revenue_mvp_official_answer_matrix.SNS_TOPIC_IDS
         )
         if not affiliate_ready:
             reasons.add("AFFILIATE_RUNTIME_NOT_CONNECTED")
@@ -180,19 +193,20 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
                 ))
                 + (() if pipeline_ready else ("IMPLEMENT_AFFILIATE_RUNTIME_PIPELINE",))
                 + affiliate_deployment.next_actions
-                + (
-                    ("REVIEW_X_MANUAL_POST_CANDIDATE",)
-                    if x_funnel.manual_post_candidate
-                    else (
-                        ("WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",)
-                        if official_response_recorded
-                        and not official_answers.sns_operation_candidate
-                        else ("WAIT_FOR_DMM_FANZA_SNS_RESPONSE",)
-                        if not official_answers.sns_operation_candidate
-                        else ("PREPARE_X_MANUAL_APPROVAL",)
-                    )
-                )
             )),
+            tuple(sorted(sns_reasons)),
+            (
+                ("REVIEW_X_MANUAL_POST_CANDIDATE",)
+                if x_funnel.manual_post_candidate
+                else (
+                    ("WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",)
+                    if official_response_recorded
+                    and not official_answers.sns_operation_candidate
+                    else ("WAIT_FOR_DMM_FANZA_SNS_RESPONSE",)
+                    if not official_answers.sns_operation_candidate
+                    else ("PREPARE_X_MANUAL_APPROVAL",)
+                )
+            ),
         )
     except Exception:
         return ReleaseGateResult(
@@ -225,6 +239,8 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
             affiliate_integration_allowed=False,
             reason_codes=("RELEASE_GATE_INTERNAL_ERROR",),
             next_actions=(),
+            sns_reason_codes=("SNS_GATE_STATE_UNKNOWN",),
+            sns_next_actions=(),
         )
 
 
