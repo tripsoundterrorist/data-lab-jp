@@ -31,6 +31,8 @@ privacy、rollback、Free plan境界をsanitized booleanだけで確認する。
 
 修正後はWorker versionのuploadに成功したが、Cloudflare結果は`No targets deployed`である。workers.dev、preview URL、production routeは未接続で、全release factsはfalseのまま。専用Workerのsecret名3件を値なしで確認した。
 
+明示承認後、`datalabx.jp/go/*`だけを接続した。初回blocked-path smokeはホーム200、無効path 404、正規形式GET/HEAD 404、POST 405で、全ケースのredirect先は空だった。全release factsとaffiliate eligibilityは引き続き閉鎖中である。
+
 ## Fail-closed boundary
 
 全項目が揃っても`READY_FOR_SEPARATE_DEPLOYMENT_APPROVAL`までとし、
