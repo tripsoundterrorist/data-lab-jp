@@ -12,10 +12,11 @@ import re
 from typing import Any
 
 import affiliate_d1_production_state
+import affiliate_pages_secret_state
 import revenue_mvp_official_answer_matrix
 
 
-PREFLIGHT_VERSION = "0.4"
+PREFLIGHT_VERSION = "0.5"
 READY_FOR_DEPLOYMENT_REVIEW = "READY_FOR_DEPLOYMENT_REVIEW"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
@@ -79,6 +80,9 @@ def current_input() -> AffiliateDeploymentCandidate:
     d1_state = affiliate_d1_production_state.assess(
         affiliate_d1_production_state.current_evidence()
     )
+    secret_state = affiliate_pages_secret_state.assess(
+        affiliate_pages_secret_state.current_evidence()
+    )
     official_answers = revenue_mvp_official_answer_matrix.assess_answer_matrix(
         revenue_mvp_official_answer_matrix.current_entries()
     )
@@ -89,7 +93,7 @@ def current_input() -> AffiliateDeploymentCandidate:
             d1_state.status == affiliate_d1_production_state.READY
             and d1_state.lookup_ready is True
         ),
-        secret_binding_names=(),
+        secret_binding_names=secret_state.verified_binding_names,
         data_binding_names=("AFFILIATE_ITEM_LOOKUP",),
         route_path=None,
         allowed_methods=(),
