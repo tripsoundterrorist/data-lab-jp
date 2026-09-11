@@ -18,10 +18,10 @@ privacy、rollback、Free plan境界をsanitized booleanだけで確認する。
 - production Pages Function entrypointが存在しないこと
 - 生IPを外へ出さずserver-side secretでHMAC化する匿名client key候補
 - API-issued URLを一時的にtrusted callbackへ渡すWorkers DMM provider候補
+- `functions/`外で全runtime境界を接続するPages entrypoint候補
 
 未完了：
 
-- Pages Function entrypoint
 - Rate Limiting bindingの設定
 - CTA直近のPR表示との接続
 - route rollback手順

@@ -73,7 +73,11 @@ def current_evidence() -> RouteDeploymentEvidence:
         secret_binding_names_ready=(
             secret_state.status == affiliate_pages_secret_state.READY
         ),
-        pages_function_entrypoint_present=False,
+        pages_function_entrypoint_present=(
+            (ROOT / "runtime-candidates" / "affiliate-pages-entrypoint-candidate.mjs").is_file()
+            and (ROOT / "docs" / "policies" / "affiliate-pages-entrypoint-candidate-v0.1.md").is_file()
+            and not (ROOT / "functions").exists()
+        ),
         rate_limit_binding_configured=False,
         trusted_opaque_client_key_derivation_present=(
             (ROOT / "runtime-candidates" / "affiliate-client-key-derivation.mjs").is_file()
