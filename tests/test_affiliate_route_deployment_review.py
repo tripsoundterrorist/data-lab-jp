@@ -22,13 +22,13 @@ def ready_evidence() -> review.RouteDeploymentEvidence:
 class AffiliateRouteDeploymentReviewTests(unittest.TestCase):
     def test_current_packet_reports_exact_remaining_boundaries(self):
         result = review.assess(review.current_evidence())
-        self.assertEqual(review.BLOCKED, result.status)
+        self.assertEqual(review.READY, result.status)
         self.assertTrue(result.d1_lookup_ready)
-        self.assertFalse(result.secret_binding_names_ready)
+        self.assertTrue(result.secret_binding_names_ready)
         self.assertTrue(result.runtime_boundary_ready)
         self.assertTrue(result.rollback_ready)
-        self.assertFalse(result.deployment_review_candidate)
-        self.assertEqual(result.reason_codes, ("SECRET_BINDING_NAMES_NOT_READY",))
+        self.assertTrue(result.deployment_review_candidate)
+        self.assertEqual(result.reason_codes, ("ROUTE_DEPLOYMENT_PACKET_READY",))
         self.assertNotIn("D1_LOOKUP_NOT_READY", result.reason_codes)
         self.assertNotIn("TRUSTED_CLIENT_KEY_DERIVATION_NOT_PRESENT", result.reason_codes)
         self.assertNotIn("WORKERS_RUNTIME_PROVIDER_NOT_PRESENT", result.reason_codes)
@@ -92,7 +92,7 @@ class AffiliateRouteDeploymentReviewTests(unittest.TestCase):
             return_code = review.main()
         result = json.loads(output.getvalue())
         self.assertEqual(0, return_code)
-        self.assertEqual(review.BLOCKED, result["status"])
+        self.assertEqual(review.READY, result["status"])
         self.assertFalse(result["production_deployment_allowed"])
         self.assertFalse(result["paid_plan_change_allowed"])
 
