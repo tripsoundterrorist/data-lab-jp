@@ -1,0 +1,51 @@
+[
+  {
+    "intake_version": "0.1",
+    "registry_version": "0.1",
+    "received_at": "",
+    "source_type": "",
+    "source_authority": "",
+    "referenced_blocker": "DMM_LIFECYCLE_AVAILABILITY",
+    "answered_questions": {},
+    "unanswered_questions": [
+      "CID_ZERO_RESULT_MEANING",
+      "API_VISIBLE_MEANING",
+      "API_INVISIBLE_MEANING",
+      "AFFILIATE_URL_PRESENCE_MEANING",
+      "AFFILIATE_URL_ABSENCE_MEANING",
+      "PERIODIC_REQUERY_RECOMMENDATION",
+      "NONVISIBLE_PAGE_HANDLING",
+      "NONVISIBLE_LINK_HANDLING",
+      "HISTORICAL_METADATA_RETENTION"
+    ],
+    "explicit_confirmations": [],
+    "explicit_denials": [],
+    "ambiguity_flags": [],
+    "safe_reference": null,
+    "prior_question_statuses": {}
+  },
+  {
+    "intake_version": "0.1",
+    "registry_version": "0.1",
+    "received_at": "",
+    "source_type": "",
+    "source_authority": "",
+    "referenced_blocker": "DMM_SORT_SEMANTICS",
+    "answered_questions": {},
+    "unanswered_questions": [
+      "RANK_SORT_DEFINITION",
+      "REVIEW_SORT_DEFINITION",
+      "RANK_ORDERING_RULE",
+      "REVIEW_ORDERING_RULE",
+      "OFFSET_MEANING",
+      "POSITION_MEANING",
+      "PUBLIC_POSITION_EXPRESSION",
+      "UPDATE_BEHAVIOR"
+    ],
+    "explicit_confirmations": [],
+    "explicit_denials": [],
+    "ambiguity_flags": [],
+    "safe_reference": null,
+    "prior_question_statuses": {}
+  }
+]
