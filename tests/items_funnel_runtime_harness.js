@@ -107,6 +107,7 @@ function detailItem() {
     title: "Runtime fixture",
     image_url: null,
     item_url: "https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=runtimefixture/",
+    affiliate_cta_eligible: false,
     metadata: { maker: [], series: [], actress: [], genre: [] },
     current_price: 1980,
     price_observed_at: OBSERVED_AT,

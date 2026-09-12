@@ -76,6 +76,7 @@ PUBLIC_ALLOWED_FIELDS = {
             "title",
             "image_url",
             "item_url",
+            "affiliate_cta_eligible",
             "metadata",
             "current_price",
             "price_observed_at",
@@ -489,6 +490,8 @@ def validate_detail_item(item: dict[str, Any]) -> None:
     require_exact_keys(item, DETAIL_ITEM_KEYS, "INVALID_PUBLIC_DETAIL_ITEM_KEYS")
     validate_common_item_fields(item)
     validate_url(item["item_url"], "item_url", nullable=True)
+    if item["affiliate_cta_eligible"] is not False:
+        raise PublicDataError("INVALID_AFFILIATE_CTA_ELIGIBILITY")
     if item["data_confidence"]["version"] != "0.1":
         raise PublicDataError("INVALID_CONFIDENCE_VERSION")
     if item["price_analysis"]["version"] != "0.1":
@@ -717,6 +720,7 @@ def build_documents(
             "title": master["title"] or "",
             "image_url": master["image_url"],
             "item_url": master["item_url"],
+            "affiliate_cta_eligible": False,
             "metadata": master["metadata"],
             "current_price": price["current_price"],
             "price_observed_at": price["current_price_observed_at"],

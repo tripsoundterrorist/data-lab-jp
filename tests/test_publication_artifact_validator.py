@@ -30,7 +30,7 @@ def price(detailed=False):
     return value
 def fixture():
     index_item={"public_id":PUBLIC_ID,"title":"Fixture","image_url":"https://pics.example/item.jpg","current_price":1000,"data_confidence":confidence(),"price_analysis":price(),"last_observed_at":STAMP}
-    detail_item={"public_id":PUBLIC_ID,"title":"Fixture","image_url":"https://pics.example/item.jpg","item_url":"https://www.example/item","metadata":{"maker":[],"series":[],"actress":[],"genre":[]},"current_price":1000,"price_observed_at":STAMP,"last_observed_at":STAMP,"data_confidence":confidence(True),"price_analysis":price(True)}
+    detail_item={"public_id":PUBLIC_ID,"title":"Fixture","image_url":"https://pics.example/item.jpg","item_url":"https://www.example/item","affiliate_cta_eligible":False,"metadata":{"maker":[],"series":[],"actress":[],"genre":[]},"current_price":1000,"price_observed_at":STAMP,"last_observed_at":STAMP,"data_confidence":confidence(True),"price_analysis":price(True)}
     index={"public_schema_version":"0.1","generated_at":STAMP,"as_of":STAMP,"items":[index_item]}
     detail={"public_schema_version":"0.1","generated_at":STAMP,"as_of":STAMP,"item":detail_item}
     path=f"items/01/{PUBLIC_ID}.json";files={"index.json":encoded(index),path:encoded(detail)}
@@ -92,6 +92,11 @@ class ArtifactValidatorTests(unittest.TestCase):
     def test_am_nested_forbidden(self):self.assert_failed(mutate(f"items/01/{PUBLIC_ID}.json",("item","metadata","maker"),[{"public_id":"mak_0123456789abcdef","name":"x","content_id":"x"}]))
     def test_an_valid_nullable_urls(self):
         d=docs(fixture());d["index.json"]["items"][0]["image_url"]=None;d[f"items/01/{PUBLIC_ID}.json"]["item"]["image_url"]=None;d[f"items/01/{PUBLIC_ID}.json"]["item"]["item_url"]=None;self.assertEqual(result(files_from(d)).artifact_validation,validator.PASS)
+
+    def test_an2_affiliate_cta_cannot_be_enabled_by_public_artifact(self):
+        d = docs(fixture())
+        d[f"items/01/{PUBLIC_ID}.json"]["item"]["affiliate_cta_eligible"] = True
+        self.assertEqual(result(files_from(d)).artifact_validation, validator.FAIL_CLOSED)
     def test_ao_empty_optional_metadata(self):self.assertEqual(result().artifact_validation,validator.PASS)
     def test_ap_public_status_contradiction(self):self.assertIn("CONTRADICTORY_PUBLICATION_STATE",result(mutate("manifest.json",("publication_status",),"public")).reason_codes)
     def test_aq_raw_exception_safe_failure(self):

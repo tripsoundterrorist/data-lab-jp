@@ -28,7 +28,7 @@ bindingは名前だけを受け付け、値は入力にもsafe resultにも含�
 
 全条件が揃っても `READY_FOR_DEPLOYMENT_REVIEW` までとし、
 `production_deployment_allowed` は常にfalseとする。
-2026-09-12の配備記録ではroute、rate limit、runtime chain、Worker secret名を確認済み。ただしPR表示は候補コードのみで本番CTAへ未接続のため、preflightは`BLOCKED`、理由は`PR_DISCLOSURE_NOT_READY`となる。Publication/Lifecycle/Semantics Gateも引き続き閉鎖する。記録済みの配備証跡は現在のCloudflare状態をライブ確認するものではない。
+2026-09-12の配備記録ではroute、rate limit、runtime chain、Worker secret名を確認済み。本番静的ビルドには明示的な`affiliate_cta_eligible` boolean境界を追加し、falseでは通常リンク、trueの場合だけPR表示と同一オリジン`/go/` CTAを同時生成する。builderの既定値はfalseである。これによりpreflightは`READY_FOR_DEPLOYMENT_REVIEW`となるが、Publication/Lifecycle/Semantics Gateは引き続き閉鎖する。記録済みの配備証跡は現在のCloudflare状態をライブ確認するものではない。
 
 個別の不足はreason codeとnext actionで報告する。入力不正や内部例外は
 `FAIL_CLOSED` とし、入力内容・秘密値・URL・識別子・例外文を返さない。

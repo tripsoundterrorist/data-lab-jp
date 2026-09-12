@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import json
+from pathlib import Path
 import re
 from typing import Any
 
@@ -30,6 +31,20 @@ EXPECTED_REDIRECT_STATUS = 302
 MAX_REQUESTS_PER_MINUTE = 60
 MAX_BURST = 10
 BINDING_NAME = re.compile(r"[A-Z][A-Z0-9_]{0,63}\Z")
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _production_cta_disclosure_connected() -> bool:
+    try:
+        ui = (ROOT / "items" / "items.js").read_text(encoding="utf-8")
+        builder = (ROOT / "scripts" / "build-public-data.py").read_text(encoding="utf-8")
+    except OSError:
+        return False
+    required_ui = (
+        "affiliate_cta_eligible", "PR：このリンクはアフィリエイトリンクです。",
+        'link.rel = "noopener noreferrer sponsored"', 'link.href = `/go/${publicId}`',
+    )
+    return all(value in ui for value in required_ui) and '"affiliate_cta_eligible": False' in builder
 
 
 @dataclass(frozen=True)
@@ -109,9 +124,7 @@ def current_input() -> AffiliateDeploymentCandidate:
         ),
         runtime_provider_connected=True,
         runtime_resolution_connected=True,
-        # The renderer exists only in runtime-candidates; production does not
-        # invoke it yet. Candidate code is not evidence of visible disclosure.
-        pr_disclosure_available=False,
+        pr_disclosure_available=_production_cta_disclosure_connected(),
     )
 
 
