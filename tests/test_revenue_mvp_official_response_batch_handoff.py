@@ -42,6 +42,27 @@ def complete_batch():
 
 
 class RevenueMvpOfficialResponseBatchHandoffTests(unittest.TestCase):
+    def test_repository_template_has_exact_scopes_and_cannot_advance(self):
+        template_path = (
+            ROOT / "docs" / "examples"
+            / "revenue-mvp-official-response-batch-template-v0.1.json"
+        )
+        value = json.loads(template_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(value), 2)
+        self.assertEqual(
+            set(value[0]["unanswered_questions"]),
+            set(intake.LIFECYCLE_QUESTION_IDS),
+        )
+        self.assertEqual(
+            set(value[1]["unanswered_questions"]),
+            set(intake.SORT_QUESTION_IDS),
+        )
+        result = batch.handoff_batch(value)
+        self.assertEqual(result.status, batch.FAIL_CLOSED)
+        self.assertFalse(result.combined_gate_review_candidate)
+        self.assertFalse(result.gate_mutation_allowed)
+        self.assertFalse(result.production_activation_allowed)
+
     def test_both_complete_scopes_require_combined_separate_review(self):
         result = batch.handoff_batch(complete_batch())
         self.assertEqual(result.status, batch.READY_FOR_COMBINED_REVIEW)

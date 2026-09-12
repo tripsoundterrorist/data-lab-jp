@@ -15,5 +15,12 @@ JSON, and invalid batches exit fail-closed. Standard input and implicit file
 discovery are not accepted. The result contains bounded counts and statuses only
 and never echoes response content.
 
+`docs/examples/revenue-mvp-official-response-batch-template-v0.1.json` contains
+the exact Lifecycle and Sort question IDs. It intentionally has blank source
+metadata and all questions unanswered, so the unedited template cannot become a
+review candidate. Copy it outside public artifacts, fill only structured status
+fields from explicit official statements, and never paste raw response text,
+contact data, URLs, account details, or affiliate/API identifiers into it.
+
 The handoff performs no network request, output-file write, Gate mutation,
 publication, D1 change, deployment, affiliate enablement, or paid-plan change.
