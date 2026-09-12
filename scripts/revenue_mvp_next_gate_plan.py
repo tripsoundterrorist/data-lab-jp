@@ -9,13 +9,14 @@ from typing import Any
 
 import revenue_mvp_lifecycle_condition_evidence
 import revenue_mvp_official_followup_status
+import revenue_mvp_publication_artifact_evidence
 import revenue_mvp_release_gate
 import revenue_mvp_sort_condition_evidence
 import revenue_mvp_temporal_continuation_assessment
 import revenue_mvp_temporal_series_candidate_evidence
 
 
-VERSION = "0.6"
+VERSION = "0.7"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
 
@@ -69,6 +70,7 @@ class NextGatePlan:
     release_gate_status: str
     lifecycle_condition_evidence_status: str
     sort_condition_evidence_status: str
+    publication_artifact_evidence_status: str
     temporal_continuation_status: str
     temporal_series_candidate_evidence_status: str
     safe_local_actions: tuple[str, ...]
@@ -91,6 +93,7 @@ def build_plan(
     temporal_continuation: Any | None = None,
     temporal_series_evidence: Any | None = None,
     followup_status: Any | None = None,
+    artifact_evidence: Any | None = None,
 ) -> NextGatePlan:
     """Classify exact known actions without authorizing either lane."""
 
@@ -107,6 +110,8 @@ def build_plan(
             )
         if followup_status is None:
             followup_status = revenue_mvp_official_followup_status.current_status()
+        if artifact_evidence is None:
+            artifact_evidence = revenue_mvp_publication_artifact_evidence.assess_evidence()
         actions = release.next_actions
         if (
             not isinstance(actions, tuple)
@@ -180,6 +185,17 @@ def build_plan(
             or followup_status.response_received is not False
             or followup_status.official_semantics_resolved is not False
             or followup_status.gate_unlock_allowed is not False
+            or artifact_evidence.version
+            != revenue_mvp_publication_artifact_evidence.VERSION
+            or artifact_evidence.status not in {
+                revenue_mvp_publication_artifact_evidence.EVIDENCE_READY,
+                revenue_mvp_publication_artifact_evidence.BLOCKED,
+            }
+            or not isinstance(artifact_evidence.source_db_matches, bool)
+            or not isinstance(artifact_evidence.artifact_validation_passed, bool)
+            or artifact_evidence.publication_allowed is not False
+            or artifact_evidence.production_write_performed is not False
+            or artifact_evidence.gate_unlock_allowed is not False
         ):
             raise ValueError("invalid release summary")
         evidence_ready = (
@@ -196,6 +212,14 @@ def build_plan(
             and sort_evidence.implementation_evidence_candidate is True
             and sort_evidence.checks_required == 6
             and sort_evidence.checks_passed == sort_evidence.checks_required
+        )
+        artifact_evidence_ready = (
+            artifact_evidence.status
+            == revenue_mvp_publication_artifact_evidence.EVIDENCE_READY
+            and artifact_evidence.source_db_matches is True
+            and artifact_evidence.artifact_validation_passed is True
+            and type(artifact_evidence.item_count) is int
+            and artifact_evidence.item_count > 0
         )
         temporal_integration_candidate = (
             "CONTINUE_TEMPORAL_OBSERVATION" in actions
@@ -221,6 +245,8 @@ def build_plan(
                 and action == "IMPLEMENT_DMM_SORT_SEMANTICS_CONDITIONS"
                 or temporal_integration_candidate
                 and action == "CONTINUE_TEMPORAL_OBSERVATION"
+                or artifact_evidence_ready
+                and action == "PREPARE_PUBLICATION_ARTIFACT_VALIDATION"
             )
         )
         if temporal_integration_candidate:
@@ -242,6 +268,7 @@ def build_plan(
             release.status,
             lifecycle_evidence.status,
             sort_evidence.status,
+            artifact_evidence.status,
             temporal_continuation.status,
             temporal_series_evidence.status,
             local,
@@ -252,7 +279,7 @@ def build_plan(
     except Exception:
         return NextGatePlan(
             VERSION, FAIL_CLOSED, False, "UNKNOWN", "UNKNOWN", "UNKNOWN",
-            "UNKNOWN", "UNKNOWN",
+            "UNKNOWN", "UNKNOWN", "UNKNOWN",
             (), (), None,
             ("NEXT_GATE_PLAN_INPUT_INVALID",),
         )
@@ -271,11 +298,12 @@ def run_plan() -> NextGatePlan:
             revenue_mvp_temporal_series_candidate_evidence
             .assess_temporal_series_candidate_evidence(),
             revenue_mvp_official_followup_status.current_status(),
+            revenue_mvp_publication_artifact_evidence.assess_evidence(),
         )
     except Exception:
         return NextGatePlan(
             VERSION, FAIL_CLOSED, False, "UNKNOWN", "UNKNOWN", "UNKNOWN",
-            "UNKNOWN", "UNKNOWN",
+            "UNKNOWN", "UNKNOWN", "UNKNOWN",
             (), (), None,
             ("NEXT_GATE_PLAN_INTERNAL_ERROR",),
         )
