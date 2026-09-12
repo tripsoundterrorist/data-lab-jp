@@ -6,16 +6,16 @@ offline end-to-end official-response path rehearsal. State may be
 combined Lifecycle/Sort handoff, implementation evidence, manual Gate review
 boundary, and partial-response stop all remain verified.
 
-The 861-item public artifact must still match 861 disabled and pending D1 rows,
+The 865-item public artifact must still match 865 disabled and pending D1 rows,
 with zero runtime-eligible rows. All launch, publication, Gate mutation,
 production activation, and paid-plan permissions remain false.
 
 The 2026-09-12 local check detected that the collector database advanced from
-861 to 865 items. A newly generated isolated 865-item artifact passed validation,
-but the committed receipt and inert production D1 evidence remain at 861. The
-checkpoint therefore correctly returns `FAIL_CLOSED`. Neither the receipt nor
-D1 was changed. Private candidate export, exact four-row reconciliation, and any
-production D1 write remain separate approval boundaries.
+861 to 865 items. A newly generated isolated 865-item artifact passed validation.
+After separate operator approval, the exact insert-only four-row delta was
+applied to production D1 and verified at 865 pending, disabled rows with zero
+runtime-eligible rows. The refreshed receipt and sanitized D1 evidence restore
+the checkpoint's internally consistent waiting state without opening any Gate.
 
 Any failed rehearsal, count drift, enabled or eligible row, unexpected mutation
 permission, or inconsistent next step returns `FAIL_CLOSED`. The checkpoint
