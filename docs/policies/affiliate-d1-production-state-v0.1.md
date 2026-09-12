@@ -10,11 +10,11 @@
 - Cloudflare Free plan
 - `AFFILIATE_ITEM_LOOKUP` binding名
 - tableとeligible viewが存在
-- lookup 861件
-- pending 861件
+- lookup 865件
+- pending 865件
 - enabled 0件
 - runtime eligible 0件
-- private candidate 861件との全mapping一致
+- private candidate 865件との全mapping一致
 
 database ID、account ID、credential、secret、URL、商品ID、SQL payload、raw exportは
 入力・出力・Git管理対象にしない。
