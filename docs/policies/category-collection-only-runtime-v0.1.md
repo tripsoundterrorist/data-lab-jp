@@ -28,6 +28,18 @@ Live local collection:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-category-collector-task.ps1
 ```
 
-Scheduling is a separate activation step. Do not activate it until the dry run,
-isolated live canary, database audit, and operating-time review pass. Activation
-does not authorize publication or affiliate use.
+The daily collection task is active at 15:00 JST after its dry run, isolated
+live canary, database audit, and operating-time review passed. It is separated
+from the Revenue collector at 16:00 JST. Scheduling does not authorize
+publication or affiliate use.
+
+Read-only health check:
+
+```powershell
+python scripts/category_collection_health.py
+```
+
+The check fails closed on source-set drift, database corruption, foreign-key
+violations, an incomplete or failed latest source run, data older than 26 hours, any nonzero
+publication flag, or insufficient collection evidence. Its output is aggregate
+and sanitized, and it never writes the database or opens publication.
