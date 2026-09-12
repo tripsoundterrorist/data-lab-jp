@@ -10,11 +10,12 @@ import affiliate_d1_production_state
 import revenue_mvp_activation_runbook
 import revenue_mvp_launch_rehearsal
 import revenue_mvp_official_followup_status
+import revenue_mvp_official_response_path_rehearsal
 import revenue_mvp_official_response_rehearsal
 import revenue_mvp_publication_artifact_evidence
 
 
-VERSION = "0.1"
+VERSION = "0.2"
 READY_WAITING = "READY_WAITING_FOR_OFFICIAL_RESPONSE"
 FAIL_CLOSED = "FAIL_CLOSED"
 NEXT_ACTION = "WAIT_FOR_AND_INTAKE_OFFICIAL_RESPONSE"
@@ -31,6 +32,7 @@ class ControlCenterCheckpoint:
     d1_enabled_row_count: int | None
     offline_launch_rehearsal_passed: bool
     official_response_rehearsal_passed: bool
+    official_response_path_rehearsal_passed: bool
     publication_allowed: bool
     production_activation_allowed: bool
     paid_plan_change_allowed: bool
@@ -50,6 +52,7 @@ def build_checkpoint(
     runbook: Any,
     launch_rehearsal: Any,
     response_rehearsal: Any,
+    response_path_rehearsal: Any,
 ) -> ControlCenterCheckpoint:
     """Combine bounded evidence without mutating a Gate or production state."""
     try:
@@ -93,6 +96,17 @@ def build_checkpoint(
             == revenue_mvp_official_response_rehearsal.PASS
             and response_rehearsal.gate_unlock_allowed is False
             and response_rehearsal.production_activation_allowed is False
+            and response_path_rehearsal.version
+            == revenue_mvp_official_response_path_rehearsal.VERSION
+            and response_path_rehearsal.status
+            == revenue_mvp_official_response_path_rehearsal.PASS
+            and response_path_rehearsal.checks_passed
+            == response_path_rehearsal.checks_required
+            and response_path_rehearsal.no_mutation_boundary_verified is True
+            and response_path_rehearsal.network_request_performed is False
+            and response_path_rehearsal.production_write_performed is False
+            and response_path_rehearsal.gate_mutation_allowed is False
+            and response_path_rehearsal.production_activation_allowed is False
             and artifact.item_count == d1.row_count
             and artifact.item_count == runbook.public_artifact_item_count
             and d1.row_count == runbook.d1_row_count
@@ -102,7 +116,7 @@ def build_checkpoint(
             raise ValueError("checkpoint evidence mismatch")
         return ControlCenterCheckpoint(
             VERSION, READY_WAITING, "P0", True, artifact.item_count,
-            d1.row_count, 0, True, True, False, False, False, NEXT_ACTION,
+            d1.row_count, 0, True, True, True, False, False, False, NEXT_ACTION,
             (
                 "CURRENT_EVIDENCE_CONSISTENT",
                 "OFFICIAL_RESPONSE_IS_ONLY_CURRENT_EXTERNAL_BLOCKER",
@@ -112,7 +126,7 @@ def build_checkpoint(
     except Exception:
         return ControlCenterCheckpoint(
             VERSION, FAIL_CLOSED, "P0", True, None, None, None,
-            False, False, False, False, False,
+            False, False, False, False, False, False,
             "RECONCILE_CONTROL_CENTER_EVIDENCE",
             ("CONTROL_CENTER_EVIDENCE_INVALID_OR_STALE",),
         )
@@ -138,6 +152,7 @@ def current_checkpoint() -> ControlCenterCheckpoint:
         ),
         revenue_mvp_launch_rehearsal.run_rehearsal(),
         revenue_mvp_official_response_rehearsal.run_rehearsal(),
+        revenue_mvp_official_response_path_rehearsal.run_rehearsal(),
     )
 
 
