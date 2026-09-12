@@ -12,7 +12,6 @@ import re
 from typing import Any
 
 import affiliate_d1_production_state
-import affiliate_pages_secret_state
 import revenue_mvp_official_answer_matrix
 
 
@@ -82,9 +81,6 @@ def current_input() -> AffiliateDeploymentCandidate:
     d1_state = affiliate_d1_production_state.assess(
         affiliate_d1_production_state.current_evidence()
     )
-    secret_state = affiliate_pages_secret_state.assess(
-        affiliate_pages_secret_state.current_evidence()
-    )
     official_answers = revenue_mvp_official_answer_matrix.assess_answer_matrix(
         revenue_mvp_official_answer_matrix.current_entries()
     )
@@ -95,9 +91,9 @@ def current_input() -> AffiliateDeploymentCandidate:
             d1_state.status == affiliate_d1_production_state.READY
             and d1_state.lookup_ready is True
         ),
-        secret_binding_names=tuple(sorted(
-            (*secret_state.verified_binding_names, "AFFILIATE_CLIENT_KEY_SECRET")
-        )),
+        # Dedicated Worker names-only observation recorded in PR #196.
+        # Pages bindings are not evidence of Worker secret registration.
+        secret_binding_names=tuple(sorted(REQUIRED_SECRET_BINDINGS)),
         data_binding_names=("AFFILIATE_ITEM_LOOKUP",),
         route_path=EXPECTED_ROUTE,
         allowed_methods=tuple(sorted(EXPECTED_METHODS)),
@@ -113,7 +109,9 @@ def current_input() -> AffiliateDeploymentCandidate:
         ),
         runtime_provider_connected=True,
         runtime_resolution_connected=True,
-        pr_disclosure_available=True,
+        # The renderer exists only in runtime-candidates; production does not
+        # invoke it yet. Candidate code is not evidence of visible disclosure.
+        pr_disclosure_available=False,
     )
 
 
