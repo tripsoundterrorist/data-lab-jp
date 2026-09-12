@@ -46,7 +46,7 @@ class AffiliateRuntimePerClientCompositionTests(unittest.TestCase):
         preflight = (
             ROOT / "scripts" / "affiliate_runtime_deployment_preflight.py"
         ).read_text(encoding="utf-8")
-        self.assertIn("per_client_rate_limit=False", preflight)
+        self.assertIn("per_client_rate_limit=True", preflight)
 
     def test_node_harness(self):
         node = shutil.which("node")

@@ -37,15 +37,15 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertTrue(result.affiliate_platform_candidate_ready)
         self.assertEqual(result.affiliate_deployment_status, "BLOCKED")
         self.assertFalse(result.affiliate_deployment_candidate)
-        self.assertFalse(result.affiliate_route_configured)
-        self.assertFalse(result.affiliate_rate_limit_configured)
+        self.assertTrue(result.affiliate_route_configured)
+        self.assertTrue(result.affiliate_rate_limit_configured)
         self.assertFalse(result.affiliate_integration_allowed)
         self.assertIn("AFFILIATE_RUNTIME_NOT_CONNECTED", result.reason_codes)
         self.assertNotIn("IMPLEMENT_AFFILIATE_RUNTIME_PIPELINE", result.next_actions)
-        self.assertIn("CONFIGURE_DEDICATED_GET_HEAD_ROUTE", result.next_actions)
+        self.assertNotIn("CONFIGURE_DEDICATED_GET_HEAD_ROUTE", result.next_actions)
         self.assertNotIn("CONFIGURE_REQUIRED_SECRET_BINDINGS", result.next_actions)
         self.assertNotIn("CONFIGURE_PRIVATE_ITEM_LOOKUP", result.next_actions)
-        self.assertIn("CONFIGURE_BOUNDED_PER_CLIENT_RATE_LIMIT", result.next_actions)
+        self.assertNotIn("CONFIGURE_BOUNDED_PER_CLIENT_RATE_LIMIT", result.next_actions)
         self.assertEqual(result.shell_status, "SHELL_VALIDATED")
         self.assertEqual(result.production_smoke_status, "PRODUCTION_SHELL_VALIDATED")
         self.assertEqual(result.production_smoke_checked_url_count, 14)
@@ -211,7 +211,7 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertTrue(result.affiliate_platform_candidate_ready)
         self.assertFalse(result.affiliate_integration_allowed)
         self.assertIn("IMPLEMENT_AFFILIATE_RUNTIME_PIPELINE", result.next_actions)
-        self.assertIn("CONFIGURE_DEDICATED_GET_HEAD_ROUTE", result.next_actions)
+        self.assertNotIn("CONFIGURE_DEDICATED_GET_HEAD_ROUTE", result.next_actions)
 
     def test_internal_failure_is_bounded_and_fail_closed(self):
         with mock.patch.object(

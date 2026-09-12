@@ -31,7 +31,7 @@ class AffiliateSafeAuditEventTests(unittest.TestCase):
         source = (
             ROOT / "scripts" / "affiliate_runtime_deployment_preflight.py"
         ).read_text(encoding="utf-8")
-        self.assertIn("log_redaction_enabled=False", source)
+        self.assertIn("log_redaction_enabled=True", source)
 
     def test_node_harness(self):
         node = shutil.which("node")

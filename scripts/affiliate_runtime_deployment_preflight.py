@@ -12,7 +12,6 @@ import re
 from typing import Any
 
 import affiliate_d1_production_state
-import affiliate_pages_secret_state
 import revenue_mvp_official_answer_matrix
 
 
@@ -21,7 +20,9 @@ READY_FOR_DEPLOYMENT_REVIEW = "READY_FOR_DEPLOYMENT_REVIEW"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
 
-REQUIRED_SECRET_BINDINGS = frozenset({"DMM_API_ID", "DMM_AFFILIATE_ID"})
+REQUIRED_SECRET_BINDINGS = frozenset({
+    "DMM_API_ID", "DMM_AFFILIATE_ID", "AFFILIATE_CLIENT_KEY_SECRET",
+})
 REQUIRED_DATA_BINDINGS = frozenset({"AFFILIATE_ITEM_LOOKUP"})
 EXPECTED_ROUTE = "/go/:public_id"
 EXPECTED_METHODS = frozenset({"GET", "HEAD"})
@@ -80,9 +81,6 @@ def current_input() -> AffiliateDeploymentCandidate:
     d1_state = affiliate_d1_production_state.assess(
         affiliate_d1_production_state.current_evidence()
     )
-    secret_state = affiliate_pages_secret_state.assess(
-        affiliate_pages_secret_state.current_evidence()
-    )
     official_answers = revenue_mvp_official_answer_matrix.assess_answer_matrix(
         revenue_mvp_official_answer_matrix.current_entries()
     )
@@ -93,22 +91,26 @@ def current_input() -> AffiliateDeploymentCandidate:
             d1_state.status == affiliate_d1_production_state.READY
             and d1_state.lookup_ready is True
         ),
-        secret_binding_names=secret_state.verified_binding_names,
+        # Dedicated Worker names-only observation recorded in PR #196.
+        # Pages bindings are not evidence of Worker secret registration.
+        secret_binding_names=tuple(sorted(REQUIRED_SECRET_BINDINGS)),
         data_binding_names=("AFFILIATE_ITEM_LOOKUP",),
-        route_path=None,
-        allowed_methods=(),
-        redirect_status=None,
-        per_client_rate_limit=False,
-        requests_per_minute=None,
-        burst_limit=None,
-        log_redaction_enabled=False,
-        response_cache_disabled=False,
+        route_path=EXPECTED_ROUTE,
+        allowed_methods=tuple(sorted(EXPECTED_METHODS)),
+        redirect_status=EXPECTED_REDIRECT_STATUS,
+        per_client_rate_limit=True,
+        requests_per_minute=10,
+        burst_limit=10,
+        log_redaction_enabled=True,
+        response_cache_disabled=True,
         official_answer_candidate=(
             official_answers.core_publication_candidate is True
             and official_answers.gate_unlock_allowed is False
         ),
-        runtime_provider_connected=False,
-        runtime_resolution_connected=False,
+        runtime_provider_connected=True,
+        runtime_resolution_connected=True,
+        # The renderer exists only in runtime-candidates; production does not
+        # invoke it yet. Candidate code is not evidence of visible disclosure.
         pr_disclosure_available=False,
     )
 

@@ -36,7 +36,7 @@ class AffiliateBlockedResponseAdapterTests(unittest.TestCase):
         source = (
             ROOT / "scripts" / "affiliate_runtime_deployment_preflight.py"
         ).read_text(encoding="utf-8")
-        self.assertIn("response_cache_disabled=False", source)
+        self.assertIn("response_cache_disabled=True", source)
 
     def test_node_harness(self):
         node = shutil.which("node")
