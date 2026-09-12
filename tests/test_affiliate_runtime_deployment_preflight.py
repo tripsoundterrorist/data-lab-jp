@@ -37,8 +37,8 @@ class AffiliateRuntimeDeploymentPreflightTests(unittest.TestCase):
     def test_current_state_reaches_deployment_review_only(self):
         result = preflight.assess_preflight(preflight.current_input())
 
-        self.assertEqual(result.status, preflight.BLOCKED)
-        self.assertFalse(result.deployment_candidate)
+        self.assertEqual(result.status, preflight.READY_FOR_DEPLOYMENT_REVIEW)
+        self.assertTrue(result.deployment_candidate)
         self.assertFalse(result.production_deployment_allowed)
         self.assertTrue(result.platform_adapter_candidate)
         self.assertTrue(result.private_lookup_import_preflight_ready)
@@ -48,7 +48,7 @@ class AffiliateRuntimeDeploymentPreflightTests(unittest.TestCase):
         self.assertNotIn("DATA_BINDING_NOT_READY", result.reason_codes)
         self.assertNotIn("SECRET_BINDINGS_NOT_READY", result.reason_codes)
         self.assertNotIn("OFFICIAL_ANSWER_GATE_CLOSED", result.reason_codes)
-        self.assertEqual(result.reason_codes, ("PR_DISCLOSURE_NOT_READY",))
+        self.assertEqual(result.reason_codes, ("AFFILIATE_DEPLOYMENT_PREFLIGHT_PASS",))
 
     def test_complete_sanitized_candidate_reaches_review_only(self):
         result = preflight.assess_preflight(ready_candidate())
@@ -173,7 +173,7 @@ class AffiliateRuntimeDeploymentPreflightTests(unittest.TestCase):
 
         self.assertEqual(return_code, 0)
         result = json.loads(output.getvalue())
-        self.assertEqual(result["status"], preflight.BLOCKED)
+        self.assertEqual(result["status"], preflight.READY_FOR_DEPLOYMENT_REVIEW)
         self.assertFalse(result["production_deployment_allowed"])
         self.assertTrue(result["private_lookup_import_preflight_ready"])
         self.assertEqual(1, result["data_binding_name_count"])

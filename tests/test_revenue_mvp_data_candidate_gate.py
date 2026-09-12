@@ -80,7 +80,7 @@ def candidate_files():
         "price_analysis": price(), "last_observed_at": STAMP,
     }
     detail_item = {
-        **index_item, "item_url": None,
+        **index_item, "item_url": None, "affiliate_cta_eligible": False,
         "metadata": {"maker": [], "series": [], "actress": [], "genre": []},
         "price_observed_at": STAMP,
         "data_confidence": confidence(True), "price_analysis": price(True),

@@ -62,7 +62,13 @@ class RevenueMvpItemUiTests(unittest.TestCase):
     def test_external_product_link_is_explicit_and_safe(self):
         self.assertIn("公式商品ページを見る（外部サイト）", self.script)
         self.assertIn('official.rel = "noopener noreferrer"', self.script)
-        self.assertNotIn('official.rel = "sponsored', self.script)
+        self.assertIn('link.rel = "noopener noreferrer sponsored"', self.script)
+        self.assertIn("PR：このリンクはアフィリエイトリンクです。", self.script)
+
+    def test_affiliate_cta_requires_explicit_boolean_eligibility(self):
+        self.assertIn('typeof item.affiliate_cta_eligible !== "boolean"', self.script)
+        self.assertIn("if (item.affiliate_cta_eligible)", self.script)
+        self.assertIn('link.href = `/go/${publicId}`', self.script)
 
     def test_detail_discloses_independent_observation_scope(self):
         self.assertIn("DMM/FANZA公式のランキングや作品評価ではありません", self.script)
@@ -85,9 +91,12 @@ class RevenueMvpItemUiTests(unittest.TestCase):
         self.assertIn('trackFunnelEvent("outbound_product_click")', self.script)
 
     def test_funnel_events_do_not_send_product_attributes(self):
-        calls = re.findall(r'trackFunnelEvent\(([^)]*)\)', self.script)[1:]
+        calls = re.findall(r'trackFunnelEvent\(([^)]*)\)', self.script)
         self.assertTrue(calls)
-        self.assertTrue(all(re.fullmatch(r'"[a-z_]+"', arguments) for arguments in calls))
+        self.assertTrue(all(
+            arguments == "name" or re.fullmatch(r'"[a-z_]+"', arguments)
+            for arguments in calls
+        ))
 
     def test_runtime_funnel_integration(self):
         node = shutil.which("node")

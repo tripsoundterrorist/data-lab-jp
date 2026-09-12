@@ -5,6 +5,22 @@ const EXPECTED_SCHEMA_VERSION = "0.1";
 const EXPECTED_PUBLICATION_STATUS = "public";
 const PAGE_SIZE = 24;
 const state = { items: [], filtered: [], page: 1, localPreview: false };
+const AFFILIATE_DISCLOSURE = "PR：このリンクはアフィリエイトリンクです。リンク先で購入された場合、DATA LABが報酬を受け取ることがあります。";
+
+function renderAffiliateCta(document, host, publicId) {
+  if (!/^itm_[0-9a-f]{24}$/u.test(publicId)) return false;
+  const block = element("aside", "affiliate-cta-block");
+  block.setAttribute("aria-label", "広告リンク");
+  block.append(element("p", "affiliate-cta-disclosure", AFFILIATE_DISCLOSURE));
+  const link = element("a", "official-link affiliate-cta-link", "公式商品ページを見る（外部サイト）");
+  link.href = `/go/${publicId}`;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer sponsored";
+  link.addEventListener("click", () => trackFunnelEvent("outbound_product_click"));
+  block.append(link);
+  host.append(block);
+  return true;
+}
 
 function trackFunnelEvent(name) {
   try {
@@ -115,8 +131,9 @@ function validateIndexItem(item) {
 }
 
 function validateDetailItem(item) {
-  if (!exactKeys(item, ["public_id", "title", "image_url", "item_url", "metadata", "current_price", "price_observed_at", "last_observed_at", "data_confidence", "price_analysis"])) return false;
+  if (!exactKeys(item, ["public_id", "title", "image_url", "item_url", "affiliate_cta_eligible", "metadata", "current_price", "price_observed_at", "last_observed_at", "data_confidence", "price_analysis"])) return false;
   if (!validCommonItem(item, true) || !safePublicUrl(item.item_url)) return false;
+  if (typeof item.affiliate_cta_eligible !== "boolean") return false;
   if (item.price_observed_at !== null && !validTimestamp(item.price_observed_at)) return false;
   if (!exactKeys(item.metadata, ["maker", "series", "actress", "genre"])) return false;
   const entitiesValid = Object.values(item.metadata).every((entities) => Array.isArray(entities)
@@ -380,7 +397,9 @@ function renderDetail(item) {
   hero.append(imageBlock(item, true));
   const copy = element("div", "detail-copy");
   copy.append(element("p", "section-label", "OBSERVATION DETAIL"), element("h2", "detail-title", item.title), element("p", "price", formatPrice(item.current_price)), element("p", "muted", `最終観測 ${formatDate(item.last_observed_at)}`));
-  if (item.item_url) {
+  if (item.affiliate_cta_eligible) {
+    if (!renderAffiliateCta(document, copy, item.public_id)) throw new Error("AFFILIATE_CTA_RENDER_FAILED");
+  } else if (item.item_url) {
     const external = element("div", "external-link-block");
     external.append(element("p", "external-link-note", "外部の公式商品ページへ移動します。価格・販売状況は移動先でご確認ください。"));
     const official = element("a", "official-link", "公式商品ページを見る（外部サイト）");
