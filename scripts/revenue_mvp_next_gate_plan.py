@@ -8,13 +8,14 @@ import json
 from typing import Any
 
 import revenue_mvp_lifecycle_condition_evidence
+import revenue_mvp_official_followup_status
 import revenue_mvp_release_gate
 import revenue_mvp_sort_condition_evidence
 import revenue_mvp_temporal_continuation_assessment
 import revenue_mvp_temporal_series_candidate_evidence
 
 
-VERSION = "0.5"
+VERSION = "0.6"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
 
@@ -33,6 +34,8 @@ SAFE_LOCAL_ORDER = (
 )
 DERIVED_SAFE_ACTION = "PREPARE_TEMPORAL_SERIES_PIPELINE_CONNECTION_REVIEW"
 EXTERNAL_BOUNDARY_ORDER = (
+    "WAIT_FOR_DMM_LIFECYCLE_SEMANTICS_RESPONSE",
+    "WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE",
     "OBTAIN_SEPARATE_DMM_LIFECYCLE_SEMANTICS_CONFIRMATION",
     "OBTAIN_SEPARATE_DMM_SORT_SEMANTICS_CONFIRMATION",
     "VERIFY_PRODUCTION_DOMAIN_APPROVAL",
@@ -87,6 +90,7 @@ def build_plan(
     sort_evidence: Any,
     temporal_continuation: Any | None = None,
     temporal_series_evidence: Any | None = None,
+    followup_status: Any | None = None,
 ) -> NextGatePlan:
     """Classify exact known actions without authorizing either lane."""
 
@@ -101,6 +105,8 @@ def build_plan(
                 revenue_mvp_temporal_series_candidate_evidence
                 .assess_temporal_series_candidate_evidence()
             )
+        if followup_status is None:
+            followup_status = revenue_mvp_official_followup_status.current_status()
         actions = release.next_actions
         if (
             not isinstance(actions, tuple)
@@ -165,6 +171,15 @@ def build_plan(
             or temporal_series_evidence.baseline_activation_authorized is not False
             or not isinstance(temporal_series_evidence.checks_passed, int)
             or not isinstance(temporal_series_evidence.checks_required, int)
+            or followup_status.version
+            != revenue_mvp_official_followup_status.VERSION
+            or followup_status.status
+            != revenue_mvp_official_followup_status.SUBMITTED_AWAITING_RESPONSE
+            or followup_status.covered_blockers
+            != ("DMM_LIFECYCLE_AVAILABILITY", "DMM_SORT_SEMANTICS")
+            or followup_status.response_received is not False
+            or followup_status.official_semantics_resolved is not False
+            or followup_status.gate_unlock_allowed is not False
         ):
             raise ValueError("invalid release summary")
         evidence_ready = (
@@ -212,13 +227,9 @@ def build_plan(
             local = (DERIVED_SAFE_ACTION,) + local
         external_actions = set(actions)
         if evidence_ready:
-            external_actions.add(
-                "OBTAIN_SEPARATE_DMM_LIFECYCLE_SEMANTICS_CONFIRMATION"
-            )
+            external_actions.add("WAIT_FOR_DMM_LIFECYCLE_SEMANTICS_RESPONSE")
         if sort_evidence_ready:
-            external_actions.add(
-                "OBTAIN_SEPARATE_DMM_SORT_SEMANTICS_CONFIRMATION"
-            )
+            external_actions.add("WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE")
         external = tuple(
             action
             for action in EXTERNAL_BOUNDARY_ORDER
@@ -259,6 +270,7 @@ def run_plan() -> NextGatePlan:
             .assess_temporal_continuation(as_of=datetime.now(timezone.utc)),
             revenue_mvp_temporal_series_candidate_evidence
             .assess_temporal_series_candidate_evidence(),
+            revenue_mvp_official_followup_status.current_status(),
         )
     except Exception:
         return NextGatePlan(
