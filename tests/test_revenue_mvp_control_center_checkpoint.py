@@ -1,5 +1,6 @@
-from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
+import copy
 import json
 import sys
 import unittest
@@ -12,14 +13,39 @@ import revenue_mvp_control_center_checkpoint as checkpoint  # noqa: E402
 
 class RevenueMvpControlCenterCheckpointTests(unittest.TestCase):
     def inputs(self):
-        followup = checkpoint.revenue_mvp_official_followup_status.current_status()
-        artifact = checkpoint.revenue_mvp_publication_artifact_evidence.assess_evidence()
-        d1 = checkpoint.affiliate_d1_production_state.assess(
-            checkpoint.affiliate_d1_production_state.current_evidence()
+        followup = SimpleNamespace(
+            version="0.1", status="SUBMITTED_AWAITING_RESPONSE",
+            response_received=False, gate_unlock_allowed=False,
         )
-        runbook = checkpoint.revenue_mvp_activation_runbook.current_runbook()
-        launch = checkpoint.revenue_mvp_launch_rehearsal.run_rehearsal()
-        response = checkpoint.revenue_mvp_official_response_rehearsal.run_rehearsal()
+        artifact = SimpleNamespace(
+            version="0.1", status="ARTIFACT_VALIDATION_EVIDENCE_READY",
+            source_db_matches=True, artifact_validation_passed=True,
+            publication_allowed=False, production_write_performed=False,
+            gate_unlock_allowed=False, item_count=861,
+        )
+        d1 = SimpleNamespace(
+            version="0.1", status="READY_FOR_INERT_RUNTIME_REVIEW",
+            lookup_ready=True, all_rows_disabled=True, all_rows_pending=True,
+            runtime_eligibility_empty=True, cloudflare_write_allowed=False,
+            deployment_allowed=False, paid_plan_change_allowed=False,
+            row_count=861,
+        )
+        runbook = SimpleNamespace(
+            version="0.1", status="WAITING_FOR_OFFICIAL_RESPONSE",
+            production_activation_allowed=False, paid_plan_change_allowed=False,
+            next_step="INTAKE_AND_CLASSIFY_DMM_RESPONSE",
+            public_artifact_item_count=861, d1_row_count=861,
+            d1_runtime_eligible_count=0,
+        )
+        launch = SimpleNamespace(
+            version="0.1", status="OFFLINE_LAUNCH_REHEARSAL_PASS",
+            production_write_performed=False, network_request_performed=False,
+            deploy_allowed=False, paid_plan_change_allowed=False,
+        )
+        response = SimpleNamespace(
+            version="0.1", status="OFFICIAL_RESPONSE_REHEARSAL_PASS",
+            gate_unlock_allowed=False, production_activation_allowed=False,
+        )
         return followup, artifact, d1, runbook, launch, response
 
     def test_current_checkpoint_is_consistent_and_closed(self):
@@ -48,7 +74,8 @@ class RevenueMvpControlCenterCheckpointTests(unittest.TestCase):
         )
         for index, field, value in cases:
             values = list(self.inputs())
-            values[index] = replace(values[index], **{field: value})
+            values[index] = copy.copy(values[index])
+            setattr(values[index], field, value)
             with self.subTest(field=field):
                 result = checkpoint.build_checkpoint(*values)
                 self.assertEqual(result.status, checkpoint.FAIL_CLOSED)
@@ -58,7 +85,8 @@ class RevenueMvpControlCenterCheckpointTests(unittest.TestCase):
 
     def test_count_drift_fails_closed(self):
         values = list(self.inputs())
-        values[1] = replace(values[1], item_count=860)
+        values[1] = copy.copy(values[1])
+        values[1].item_count = 860
         result = checkpoint.build_checkpoint(*values)
         self.assertEqual(result.status, checkpoint.FAIL_CLOSED)
         self.assertIsNone(result.public_artifact_item_count)
