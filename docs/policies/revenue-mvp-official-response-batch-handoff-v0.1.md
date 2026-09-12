@@ -10,6 +10,10 @@ Only when both scopes are complete may the result become
 candidate, not a Gate change or publication approval. If either scope is partial
 or contradictory, the combined result remains `RESPONSE_INCOMPLETE`.
 
-The result contains bounded counts and statuses only and never echoes response
-content. It performs no input-file read, network request, write, Gate mutation,
+The CLI requires one explicitly named local JSON file. Missing files, malformed
+JSON, and invalid batches exit fail-closed. Standard input and implicit file
+discovery are not accepted. The result contains bounded counts and statuses only
+and never echoes response content.
+
+The handoff performs no network request, output-file write, Gate mutation,
 publication, D1 change, deployment, affiliate enablement, or paid-plan change.
