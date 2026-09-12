@@ -70,6 +70,21 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         values.update(overrides)
         return SimpleNamespace(**values)
 
+    @staticmethod
+    def followup_status(**overrides):
+        values = {
+            "version": plan.revenue_mvp_official_followup_status.VERSION,
+            "status": plan.revenue_mvp_official_followup_status.SUBMITTED_AWAITING_RESPONSE,
+            "covered_blockers": (
+                "DMM_LIFECYCLE_AVAILABILITY", "DMM_SORT_SEMANTICS"
+            ),
+            "response_received": False,
+            "official_semantics_resolved": False,
+            "gate_unlock_allowed": False,
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
     def build_plan(
         self,
         release,
@@ -77,6 +92,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         sort_evidence=None,
         temporal_continuation=None,
         temporal_series_evidence=None,
+        followup_status=None,
     ):
         return plan.build_plan(
             release,
@@ -84,6 +100,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             sort_evidence or self.sort_evidence(),
             temporal_continuation or self.temporal_continuation(),
             temporal_series_evidence or self.temporal_series_evidence(),
+            followup_status or self.followup_status(),
         )
 
     def test_actions_are_split_without_authorization(self):
@@ -111,8 +128,8 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         self.assertEqual(
             result.external_boundary_actions,
             (
-                "OBTAIN_SEPARATE_DMM_LIFECYCLE_SEMANTICS_CONFIRMATION",
-                "OBTAIN_SEPARATE_DMM_SORT_SEMANTICS_CONFIRMATION",
+                "WAIT_FOR_DMM_LIFECYCLE_SEMANTICS_RESPONSE",
+                "WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE",
                 "VERIFY_PRODUCTION_DOMAIN_APPROVAL",
                 "CONFIGURE_REQUIRED_SECRET_BINDINGS",
             ),
@@ -142,7 +159,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         )
         self.assertEqual(
             result.external_boundary_actions,
-            ("OBTAIN_SEPARATE_DMM_SORT_SEMANTICS_CONFIRMATION",),
+            ("WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE",),
         )
 
     def test_unknown_duplicate_or_non_tuple_actions_fail_closed(self):
@@ -203,7 +220,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             ("IMPLEMENT_DMM_SORT_SEMANTICS_CONDITIONS",),
         )
         self.assertNotIn(
-            "OBTAIN_SEPARATE_DMM_SORT_SEMANTICS_CONFIRMATION",
+            "WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE",
             result.external_boundary_actions,
         )
 
@@ -278,6 +295,13 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             "assess_temporal_series_candidate_evidence",
             return_value=self.temporal_series_evidence(),
         ) as series:
+            followup = mock.patch.object(
+                plan.revenue_mvp_official_followup_status,
+                "current_status",
+                return_value=self.followup_status(),
+            )
+            followup.start()
+            self.addCleanup(followup.stop)
             result = plan.run_plan()
         gate.assert_called_once_with()
         lifecycle.assert_called_once_with()
