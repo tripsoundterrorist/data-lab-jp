@@ -46,7 +46,14 @@ class RevenueMvpControlCenterCheckpointTests(unittest.TestCase):
             version="0.1", status="OFFICIAL_RESPONSE_REHEARSAL_PASS",
             gate_unlock_allowed=False, production_activation_allowed=False,
         )
-        return followup, artifact, d1, runbook, launch, response
+        response_path = SimpleNamespace(
+            version="0.1", status="OFFICIAL_RESPONSE_PATH_REHEARSAL_PASS",
+            checks_passed=6, checks_required=6,
+            no_mutation_boundary_verified=True,
+            network_request_performed=False, production_write_performed=False,
+            gate_mutation_allowed=False, production_activation_allowed=False,
+        )
+        return followup, artifact, d1, runbook, launch, response, response_path
 
     def test_current_checkpoint_is_consistent_and_closed(self):
         result = checkpoint.build_checkpoint(*self.inputs())
@@ -58,6 +65,7 @@ class RevenueMvpControlCenterCheckpointTests(unittest.TestCase):
         self.assertTrue(result.official_response_pending)
         self.assertTrue(result.offline_launch_rehearsal_passed)
         self.assertTrue(result.official_response_rehearsal_passed)
+        self.assertTrue(result.official_response_path_rehearsal_passed)
         self.assertFalse(result.publication_allowed)
         self.assertFalse(result.production_activation_allowed)
         self.assertFalse(result.paid_plan_change_allowed)
@@ -71,6 +79,8 @@ class RevenueMvpControlCenterCheckpointTests(unittest.TestCase):
             (3, "production_activation_allowed", True),
             (4, "deploy_allowed", True),
             (5, "gate_unlock_allowed", True),
+            (6, "no_mutation_boundary_verified", False),
+            (6, "production_activation_allowed", True),
         )
         for index, field, value in cases:
             values = list(self.inputs())
