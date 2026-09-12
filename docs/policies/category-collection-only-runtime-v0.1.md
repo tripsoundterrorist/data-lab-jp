@@ -48,3 +48,10 @@ The scheduled wrapper invokes this health check after every successful live
 collection and appends the sanitized result to the same private log. A failed
 health check makes the scheduled task return nonzero. Dry-run behavior remains
 network-free and does not require an existing collection database.
+
+The existing 17:00 JST daily backup task now backs up the Revenue database
+first, then creates a separate validated SQLite backup of the category database.
+The category backup is written atomically under the Git-ignored category backup
+directory, rechecked through the same health Gate, and retained for seven daily
+copies. A category backup failure returns a nonzero task result without altering
+the source database.

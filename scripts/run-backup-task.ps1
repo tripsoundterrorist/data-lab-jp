@@ -9,6 +9,7 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = "C:\github\data-lab-jp"
 $PythonExecutable = "C:\Users\User\AppData\Local\Programs\Python\Python310\python.exe"
 $BackupScriptPath = Join-Path $RepoRoot "scripts\backup-data-lab-db.py"
+$CategoryBackupScriptPath = Join-Path $RepoRoot "scripts\backup_category_collection_db.py"
 $SourceDatabasePath = Join-Path $RepoRoot "data\data-lab.db"
 $LogDirectory = Join-Path $RepoRoot "logs\backup"
 $LogRetentionDays = 30
@@ -34,6 +35,10 @@ if (-not (Test-Path -LiteralPath $RepoRoot -PathType Container)) {
 }
 if (-not (Test-Path -LiteralPath $BackupScriptPath -PathType Leaf)) {
     Write-SafeConsoleError -Code "BACKUP_SCRIPT_MISSING"
+    exit $ExitPathMissing
+}
+if (-not (Test-Path -LiteralPath $CategoryBackupScriptPath -PathType Leaf)) {
+    Write-SafeConsoleError -Code "CATEGORY_BACKUP_SCRIPT_MISSING"
     exit $ExitPathMissing
 }
 if (-not (Test-Path -LiteralPath $SourceDatabasePath -PathType Leaf)) {
@@ -93,6 +98,25 @@ catch {
 }
 finally {
     Pop-Location
+}
+
+if ($backupScriptExitCode -eq 0) {
+    $categoryArguments = @($CategoryBackupScriptPath)
+    if ($DryRun) { $categoryArguments += "--dry-run" }
+    Write-SafeLog "category_backup_script_started=true"
+    Push-Location -LiteralPath $RepoRoot
+    try {
+        & $PythonExecutable @categoryArguments 2>&1 |
+            Tee-Object -FilePath $LogPath -Append
+        $categoryExitCode = $LASTEXITCODE
+    }
+    catch {
+        $categoryExitCode = $ExitScriptLaunchFailure
+        Write-SafeLog "wrapper_error=CATEGORY_BACKUP_SCRIPT_LAUNCH_FAILURE"
+    }
+    finally { Pop-Location }
+    Write-SafeLog ("category_backup_script_exit_code={0}" -f $categoryExitCode)
+    if ($categoryExitCode -ne 0) { $backupScriptExitCode = $categoryExitCode }
 }
 
 Write-SafeLog ("backup_script_exit_code={0}" -f $backupScriptExitCode)
