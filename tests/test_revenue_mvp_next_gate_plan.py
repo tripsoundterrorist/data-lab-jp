@@ -85,6 +85,21 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         values.update(overrides)
         return SimpleNamespace(**values)
 
+    @staticmethod
+    def artifact_evidence(**overrides):
+        values = {
+            "version": plan.revenue_mvp_publication_artifact_evidence.VERSION,
+            "status": plan.revenue_mvp_publication_artifact_evidence.EVIDENCE_READY,
+            "source_db_matches": True,
+            "artifact_validation_passed": True,
+            "item_count": 861,
+            "publication_allowed": False,
+            "production_write_performed": False,
+            "gate_unlock_allowed": False,
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
     def build_plan(
         self,
         release,
@@ -93,6 +108,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         temporal_continuation=None,
         temporal_series_evidence=None,
         followup_status=None,
+        artifact_evidence=None,
     ):
         return plan.build_plan(
             release,
@@ -101,6 +117,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             temporal_continuation or self.temporal_continuation(),
             temporal_series_evidence or self.temporal_series_evidence(),
             followup_status or self.followup_status(),
+            artifact_evidence or self.artifact_evidence(),
         )
 
     def test_actions_are_split_without_authorization(self):
@@ -137,6 +154,35 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         self.assertEqual(
             result.next_safe_local_action,
             plan.DERIVED_SAFE_ACTION,
+        )
+
+    def test_valid_current_artifact_evidence_removes_prepare_action(self):
+        result = self.build_plan(SimpleNamespace(
+            status="BLOCKED",
+            next_actions=("PREPARE_PUBLICATION_ARTIFACT_VALIDATION",),
+        ))
+        self.assertEqual(result.safe_local_actions, ())
+        self.assertEqual(
+            result.publication_artifact_evidence_status,
+            plan.revenue_mvp_publication_artifact_evidence.EVIDENCE_READY,
+        )
+
+    def test_stale_artifact_evidence_retains_prepare_action(self):
+        result = self.build_plan(
+            SimpleNamespace(
+                status="BLOCKED",
+                next_actions=("PREPARE_PUBLICATION_ARTIFACT_VALIDATION",),
+            ),
+            artifact_evidence=self.artifact_evidence(
+                status=plan.revenue_mvp_publication_artifact_evidence.BLOCKED,
+                source_db_matches=False,
+                artifact_validation_passed=False,
+                item_count=None,
+            ),
+        )
+        self.assertEqual(
+            result.safe_local_actions,
+            ("PREPARE_PUBLICATION_ARTIFACT_VALIDATION",),
         )
 
     def test_incomplete_evidence_retains_local_lifecycle_action(self):
@@ -302,12 +348,18 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             )
             followup.start()
             self.addCleanup(followup.stop)
-            result = plan.run_plan()
+            with mock.patch.object(
+                plan.revenue_mvp_publication_artifact_evidence,
+                "assess_evidence",
+                return_value=self.artifact_evidence(),
+            ) as artifact:
+                result = plan.run_plan()
         gate.assert_called_once_with()
         lifecycle.assert_called_once_with()
         sort.assert_called_once_with()
         temporal.assert_called_once()
         series.assert_called_once_with()
+        artifact.assert_called_once_with()
         self.assertEqual(result.safe_local_actions, ("MONITOR_INDEX_COVERAGE",))
 
     def test_release_gate_exception_fails_closed(self):
