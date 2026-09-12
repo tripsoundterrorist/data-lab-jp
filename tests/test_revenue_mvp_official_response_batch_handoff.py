@@ -1,7 +1,10 @@
 from pathlib import Path
+from contextlib import redirect_stdout
 import copy
+import io
 import json
 import sys
+import tempfile
 import unittest
 
 
@@ -85,6 +88,33 @@ class RevenueMvpOfficialResponseBatchHandoffTests(unittest.TestCase):
         self.assertEqual(value, original)
         self.assertNotIn("private-lifecycle-marker", rendered)
         self.assertNotIn("answered_questions", rendered)
+
+    def test_cli_reads_only_explicit_local_json_and_returns_bounded_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sanitized-response.json"
+            path.write_text(json.dumps(complete_batch()), encoding="utf-8")
+            output = io.StringIO()
+            with redirect_stdout(output):
+                exit_code = batch.main(["--input", str(path)])
+        rendered = output.getvalue()
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(json.loads(rendered)["status"], batch.READY_FOR_COMBINED_REVIEW)
+        self.assertNotIn("answered_questions", rendered)
+        self.assertNotIn("support-response-20260912", rendered)
+
+    def test_cli_missing_or_malformed_file_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            missing = Path(directory) / "missing.json"
+            malformed = Path(directory) / "malformed.json"
+            malformed.write_text("not-json", encoding="utf-8")
+            for path in (missing, malformed):
+                output = io.StringIO()
+                with self.subTest(path=path.name), redirect_stdout(output):
+                    exit_code = batch.main(["--input", str(path)])
+                result = json.loads(output.getvalue())
+                self.assertEqual(exit_code, 2)
+                self.assertEqual(result["status"], batch.FAIL_CLOSED)
+                self.assertFalse(result["production_activation_allowed"])
 
 
 if __name__ == "__main__":

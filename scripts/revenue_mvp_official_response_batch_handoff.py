@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import argparse
 from dataclasses import asdict, dataclass
 import json
+from pathlib import Path
 from typing import Any
 
 import official_blocker_policy as policy
@@ -97,10 +99,21 @@ def handoff_batch(value: Any) -> OfficialResponseBatchHandoff:
         return _failed("SANITIZED_RESPONSE_BATCH_INTERNAL_ERROR")
 
 
-def main() -> int:
-    result = _failed("NO_RESPONSE_INPUT_ACCEPTED_ON_STANDARD_INPUT")
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Classify one local sanitized Lifecycle/Sort response batch."
+    )
+    parser.add_argument("--input", type=Path, required=True)
+    args = parser.parse_args(argv)
+    try:
+        value = json.loads(args.input.read_text(encoding="utf-8"))
+    except Exception:
+        value = None
+    result = handoff_batch(value)
     print(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
-    return 2
+    return 0 if result.status in {
+        READY_FOR_COMBINED_REVIEW, RESPONSE_INCOMPLETE,
+    } else 2
 
 
 if __name__ == "__main__":
