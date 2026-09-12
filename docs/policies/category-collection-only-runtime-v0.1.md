@@ -43,3 +43,8 @@ The check fails closed on source-set drift, database corruption, foreign-key
 violations, an incomplete or failed latest source run, data older than 26 hours, any nonzero
 publication flag, or insufficient collection evidence. Its output is aggregate
 and sanitized, and it never writes the database or opens publication.
+
+The scheduled wrapper invokes this health check after every successful live
+collection and appends the sanitized result to the same private log. A failed
+health check makes the scheduled task return nonzero. Dry-run behavior remains
+network-free and does not require an existing collection database.
