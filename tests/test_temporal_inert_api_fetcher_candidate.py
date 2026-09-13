@@ -35,7 +35,10 @@ class TemporalInertApiFetcherCandidateTests(unittest.TestCase):
             self.assertNotIn("credential_value", rendered)
 
     def test_request_outside_fixed_plan_is_rejected(self):
-        for identity in (("date", 1, 100), ("rank", 1, 99), ["rank", 1, 100]):
+        for identity in (
+            ("date", 1, 100), ("rank", 1, 99), ["rank", 1, 100],
+            ("rank", [], 100),
+        ):
             with self.subTest(identity=identity), self.assertRaises(ValueError):
                 candidate.prepare_request(identity)
 
@@ -56,6 +59,7 @@ class TemporalInertApiFetcherCandidateTests(unittest.TestCase):
             (candidate.reduce_response(identity, http_status=500, payload={}), "HTTP_ERROR"),
             (candidate.classify_transport_failure(identity, "TIMEOUT"), "HTTP_ERROR"),
             (candidate.classify_transport_failure(identity, RuntimeError("secret")), "API_ERROR"),
+            (candidate.classify_transport_failure(identity, {"secret": "value"}), "API_ERROR"),
         )
         for result, expected in cases:
             self.assertFalse(result["success"])
