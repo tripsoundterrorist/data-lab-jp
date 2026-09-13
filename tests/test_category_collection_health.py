@@ -55,6 +55,7 @@ class CategoryCollectionHealthTests(unittest.TestCase):
         self.assertEqual(10, result.source_count)
         self.assertEqual(10, result.item_count)
         self.assertTrue(result.publication_closed)
+        self.assertEqual(0, result.sensitive_raw_key_count)
         self.assertFalse(result.database_write_performed)
         self.assertFalse(result.publication_allowed)
         self.assertEqual(before, after)
@@ -110,6 +111,21 @@ class CategoryCollectionHealthTests(unittest.TestCase):
             result = health.assess(Path(directory) / "missing.db", CONFIG, evaluated_at=NOW)
         self.assertEqual(health.FAIL_CLOSED, result.status)
         self.assertEqual(("HEALTH_CHECK_ERROR",), result.reason_codes)
+
+    def test_sensitive_raw_key_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "category.db"
+            database(path)
+            connection = sqlite3.connect(path)
+            connection.execute(
+                "UPDATE category_item_snapshots SET sanitized_raw_json=? WHERE snapshot_id=1",
+                ('{"nested":{"Affiliate_URL_SP":"private"}}',),
+            )
+            connection.commit(); connection.close()
+            result = health.assess(path, CONFIG, evaluated_at=NOW)
+        self.assertEqual(health.FAIL_CLOSED, result.status)
+        self.assertEqual(1, result.sensitive_raw_key_count)
+        self.assertIn("SENSITIVE_RAW_KEY_PRESENT", result.reason_codes)
 
 
 if __name__ == "__main__":

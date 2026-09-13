@@ -25,7 +25,10 @@ ENDPOINT = "https://api.dmm.com/affiliate/v3/ItemList"
 NORMALIZER_VERSION = "0.1"
 ALLOWED_KEYS = {"version", "mode", "targets"}
 REQUIRED_TARGET_KEYS = {"content_type", "site", "service", "floor"}
-SENSITIVE_RESPONSE_KEYS = {"affiliateURL"}
+SENSITIVE_KEY_TOKENS = {
+    "affiliateurl", "affiliateid", "apiid", "authorization", "credential",
+    "password", "secret", "token",
+}
 
 
 def utc_now() -> str:
@@ -68,10 +71,20 @@ def load_config(path: Path = CONFIG_PATH) -> list[dict[str, str]]:
 
 def sanitize_raw(value: Any) -> Any:
     if isinstance(value, dict):
-        return {k: sanitize_raw(v) for k, v in value.items() if k not in SENSITIVE_RESPONSE_KEYS}
+        return {
+            k: sanitize_raw(v) for k, v in value.items()
+            if not sensitive_key(k)
+        }
     if isinstance(value, list):
         return [sanitize_raw(v) for v in value]
     return value
+
+
+def sensitive_key(value: Any) -> bool:
+    if not isinstance(value, str):
+        return True
+    canonical = re.sub(r"[^a-z0-9]", "", value.lower())
+    return any(token in canonical for token in SENSITIVE_KEY_TOKENS)
 
 
 def json_array(iteminfo: dict[str, Any], key: str) -> list[Any]:

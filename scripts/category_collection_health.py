@@ -30,6 +30,7 @@ class CategoryCollectionHealth:
     successful_run_count: int
     latest_failed_source_count: int
     stale_source_count: int
+    sensitive_raw_key_count: int
     foreign_key_violation_count: int
     integrity_ok: bool
     publication_closed: bool
@@ -46,7 +47,7 @@ class CategoryCollectionHealth:
 def _failed(reason: str) -> CategoryCollectionHealth:
     return CategoryCollectionHealth(
         VERSION, FAIL_CLOSED, 0, 0, 0, 0, 0, 0, 0,
-        False, False, False, False, (reason,),
+        0, False, False, False, False, (reason,),
     )
 
 
@@ -110,6 +111,16 @@ def assess(
             "(SELECT count(*) FROM category_items WHERE publication_allowed != 0) + "
             "(SELECT count(*) FROM category_item_snapshots WHERE publication_allowed != 0)"
         ).fetchone())
+        sensitive_raw_keys = connection.execute(
+            "SELECT count(*) FROM category_item_snapshots s, "
+            "json_tree(s.sanitized_raw_json) j WHERE j.key IS NOT NULL AND ("
+            "lower(replace(replace(j.key, '_', ''), '-', '')) LIKE '%affiliateurl%' OR "
+            "lower(replace(replace(j.key, '_', ''), '-', '')) LIKE '%affiliateid%' OR "
+            "lower(replace(replace(j.key, '_', ''), '-', '')) LIKE '%apiid%' OR "
+            "lower(j.key) LIKE '%authorization%' OR lower(j.key) LIKE '%credential%' OR "
+            "lower(j.key) LIKE '%password%' OR lower(j.key) LIKE '%secret%' OR "
+            "lower(j.key) LIKE '%token%')"
+        ).fetchone()[0]
         latest = connection.execute(
             "SELECT s.content_type, max(r.finished_at) FROM category_sources s "
             "LEFT JOIN category_collection_runs r ON r.source_id=s.source_id "
@@ -140,13 +151,15 @@ def assess(
             reasons.append("SOURCE_STALE")
         if open_rows:
             reasons.append("PUBLICATION_BOUNDARY_OPEN")
+        if sensitive_raw_keys:
+            reasons.append("SENSITIVE_RAW_KEY_PRESENT")
         if item_count <= 0 or snapshot_count <= 0 or success_count < source_count:
             reasons.append("COLLECTION_EVIDENCE_INSUFFICIENT")
         healthy = not reasons
         return CategoryCollectionHealth(
             VERSION, HEALTHY if healthy else FAIL_CLOSED, source_count,
             item_count, snapshot_count, success_count, failed_count, stale,
-            foreign_keys, integrity_ok, open_rows == 0, False, False,
+            sensitive_raw_keys, foreign_keys, integrity_ok, open_rows == 0, False, False,
             tuple(reasons) or ("ISOLATED_COLLECTION_VERIFIED",),
         )
     except Exception:

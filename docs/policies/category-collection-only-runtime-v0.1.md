@@ -7,9 +7,11 @@ publication artifacts, the site, sitemap, or affiliate runtime state.
 Configured sources are FANZA doujin (general/BL/TL), FANZA ebooks
 (comic/novel/photo/BL/TL), DMM.com photo ebooks, and FANZA digital PC games.
 Every source, run, item, and snapshot has a database-enforced
-`publication_allowed = 0` invariant. `affiliateURL` is removed recursively from
-the stored sanitized response. Credentials and credential-bearing request URLs
-are never logged or stored.
+`publication_allowed = 0` invariant. Affiliate URL and credential-like keys are
+removed recursively and case/separator-insensitively from the stored sanitized
+response. The health Gate independently scans persisted raw JSON for the same
+key families. Credentials and credential-bearing request URLs are never logged
+or stored.
 
 The default bounded run fetches only the newest 50 items from each source using
 `sort=date`, at no more than one request per source with at least 1.1 seconds
