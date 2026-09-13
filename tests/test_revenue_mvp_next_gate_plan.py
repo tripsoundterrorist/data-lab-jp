@@ -86,6 +86,24 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         return SimpleNamespace(**values)
 
     @staticmethod
+    def temporal_active_runner_evidence(**overrides):
+        values = {
+            "version": plan.revenue_mvp_temporal_active_runner_candidate_evidence.VERSION,
+            "status": plan.revenue_mvp_temporal_active_runner_candidate_evidence.EVIDENCE_READY,
+            "implementation_evidence_candidate": True,
+            "test_filesystem_access_performed": True,
+            "active_pipeline_connected": False,
+            "api_request_authorized": False,
+            "production_write_authorized": False,
+            "scheduler_change_authorized": False,
+            "deploy_allowed": False,
+            "checks_passed": 8,
+            "checks_required": 8,
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    @staticmethod
     def artifact_evidence(**overrides):
         values = {
             "version": plan.revenue_mvp_publication_artifact_evidence.VERSION,
@@ -107,6 +125,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         sort_evidence=None,
         temporal_continuation=None,
         temporal_series_evidence=None,
+        temporal_active_runner_evidence=None,
         followup_status=None,
         artifact_evidence=None,
     ):
@@ -116,6 +135,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             sort_evidence or self.sort_evidence(),
             temporal_continuation or self.temporal_continuation(),
             temporal_series_evidence or self.temporal_series_evidence(),
+            temporal_active_runner_evidence or self.temporal_active_runner_evidence(),
             followup_status or self.followup_status(),
             artifact_evidence or self.artifact_evidence(),
         )
@@ -139,7 +159,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         self.assertEqual(
             result.safe_local_actions,
             (
-                plan.DERIVED_SAFE_ACTION,
+                plan.DERIVED_ACTIVE_RUNNER_ACTION,
             ),
         )
         self.assertEqual(
@@ -153,7 +173,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         )
         self.assertEqual(
             result.next_safe_local_action,
-            plan.DERIVED_SAFE_ACTION,
+            plan.DERIVED_ACTIVE_RUNNER_ACTION,
         )
 
     def test_valid_current_artifact_evidence_removes_prepare_action(self):
@@ -296,6 +316,29 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             result.safe_local_actions, ("CONTINUE_TEMPORAL_OBSERVATION",)
         )
 
+    def test_incomplete_active_runner_evidence_retains_connection_review(self):
+        result = self.build_plan(
+            SimpleNamespace(
+                status="BLOCKED", next_actions=("CONTINUE_TEMPORAL_OBSERVATION",)
+            ),
+            temporal_active_runner_evidence=self.temporal_active_runner_evidence(
+                status=plan.revenue_mvp_temporal_active_runner_candidate_evidence.BLOCKED,
+                implementation_evidence_candidate=False,
+                test_filesystem_access_performed=False,
+                checks_passed=7,
+            ),
+        )
+        self.assertEqual(result.safe_local_actions, (plan.DERIVED_SAFE_ACTION,))
+
+    def test_permissive_active_runner_evidence_fails_closed(self):
+        result = self.build_plan(
+            SimpleNamespace(status="BLOCKED", next_actions=()),
+            temporal_active_runner_evidence=self.temporal_active_runner_evidence(
+                active_pipeline_connected=True
+            ),
+        )
+        self.assertEqual(result.status, plan.FAIL_CLOSED)
+
     def test_permissive_temporal_input_fails_closed(self):
         release = SimpleNamespace(status="BLOCKED", next_actions=())
         result = self.build_plan(
@@ -341,6 +384,13 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             "assess_temporal_series_candidate_evidence",
             return_value=self.temporal_series_evidence(),
         ) as series:
+            active_patch = mock.patch.object(
+                plan.revenue_mvp_temporal_active_runner_candidate_evidence,
+                "assess_candidate_evidence",
+                return_value=self.temporal_active_runner_evidence(),
+            )
+            active = active_patch.start()
+            self.addCleanup(active_patch.stop)
             followup = mock.patch.object(
                 plan.revenue_mvp_official_followup_status,
                 "current_status",
@@ -359,6 +409,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         sort.assert_called_once_with()
         temporal.assert_called_once()
         series.assert_called_once_with()
+        active.assert_called_once_with()
         artifact.assert_called_once_with()
         self.assertEqual(result.safe_local_actions, ("MONITOR_INDEX_COVERAGE",))
 
