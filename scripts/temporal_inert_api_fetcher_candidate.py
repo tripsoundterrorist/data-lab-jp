@@ -57,10 +57,10 @@ def _valid_identity(identity: Any) -> bool:
     return (
         isinstance(identity, tuple)
         and len(identity) == 3
-        and identity in ALLOWED_IDENTITIES
         and isinstance(identity[0], str)
         and type(identity[1]) is int
         and type(identity[2]) is int
+        and identity in ALLOWED_IDENTITIES
     )
 
 
@@ -105,9 +105,9 @@ def classify_transport_failure(identity: Any, failure: Any) -> dict[str, Any]:
 
     if not _valid_identity(identity):
         raise ValueError("REQUEST_NOT_ALLOWED")
-    if failure == "RATE_LIMIT":
+    if isinstance(failure, str) and failure == "RATE_LIMIT":
         return _bridge_failure(identity, "RATE_LIMIT")
-    if failure in {"TIMEOUT", "NETWORK", "HTTP"}:
+    if isinstance(failure, str) and failure in {"TIMEOUT", "NETWORK", "HTTP"}:
         return _bridge_failure(identity, "HTTP_ERROR")
     return _bridge_failure(identity, "API_ERROR")
 
