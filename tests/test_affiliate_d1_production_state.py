@@ -19,7 +19,7 @@ class AffiliateD1ProductionStateTests(unittest.TestCase):
         self.assertEqual(state.READY, result.status)
         self.assertTrue(result.lookup_ready)
         self.assertTrue(result.free_plan_compatible)
-        self.assertEqual(865, result.row_count)
+        self.assertEqual(867, result.row_count)
         self.assertTrue(result.all_rows_disabled)
         self.assertTrue(result.all_rows_pending)
         self.assertTrue(result.runtime_eligibility_empty)

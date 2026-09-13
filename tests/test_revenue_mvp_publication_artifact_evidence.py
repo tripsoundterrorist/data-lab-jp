@@ -29,7 +29,7 @@ class PublicationArtifactEvidenceTests(unittest.TestCase):
         self.assertEqual(result.status, evidence.EVIDENCE_READY)
         self.assertTrue(result.source_db_matches)
         self.assertTrue(result.artifact_validation_passed)
-        self.assertEqual(result.item_count, 865)
+        self.assertEqual(result.item_count, 867)
         self.assertFalse(result.publication_allowed)
         self.assertFalse(result.production_write_performed)
         self.assertFalse(result.gate_unlock_allowed)

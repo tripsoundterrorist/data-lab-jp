@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION = "0.1"
 EVIDENCE_READY = "ARTIFACT_VALIDATION_EVIDENCE_READY"
 BLOCKED = "ARTIFACT_VALIDATION_EVIDENCE_BLOCKED"
-RECEIPT = ROOT / "runtime" / "evidence" / "revenue-mvp-publication-artifact-validation-20260912.json"
+RECEIPT = ROOT / "runtime" / "evidence" / "revenue-mvp-publication-artifact-validation-20260913.json"
 DB = ROOT / "data" / "data-lab.db"
 
 

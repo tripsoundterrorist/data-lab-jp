@@ -1,0 +1,17 @@
+{
+  "evidence_version": "0.1",
+  "validated_on": "2026-09-13",
+  "source_db_relative_path": "data/data-lab.db",
+  "source_db_sha256": "2d4546ca051f95ce64b1ce7fa7d3211cfb5743c8fd0c83689e386c4be82f40cf",
+  "public_schema_version": "0.1",
+  "public_policy_version": "0.1",
+  "validator_version": "0.1",
+  "artifact_validation": "PASS",
+  "item_count": 867,
+  "shard_count": 867,
+  "index_sha256": "52f4b1c85330d731e3aed891572c5a36d65bdfc29426b3ffa88dbccd93581b75",
+  "detail_aggregate_sha256": "374e246aad94cdf1df157d77ea1d9f557f713fa249cc9f791806c0c5ddbb00c4",
+  "publication_allowed": false,
+  "production_write_performed": false,
+  "gate_unlock_allowed": false
+}

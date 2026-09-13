@@ -2,7 +2,7 @@
 
 ## Purpose
 
-2026-09-11にoperator確認とCloudflare D1のread-only query/exportで確認した、
+2026-09-13にoperator確認とCloudflare D1のread-only query/exportで確認した、
 アフィリエイトlookupのsanitized production stateをpreflightへ渡す。
 
 ## Confirmed state
@@ -10,11 +10,11 @@
 - Cloudflare Free plan
 - `AFFILIATE_ITEM_LOOKUP` binding名
 - tableとeligible viewが存在
-- lookup 865件
-- pending 865件
+- lookup 867件
+- pending 867件
 - enabled 0件
 - runtime eligible 0件
-- private candidate 865件との全mapping一致
+- private candidate 867件との全mapping一致
 
 database ID、account ID、credential、secret、URL、商品ID、SQL payload、raw exportは
 入力・出力・Git管理対象にしない。
