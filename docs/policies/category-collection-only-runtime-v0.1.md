@@ -54,4 +54,6 @@ first, then creates a separate validated SQLite backup of the category database.
 The category backup is written atomically under the Git-ignored category backup
 directory, rechecked through the same health Gate, and retained for seven daily
 copies. A category backup failure returns a nonzero task result without altering
-the source database.
+the source database. Category script availability is checked only after the
+Revenue backup succeeds, so a missing or broken P1 component cannot prevent the
+P0 Revenue database backup from being created.
