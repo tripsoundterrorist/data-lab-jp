@@ -13,10 +13,11 @@ import revenue_mvp_publication_artifact_evidence
 import revenue_mvp_release_gate
 import revenue_mvp_sort_condition_evidence
 import revenue_mvp_temporal_continuation_assessment
+import revenue_mvp_temporal_active_runner_candidate_evidence
 import revenue_mvp_temporal_series_candidate_evidence
 
 
-VERSION = "0.7"
+VERSION = "0.8"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
 
@@ -34,6 +35,7 @@ SAFE_LOCAL_ORDER = (
     "ADD_PROXIMATE_PR_DISCLOSURE",
 )
 DERIVED_SAFE_ACTION = "PREPARE_TEMPORAL_SERIES_PIPELINE_CONNECTION_REVIEW"
+DERIVED_ACTIVE_RUNNER_ACTION = "REVIEW_ACTIVE_RUNNER_CONNECTION_APPROVAL"
 EXTERNAL_BOUNDARY_ORDER = (
     "WAIT_FOR_DMM_LIFECYCLE_SEMANTICS_RESPONSE",
     "WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE",
@@ -73,6 +75,7 @@ class NextGatePlan:
     publication_artifact_evidence_status: str
     temporal_continuation_status: str
     temporal_series_candidate_evidence_status: str
+    temporal_active_runner_candidate_evidence_status: str
     safe_local_actions: tuple[str, ...]
     external_boundary_actions: tuple[str, ...]
     next_safe_local_action: str | None
@@ -92,6 +95,7 @@ def build_plan(
     sort_evidence: Any,
     temporal_continuation: Any | None = None,
     temporal_series_evidence: Any | None = None,
+    temporal_active_runner_evidence: Any | None = None,
     followup_status: Any | None = None,
     artifact_evidence: Any | None = None,
 ) -> NextGatePlan:
@@ -107,6 +111,11 @@ def build_plan(
             temporal_series_evidence = (
                 revenue_mvp_temporal_series_candidate_evidence
                 .assess_temporal_series_candidate_evidence()
+            )
+        if temporal_active_runner_evidence is None:
+            temporal_active_runner_evidence = (
+                revenue_mvp_temporal_active_runner_candidate_evidence
+                .assess_candidate_evidence()
             )
         if followup_status is None:
             followup_status = revenue_mvp_official_followup_status.current_status()
@@ -176,6 +185,27 @@ def build_plan(
             or temporal_series_evidence.baseline_activation_authorized is not False
             or not isinstance(temporal_series_evidence.checks_passed, int)
             or not isinstance(temporal_series_evidence.checks_required, int)
+            or temporal_active_runner_evidence.version
+            != revenue_mvp_temporal_active_runner_candidate_evidence.VERSION
+            or temporal_active_runner_evidence.status not in {
+                revenue_mvp_temporal_active_runner_candidate_evidence.EVIDENCE_READY,
+                revenue_mvp_temporal_active_runner_candidate_evidence.BLOCKED,
+            }
+            or not isinstance(
+                temporal_active_runner_evidence.implementation_evidence_candidate,
+                bool,
+            )
+            or not isinstance(
+                temporal_active_runner_evidence.test_filesystem_access_performed,
+                bool,
+            )
+            or temporal_active_runner_evidence.active_pipeline_connected is not False
+            or temporal_active_runner_evidence.api_request_authorized is not False
+            or temporal_active_runner_evidence.production_write_authorized is not False
+            or temporal_active_runner_evidence.scheduler_change_authorized is not False
+            or temporal_active_runner_evidence.deploy_allowed is not False
+            or not isinstance(temporal_active_runner_evidence.checks_passed, int)
+            or not isinstance(temporal_active_runner_evidence.checks_required, int)
             or followup_status.version
             != revenue_mvp_official_followup_status.VERSION
             or followup_status.status
@@ -234,6 +264,16 @@ def build_plan(
             and temporal_series_evidence.checks_passed
             == temporal_series_evidence.checks_required
         )
+        active_runner_candidate_ready = (
+            temporal_integration_candidate
+            and temporal_active_runner_evidence.status
+            == revenue_mvp_temporal_active_runner_candidate_evidence.EVIDENCE_READY
+            and temporal_active_runner_evidence.implementation_evidence_candidate is True
+            and temporal_active_runner_evidence.test_filesystem_access_performed is True
+            and temporal_active_runner_evidence.checks_required == 8
+            and temporal_active_runner_evidence.checks_passed
+            == temporal_active_runner_evidence.checks_required
+        )
         local = tuple(
             action
             for action in SAFE_LOCAL_ORDER
@@ -250,7 +290,11 @@ def build_plan(
             )
         )
         if temporal_integration_candidate:
-            local = (DERIVED_SAFE_ACTION,) + local
+            local = (
+                DERIVED_ACTIVE_RUNNER_ACTION
+                if active_runner_candidate_ready
+                else DERIVED_SAFE_ACTION,
+            ) + local
         external_actions = set(actions)
         if evidence_ready:
             external_actions.add("WAIT_FOR_DMM_LIFECYCLE_SEMANTICS_RESPONSE")
@@ -271,6 +315,7 @@ def build_plan(
             artifact_evidence.status,
             temporal_continuation.status,
             temporal_series_evidence.status,
+            temporal_active_runner_evidence.status,
             local,
             external,
             local[0] if local else None,
@@ -279,7 +324,7 @@ def build_plan(
     except Exception:
         return NextGatePlan(
             VERSION, FAIL_CLOSED, False, "UNKNOWN", "UNKNOWN", "UNKNOWN",
-            "UNKNOWN", "UNKNOWN", "UNKNOWN",
+            "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN",
             (), (), None,
             ("NEXT_GATE_PLAN_INPUT_INVALID",),
         )
@@ -297,13 +342,15 @@ def run_plan() -> NextGatePlan:
             .assess_temporal_continuation(as_of=datetime.now(timezone.utc)),
             revenue_mvp_temporal_series_candidate_evidence
             .assess_temporal_series_candidate_evidence(),
+            revenue_mvp_temporal_active_runner_candidate_evidence
+            .assess_candidate_evidence(),
             revenue_mvp_official_followup_status.current_status(),
             revenue_mvp_publication_artifact_evidence.assess_evidence(),
         )
     except Exception:
         return NextGatePlan(
             VERSION, FAIL_CLOSED, False, "UNKNOWN", "UNKNOWN", "UNKNOWN",
-            "UNKNOWN", "UNKNOWN", "UNKNOWN",
+            "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN",
             (), (), None,
             ("NEXT_GATE_PLAN_INTERNAL_ERROR",),
         )
