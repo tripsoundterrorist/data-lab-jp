@@ -99,6 +99,18 @@ def parse_price(value: Any) -> int | None:
     return min(numbers) if numbers else None
 
 
+def parse_review_average(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        parsed = float(value)
+    elif isinstance(value, str) and re.fullmatch(r"\d+(?:\.\d+)?", value.strip()):
+        parsed = float(value.strip())
+    else:
+        return None
+    return parsed if 0 <= parsed < float("inf") else None
+
+
 def normalize(item: dict[str, Any]) -> dict[str, Any]:
     content_id = item.get("content_id")
     if not isinstance(content_id, str) or not content_id.strip():
@@ -130,7 +142,7 @@ def normalize(item: dict[str, Any]) -> dict[str, Any]:
         "current_price_raw": current_raw, "current_price_min": current,
         "list_price_raw": list_raw, "list_price_min": listed,
         "discount_amount": discount, "discount_rate": rate,
-        "review_average": review.get("average") if isinstance(review.get("average"), (int, float)) else None,
+        "review_average": parse_review_average(review.get("average")),
         "review_count": review.get("count") if isinstance(review.get("count"), int) else None,
         "delivery": prices.get("deliveries"),
         "sanitized_raw": sanitize_raw(copy.deepcopy(item)),

@@ -13,6 +13,12 @@ response. The health Gate independently scans persisted raw JSON for the same
 key families. Credentials and credential-bearing request URLs are never logged
 or stored.
 
+Observed API payloads encode `review.average` as a decimal string while
+`review.count` is an integer. The normalizer accepts only finite nonnegative
+numeric values or strictly numeric decimal strings for the average; malformed,
+boolean, negative, NaN, and infinite values remain null. Raw collection-only
+history remains available for a separately reviewed future backfill.
+
 The default bounded run fetches only the newest 50 items from each source using
 `sort=date`, at no more than one request per source with at least 1.1 seconds
 between requests. A failed source produces a generic safe error and a non-zero

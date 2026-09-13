@@ -45,6 +45,7 @@ class CategoryCollectionTest(unittest.TestCase):
             "content_id": "fixture-1", "title": "fixture", "affiliateURL": "must-disappear",
             "prices": {"price": "1,000円", "list_price": "2,000円", "deliveries": [{"type": "download"}]},
             "iteminfo": {"maker": [{"id": 1, "name": "Maker"}], "author": [{"id": 2, "name": "Author"}], "genre": [{"id": 3, "name": "Genre"}]},
+            "review": {"average": "4.50", "count": 3},
         }
         result = collector.normalize(item)
         self.assertEqual(result["current_price_min"], 1000)
@@ -52,7 +53,17 @@ class CategoryCollectionTest(unittest.TestCase):
         self.assertEqual(result["discount_amount"], 1000)
         self.assertEqual(result["discount_rate"], 50.0)
         self.assertEqual(set(result["contributors"]), {"maker", "author"})
+        self.assertEqual(result["review_average"], 4.5)
+        self.assertEqual(result["review_count"], 3)
         self.assertNotIn("affiliateURL", result["sanitized_raw"])
+
+    def test_review_average_parser_is_bounded_and_fail_closed(self):
+        for value, expected in (("4.25", 4.25), (4, 4.0), (0.0, 0.0)):
+            with self.subTest(value=value):
+                self.assertEqual(expected, collector.parse_review_average(value))
+        for value in (True, False, "4 stars", "NaN", "Infinity", -1, None, {}, []):
+            with self.subTest(value=value):
+                self.assertIsNone(collector.parse_review_average(value))
 
     def test_schema_cannot_enable_publication(self):
         connection = sqlite3.connect(":memory:")
