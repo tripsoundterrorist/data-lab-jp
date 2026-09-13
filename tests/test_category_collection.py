@@ -22,10 +22,23 @@ class CategoryCollectionTest(unittest.TestCase):
         self.assertIn(("FANZA", "doujin", "digital_doujin"), {(x["site"], x["service"], x["floor"]) for x in targets})
 
     def test_sanitized_raw_removes_affiliate_urls_recursively(self):
-        value = {"affiliateURL": "secret-link", "nested": [{"affiliateURL": "secret-link", "ok": 1}]}
+        value = {
+            "affiliateURL": "secret-link",
+            "nested": [{"Affiliate_URL_SP": "secret-link", "api-id": "secret", "ok": 1}],
+        }
         result = collector.sanitize_raw(value)
-        self.assertNotIn("affiliateURL", json.dumps(result))
+        encoded = json.dumps(result).lower()
+        self.assertNotIn("affiliate", encoded)
+        self.assertNotIn("api-id", encoded)
         self.assertEqual(result, {"nested": [{"ok": 1}]})
+
+    def test_sensitive_key_matching_is_case_and_separator_insensitive(self):
+        for key in ("affiliateURL", "Affiliate_URL_SP", "affiliate-id", "api_id", "AccessToken", "client_secret", "Authorization"):
+            with self.subTest(key=key):
+                self.assertTrue(collector.sensitive_key(key))
+        for key in ("URL", "imageURL", "content_id", "title"):
+            with self.subTest(key=key):
+                self.assertFalse(collector.sensitive_key(key))
 
     def test_normalizer_preserves_roles_and_price_history_facts(self):
         item = {
