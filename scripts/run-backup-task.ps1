@@ -37,10 +37,6 @@ if (-not (Test-Path -LiteralPath $BackupScriptPath -PathType Leaf)) {
     Write-SafeConsoleError -Code "BACKUP_SCRIPT_MISSING"
     exit $ExitPathMissing
 }
-if (-not (Test-Path -LiteralPath $CategoryBackupScriptPath -PathType Leaf)) {
-    Write-SafeConsoleError -Code "CATEGORY_BACKUP_SCRIPT_MISSING"
-    exit $ExitPathMissing
-}
 if (-not (Test-Path -LiteralPath $SourceDatabasePath -PathType Leaf)) {
     Write-SafeConsoleError -Code "SOURCE_DATABASE_MISSING"
     exit $ExitSourceDatabaseMissing
@@ -101,20 +97,26 @@ finally {
 }
 
 if ($backupScriptExitCode -eq 0) {
-    $categoryArguments = @($CategoryBackupScriptPath)
-    if ($DryRun) { $categoryArguments += "--dry-run" }
-    Write-SafeLog "category_backup_script_started=true"
-    Push-Location -LiteralPath $RepoRoot
-    try {
-        & $PythonExecutable @categoryArguments 2>&1 |
-            Tee-Object -FilePath $LogPath -Append
-        $categoryExitCode = $LASTEXITCODE
+    if (-not (Test-Path -LiteralPath $CategoryBackupScriptPath -PathType Leaf)) {
+        $categoryExitCode = $ExitPathMissing
+        Write-SafeLog "wrapper_error=CATEGORY_BACKUP_SCRIPT_MISSING"
     }
-    catch {
-        $categoryExitCode = $ExitScriptLaunchFailure
-        Write-SafeLog "wrapper_error=CATEGORY_BACKUP_SCRIPT_LAUNCH_FAILURE"
+    else {
+        $categoryArguments = @($CategoryBackupScriptPath)
+        if ($DryRun) { $categoryArguments += "--dry-run" }
+        Write-SafeLog "category_backup_script_started=true"
+        Push-Location -LiteralPath $RepoRoot
+        try {
+            & $PythonExecutable @categoryArguments 2>&1 |
+                Tee-Object -FilePath $LogPath -Append
+            $categoryExitCode = $LASTEXITCODE
+        }
+        catch {
+            $categoryExitCode = $ExitScriptLaunchFailure
+            Write-SafeLog "wrapper_error=CATEGORY_BACKUP_SCRIPT_LAUNCH_FAILURE"
+        }
+        finally { Pop-Location }
     }
-    finally { Pop-Location }
     Write-SafeLog ("category_backup_script_exit_code={0}" -f $categoryExitCode)
     if ($categoryExitCode -ne 0) { $backupScriptExitCode = $categoryExitCode }
 }
