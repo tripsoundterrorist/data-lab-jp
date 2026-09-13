@@ -10,6 +10,7 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = "C:\github\data-lab-jp"
 $PythonExecutable = "C:\Users\User\AppData\Local\Programs\Python\Python310\python.exe"
 $CheckerPath = Join-Path $RepoRoot "scripts\check-stale-collection-runs.py"
+$CategoryHealthPath = Join-Path $RepoRoot "scripts\category_collection_health.py"
 $SourceDatabasePath = Join-Path $RepoRoot "data\data-lab.db"
 $LogDirectory = Join-Path $RepoRoot "logs\stale-check"
 
@@ -120,6 +121,29 @@ catch {
 }
 finally {
     Pop-Location
+}
+
+if ($checkerExitCode -eq 0) {
+    if (-not (Test-Path -LiteralPath $CategoryHealthPath -PathType Leaf)) {
+        $categoryHealthExitCode = $ExitPathMissing
+        Write-SafeLog "wrapper_error=CATEGORY_HEALTH_CHECK_MISSING"
+    }
+    else {
+        Write-SafeLog "category_health_check_started=true"
+        Push-Location -LiteralPath $RepoRoot
+        try {
+            & $PythonExecutable -B $CategoryHealthPath 2>&1 |
+                Tee-Object -FilePath $LogPath -Append
+            $categoryHealthExitCode = $LASTEXITCODE
+        }
+        catch {
+            $categoryHealthExitCode = $ExitCheckerLaunchFailure
+            Write-SafeLog "wrapper_error=CATEGORY_HEALTH_CHECK_LAUNCH_FAILURE"
+        }
+        finally { Pop-Location }
+    }
+    Write-SafeLog ("category_health_check_exit_code={0}" -f $categoryHealthExitCode)
+    if ($categoryHealthExitCode -ne 0) { $checkerExitCode = $categoryHealthExitCode }
 }
 
 Write-SafeLog ("checker_exit_code={0}" -f $checkerExitCode)

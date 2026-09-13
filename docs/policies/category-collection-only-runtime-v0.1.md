@@ -51,6 +51,12 @@ collection and appends the sanitized result to the same private log. A failed
 health check makes the scheduled task return nonzero. Dry-run behavior remains
 network-free and does not require an existing collection database.
 
+The existing 18:00 JST stale-check runs the Revenue stale-run check first, then
+the category health Gate. This second observation path detects a missed 15:00
+category task because the last successful source observations exceed the
+26-hour limit by 18:00 the following day. P1 availability checks occur only
+after the P0 stale check succeeds and cannot prevent that P0 check from running.
+
 The existing 17:00 JST daily backup task now backs up the Revenue database
 first, then creates a separate validated SQLite backup of the category database.
 The category backup is written atomically under the Git-ignored category backup
