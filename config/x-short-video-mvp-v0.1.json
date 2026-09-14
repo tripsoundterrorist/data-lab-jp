@@ -1,0 +1,25 @@
+{
+  "version": "0.1",
+  "timezone": "Asia/Tokyo",
+  "test_start": "2026-09-15",
+  "test_end": "2026-10-25",
+  "external_notification_only": true,
+  "repository_schedule_registration_allowed": false,
+  "slots": {
+    "monday": "09:30",
+    "tuesday": "12:30",
+    "wednesday": "19:30",
+    "thursday": "09:30",
+    "friday": "12:30",
+    "saturday": null,
+    "sunday": "19:30"
+  },
+  "theme_weights": {
+    "price_change": 30,
+    "ranking_change": 25,
+    "new_or_updated": 15,
+    "data_literacy": 15,
+    "weekly_summary": 10,
+    "site_update": 5
+  }
+}
