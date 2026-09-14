@@ -110,6 +110,14 @@ manipulation, automation, API access, and API fees. Date and cite the official
 source used. Label unofficial sources as secondary and never change operations
 from an unofficial report or an unsupported inference.
 
+Use a lightweight check of those official sources for normal weekly reviews.
+Deep Research is optional only when an official algorithm or policy change may
+be material, sources conflict, or a decision could substantially change the
+operating policy. Do not use it by default. When used, report why escalation was
+necessary, the research scope, and clearly separate primary-source findings from
+inference. Its output remains evidence for a proposal, not approval to alter X
+settings, posts, schedules, GitHub configuration, or any LIVE state.
+
 Keep the six-week test unchanged through 2026-10-25 unless a verified safety or
 policy issue requires an emergency stop. Major time-slot changes wait for the
 end-of-test review. Weekly output is proposal/notification only and must not

@@ -70,6 +70,19 @@ class SnsXOperationsPolicyTests(unittest.TestCase):
         ):
             self.assertIn(value, self.content)
 
+    def test_deep_research_is_exceptional_and_proposal_only(self):
+        for value in (
+            "lightweight check",
+            "Deep Research is optional only",
+            "sources conflict",
+            "Do not use it by default",
+            "report why escalation was",
+            "research scope",
+            "primary-source findings from",
+            "evidence for a proposal, not approval",
+        ):
+            self.assertIn(value, self.content)
+
     def test_automation_remains_staged_and_fail_closed(self):
         for value in (
             "independently stoppable stages",
