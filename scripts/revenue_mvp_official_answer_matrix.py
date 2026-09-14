@@ -37,6 +37,7 @@ CORE_TOPIC_IDS = frozenset({
 })
 SNS_TOPIC_IDS = frozenset(set(TOPIC_IDS) - CORE_TOPIC_IDS)
 OFFICIAL_RESPONSE_RECORDED_ON = "2026-09-08"
+SNS_SITE_APPROVAL_RECORDED_ON = "2026-09-14"
 
 
 @dataclass(frozen=True)
@@ -62,7 +63,9 @@ CURRENT_ENTRIES: Mapping[str, AnswerDecision] = MappingProxyType({
         CONDITIONALLY_ALLOWED, conditions_verified=True
     ),
     "SNS_TO_SITE_TO_FANZA_FUNNEL": AnswerDecision(CONDITIONALLY_ALLOWED),
-    "SNS_ACCOUNT_REGISTRATION": AnswerDecision(CONDITIONALLY_ALLOWED),
+    "SNS_ACCOUNT_REGISTRATION": AnswerDecision(
+        CONDITIONALLY_ALLOWED, conditions_verified=True
+    ),
     "SNS_PRODUCT_MEDIA_USE": AnswerDecision(CONDITIONALLY_ALLOWED),
     "AUTOMATED_FACT_POSTING": AnswerDecision(CONDITIONALLY_ALLOWED),
     "PR_AD_AFFILIATE_DISCLOSURE": AnswerDecision(

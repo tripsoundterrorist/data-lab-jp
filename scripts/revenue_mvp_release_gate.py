@@ -199,7 +199,7 @@ def run_gate(*, artifact_directory: Path | None = None) -> ReleaseGateResult:
                 ("REVIEW_X_MANUAL_POST_CANDIDATE",)
                 if x_funnel.manual_post_candidate
                 else (
-                    ("WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",)
+                    ("WAIT_FOR_REMAINING_SNS_CONDITIONS",)
                     if official_response_recorded
                     and not official_answers.sns_operation_candidate
                     else ("WAIT_FOR_DMM_FANZA_SNS_RESPONSE",)

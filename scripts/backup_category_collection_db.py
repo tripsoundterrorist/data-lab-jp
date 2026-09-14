@@ -36,12 +36,18 @@ def _files(directory: Path) -> list[Path]:
     ]
 
 
-def run(source: Path, destination: Path, *, dry_run: bool = False) -> int:
+def run(
+    source: Path,
+    destination: Path,
+    *,
+    dry_run: bool = False,
+    evaluated_at: datetime | None = None,
+) -> int:
     temporary: Path | None = None
     try:
         if source.is_symlink() or destination.is_symlink() or not source.is_file():
             raise ValueError("UNSAFE_OR_MISSING_PATH")
-        source_result = health.assess(source)
+        source_result = health.assess(source, evaluated_at=evaluated_at)
         if source_result.status != health.HEALTHY:
             raise ValueError("SOURCE_HEALTH_FAILED")
         probe = destination
@@ -66,7 +72,7 @@ def run(source: Path, destination: Path, *, dry_run: bool = False) -> int:
         with closing(sqlite3.connect(source_uri, uri=True)) as source_connection:
             with closing(sqlite3.connect(temporary)) as destination_connection:
                 source_connection.backup(destination_connection, pages=256, sleep=0.05)
-        backup_result = health.assess(temporary)
+        backup_result = health.assess(temporary, evaluated_at=evaluated_at)
         if (
             backup_result.status != health.HEALTHY
             or backup_result.source_count != source_result.source_count

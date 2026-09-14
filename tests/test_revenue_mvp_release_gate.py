@@ -74,11 +74,11 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertNotIn("VERIFY_PRODUCTION_DOMAIN_APPROVAL", result.next_actions)
         self.assertNotIn("WAIT_FOR_DMM_FANZA_SNS_RESPONSE", result.next_actions)
         self.assertNotIn(
-            "WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",
+            "WAIT_FOR_REMAINING_SNS_CONDITIONS",
             result.next_actions,
         )
         self.assertIn(
-            "WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",
+            "WAIT_FOR_REMAINING_SNS_CONDITIONS",
             result.sns_next_actions,
         )
         self.assertTrue(any(code.startswith("SNS_TOPIC_BLOCKED:") for code in result.sns_reason_codes))
@@ -181,11 +181,11 @@ class RevenueMvpReleaseGateTests(unittest.TestCase):
         self.assertFalse(result.official_answer_gate_unlock_allowed)
         self.assertEqual(result.x_funnel_status, "PREVIEW_ONLY")
         self.assertNotIn(
-            "WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",
+            "WAIT_FOR_REMAINING_SNS_CONDITIONS",
             result.next_actions,
         )
         self.assertIn(
-            "WAIT_FOR_SNS_SITE_APPROVAL_AND_IMPLEMENT_CONDITIONS",
+            "WAIT_FOR_REMAINING_SNS_CONDITIONS",
             result.sns_next_actions,
         )
 

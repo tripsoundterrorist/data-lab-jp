@@ -84,7 +84,6 @@ class RevenueMvpOfficialResponseConditionTests(unittest.TestCase):
             result.blocking_topic_ids,
             (
                 "SNS_TO_SITE_TO_FANZA_FUNNEL",
-                "SNS_ACCOUNT_REGISTRATION",
                 "SNS_PRODUCT_MEDIA_USE",
                 "AUTOMATED_FACT_POSTING",
             ),
