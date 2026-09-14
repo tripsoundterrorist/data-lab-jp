@@ -78,6 +78,46 @@ and slot, and whether a PR link was present. Compare time slots while controllin
 for weekday, theme, and link presence. Do not attribute performance to time alone
 or select a winner from impressions alone.
 
+Review the previous Monday-through-Sunday period once each week after that period
+has closed. This cadence is a manual review obligation, not a new notification or
+posting schedule. Check the activity visible for `@datalab_jp` and combine it only
+with X Analytics values actually supplied by the account owner. Record unavailable
+private Analytics values as `NOT_ACQUIRED`; never estimate or backfill them.
+
+Use this minimum owner-input row when private Analytics values are needed:
+
+```text
+post_url_or_id | posted_at_jst | theme | pr_link(Y/N) | impressions |
+non_follower_reach | engagements | profile_visits | follows | link_clicks
+```
+
+Use `NOT_ACQUIRED` for every missing value. Calculate CTR only when the numerator,
+denominator, and their X-defined meanings are available; preserve the raw inputs
+and calculation definition with the result.
+
+Each weekly review must consider weekday, time slot, theme, link presence, and
+post count as possible confounders. Small samples, correlation, or a visible
+change do not establish an algorithmic cause. Report observations separately
+from inferences and assign every recommendation exactly one disposition:
+`MAINTAIN`, `SMALL_CHANGE_PROPOSAL`, `STOP_RECOMMENDED`, or
+`ADDITIONAL_CONFIRMATION_REQUIRED`. Consider posting time, theme mix, CTA,
+profile, header, and pinned post, but do not change them as part of the review.
+
+For platform research, prefer current official X Help Center, Rules and policies,
+Developer Platform documentation, and official pricing pages. Check changes
+relevant to recommendation algorithms, adult content, links, spam/platform
+manipulation, automation, API access, and API fees. Date and cite the official
+source used. Label unofficial sources as secondary and never change operations
+from an unofficial report or an unsupported inference.
+
+Keep the six-week test unchanged through 2026-10-25 unless a verified safety or
+policy issue requires an emergency stop. Major time-slot changes wait for the
+end-of-test review. Weekly output is proposal/notification only and must not
+modify X, ChatGPT schedules, GitHub configuration, or any runtime. Actual changes
+require explicit user approval, applicable COMPLIANCE confirmation, and handoff
+to the owning thread. Do not create a draft-generation automation that overlaps
+the existing external notifications.
+
 ## Category expansion
 
 Only when GitHub shows a category is actually public and COMPLIANCE confirms it
@@ -91,7 +131,9 @@ does not satisfy the trigger.
 
 Keep these independently stoppable stages: data acquisition; draft generation;
 fact verification; duplication and quality checks; COMPLIANCE check; user
-approval; posting; result retrieval; analysis; improvement.
+approval; posting; result retrieval; analysis; improvement. Result retrieval,
+analysis, and improvement must remain separately stoppable, idempotent, auditable,
+and fail closed.
 
 The design must fail closed and preserve human approval before posting, a final
 publication check, deduplication, idempotency, audit records linking post ID,

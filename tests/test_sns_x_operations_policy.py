@@ -41,6 +41,35 @@ class SnsXOperationsPolicyTests(unittest.TestCase):
         ):
             self.assertIn(value, self.content)
 
+    def test_weekly_review_uses_observed_inputs_and_explicit_dispositions(self):
+        for value in (
+            "once each week",
+            "Monday-through-Sunday",
+            "NOT_ACQUIRED",
+            "post_url_or_id",
+            "non_follower_reach",
+            "possible confounders",
+            "MAINTAIN",
+            "SMALL_CHANGE_PROPOSAL",
+            "STOP_RECOMMENDED",
+            "ADDITIONAL_CONFIRMATION_REQUIRED",
+        ):
+            self.assertIn(value, self.content)
+
+    def test_research_and_change_boundaries_preserve_current_test(self):
+        for value in (
+            "official X Help Center",
+            "adult content",
+            "spam/platform",
+            "API fees",
+            "through 2026-10-25",
+            "Major time-slot changes wait",
+            "modify X, ChatGPT schedules, GitHub configuration",
+            "explicit user approval",
+            "Do not create a draft-generation automation",
+        ):
+            self.assertIn(value, self.content)
+
     def test_automation_remains_staged_and_fail_closed(self):
         for value in (
             "independently stoppable stages",
@@ -49,6 +78,8 @@ class SnsXOperationsPolicyTests(unittest.TestCase):
             "idempotency",
             "emergency stop",
             "auto-unlock",
+            "Result retrieval",
+            "separately stoppable, idempotent, auditable",
         ):
             self.assertIn(value, self.content)
 
