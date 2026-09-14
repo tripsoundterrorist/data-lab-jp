@@ -7,7 +7,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import backup_category_collection_db as backup  # noqa: E402
-from tests.test_category_collection_health import database  # noqa: E402
+from tests.test_category_collection_health import NOW, database  # noqa: E402
 
 
 class CategoryCollectionBackupTests(unittest.TestCase):
@@ -17,7 +17,9 @@ class CategoryCollectionBackupTests(unittest.TestCase):
             source = root / "source.db"
             target = root / "backups"
             database(source)
-            self.assertEqual(0, backup.run(source, target, dry_run=True))
+            self.assertEqual(
+                0, backup.run(source, target, dry_run=True, evaluated_at=NOW)
+            )
             self.assertFalse(target.exists())
 
     def test_backup_is_created_and_revalidated(self):
@@ -26,10 +28,15 @@ class CategoryCollectionBackupTests(unittest.TestCase):
             source = root / "source.db"
             target = root / "backups"
             database(source)
-            self.assertEqual(0, backup.run(source, target))
+            self.assertEqual(0, backup.run(source, target, evaluated_at=NOW))
             files = list(target.glob("category-collection-*.db"))
             self.assertEqual(1, len(files))
-            self.assertEqual(0, backup.health.assess(files[0]).database_write_performed)
+            self.assertEqual(
+                0,
+                backup.health.assess(
+                    files[0], evaluated_at=NOW
+                ).database_write_performed,
+            )
 
     def test_missing_source_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:

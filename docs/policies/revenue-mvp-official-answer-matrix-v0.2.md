@@ -8,7 +8,12 @@ APIデータの履歴表示、保持・更新、独自集計は`ALLOWED`とす�
 販売・掲載終了時の取下げ、公式ランキングとの誤認防止、PR表示、承認済み
 サイトURL、SNS導線・登録・画像・自動投稿は`CONDITIONALLY_ALLOWED`とする。
 
-条件付き9 topicは実装証跡が未確認であり、すべてblockingのままである。
-回答記録だけではcore/SNS publication candidate、Publication Gate、affiliate
-enablement、route、deploymentを解除しない。SNS追加サイト申請は審査待ちで、
-承認確認までSNS投稿候補もfail-closedとする。
+2026-09-14に運営者がX追加サイト承認を確認したため、
+`SNS_ACCOUNT_REGISTRATION`だけを条件確認済みとして記録した。アカウント名、
+affiliate ID、メール、URL、回答本文は保存しない。
+
+残る`SNS_TO_SITE_TO_FANZA_FUNNEL`、`SNS_PRODUCT_MEDIA_USE`、
+`AUTOMATED_FACT_POSTING`は問い合わせ回答待ちでblockingを維持する。
+X承認だけではSNS operation candidate、Publication Gate、affiliate enablement、
+route、deployment、自動投稿、商品媒体利用を解除しない。Web Revenue MVPの
+公式Lifecycle/Sort回答待ちとも独立した条件として扱う。
