@@ -1,0 +1,16 @@
+{
+  "content_id": "non-product-transparency-20260915",
+  "scheduled_at": "2026-09-15T12:30:00+09:00",
+  "timezone": "Asia/Tokyo",
+  "theme": "aggregation_transparency",
+  "headline": "DATA LABの集計方針",
+  "body_short": "確認できる事実だけを使い、未確認情報は補完しません。",
+  "post_text": "DATA LABでは、確認できる事実だけを集計します。未確認の情報は推測で補わず、出典と更新時刻を確認できる形で整理します。",
+  "source_ids": ["policy-sns-x-operations-v0.1"],
+  "source_checked_at": "2026-09-15T11:30:00+09:00",
+  "pr_required": false,
+  "sensitive_media": false,
+  "template_id": "data-lab-vertical-v0.1",
+  "data_freshness": "VERIFIED_CURRENT",
+  "generation_status": "PENDING"
+}
