@@ -49,11 +49,16 @@ class OfficialLifecycleDecision:
     offset_rank_allowed: bool
     update_frequency_claim_allowed: bool
     publication_gate_change_allowed: bool
+    observation_observed_at: datetime | None
     reason_codes: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
         value["state"] = self.state.value
+        value["observation_observed_at"] = (
+            self.observation_observed_at.isoformat()
+            if self.observation_observed_at is not None else None
+        )
         value["reason_codes"] = list(self.reason_codes)
         return value
 
@@ -65,6 +70,7 @@ def _decision(
     requery: bool = False,
     wait: bool = False,
     inventory_signal_only: bool = False,
+    observed_at: datetime | None = None,
     reasons: tuple[str, ...],
 ) -> OfficialLifecycleDecision:
     return OfficialLifecycleDecision(
@@ -84,6 +90,7 @@ def _decision(
         False,
         False,
         False,
+        observed_at,
         reasons,
     )
 
@@ -145,6 +152,7 @@ def evaluate_official_lifecycle_policy(
             return _decision(
                 EligibilityState.EXCLUDED,
                 requery=True,
+                observed_at=observation.observed_at,
                 reasons=(
                     "API_UNAVAILABLE_EXCLUDED_FROM_AFFILIATE",
                     "API_UNAVAILABLE_EXCLUDED_FROM_PUBLIC_SITE",
@@ -156,6 +164,7 @@ def evaluate_official_lifecycle_policy(
                 EligibilityState.TEMPORARILY_BLOCKED,
                 requery=True,
                 wait=True,
+                observed_at=observation.observed_at,
                 reasons=(
                     "API_ERROR_REQUIRES_BOUNDED_WAIT",
                     "RATE_LIMIT_MUST_BE_RESPECTED",
@@ -171,6 +180,7 @@ def evaluate_official_lifecycle_policy(
             return _decision(
                 EligibilityState.EXCLUDED,
                 requery=True,
+                observed_at=observation.observed_at,
                 reasons=(
                     "AFFILIATE_URL_ABSENT_OR_UNKNOWN",
                     "EXCLUDED_FROM_AFFILIATE_AND_PUBLIC_SITE",
@@ -186,6 +196,7 @@ def evaluate_official_lifecycle_policy(
             EligibilityState.CANDIDATE,
             candidate=True,
             inventory_signal_only=inventory_only,
+            observed_at=observation.observed_at,
             reasons=(
                 "API_VISIBLE_WITH_AFFILIATE_URL",
                 "INVENTORY_SIGNAL_DOES_NOT_EXCLUDE" if inventory_only

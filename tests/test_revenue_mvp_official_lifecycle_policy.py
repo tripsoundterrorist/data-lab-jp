@@ -91,6 +91,7 @@ class OfficialLifecyclePolicyTests(unittest.TestCase):
                 self.assertTrue(result.affiliate_candidate)
                 self.assertFalse(result.exclude_from_public_site)
                 self.assertTrue(result.inventory_signal_only)
+                self.assertEqual(result.observation_observed_at, NOW)
                 self.assert_gates_closed(result)
 
     def test_unknown_or_malformed_inputs_fail_closed(self):
