@@ -7,6 +7,13 @@ image, AI image service, audio, invented chart, network, upload, notification,
 posting, or scheduler is implemented. A valid input keeps text READY if image
 generation fails. Output is private and excluded from Git.
 
+Candidates are exclusively created directly in the approved output directory
+and inherit its normal ACL. A completed, validated candidate is atomically linked
+without overwrite; the staging file is removed on success or failure. No chmod,
+ACL reset, or permission broadening is performed. Previously generated artifacts
+with restricted temporary-directory ACLs are not repaired automatically; use a
+fresh approved output directory for the delivery verification.
+
 Usage: `python scripts/x_static_card_mvp.py --input INPUT.json`.
 The scheduled_at field is the intended posting slot (for example Monday 09:30),
 not the Monday 08:30 preparation time. The configured test dates still apply;
