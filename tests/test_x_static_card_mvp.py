@@ -70,6 +70,23 @@ class StaticCardTests(unittest.TestCase):
             self.assertEqual(result["reason_codes"], ["IMAGE_RENDER_FAILED"])
             self.assertEqual(result["post_text"], self.data["post_text"])
 
+    def test_candidate_is_created_directly_in_output_and_cleaned(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            with card._candidate_file(directory) as candidate:
+                self.assertEqual(candidate.parent, directory)
+                self.assertTrue(candidate.is_file())
+                candidate.write_bytes(b"test")
+            self.assertFalse(candidate.exists())
+
+    def test_failed_candidate_is_cleaned(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            with self.assertRaises(RuntimeError):
+                with card._candidate_file(directory):
+                    raise RuntimeError("fixture")
+            self.assertEqual(list(directory.iterdir()), [])
+
 
 if __name__ == "__main__":
     unittest.main()

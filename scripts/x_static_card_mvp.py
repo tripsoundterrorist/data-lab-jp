@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 import os
 from pathlib import Path
-import tempfile
+import uuid
 
 try:
     from . import x_short_video_mvp as shared
@@ -15,6 +16,18 @@ except ImportError:
 
 WIDTH, HEIGHT = 1200, 1500
 MARGIN = 100
+
+
+@contextmanager
+def _candidate_file(directory: Path):
+    """Inherit the approved output directory ACL, not a private temp-dir ACL."""
+    candidate = directory / (".card-" + uuid.uuid4().hex + ".tmp")
+    with candidate.open("xb"):
+        pass
+    try:
+        yield candidate
+    finally:
+        candidate.unlink(missing_ok=True)
 
 
 def generate_card(value, config, output_directory: Path, *, font: Path | None = None):
@@ -67,8 +80,7 @@ def generate_card(value, config, output_directory: Path, *, font: Path | None = 
         output_directory.mkdir(parents=True, exist_ok=True)
         path = output_directory / ("x-card-" + shared._digest(data)[:24] + ".png")
         # Repeat calls return the same immutable candidate, not another notification.
-        with tempfile.TemporaryDirectory(prefix="card-", dir=output_directory) as temporary:
-            candidate = Path(temporary) / "candidate.png"
+        with _candidate_file(output_directory) as candidate:
             image.save(candidate, format="PNG", optimize=True)
             with Image.open(candidate) as checked:
                 checked.verify()
