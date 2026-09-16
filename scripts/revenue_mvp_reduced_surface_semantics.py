@@ -62,6 +62,7 @@ class ReducedSurfaceReview:
     gate_review_candidate: bool
     allowed_sort_label: str | None
     timestamp_label: str | None
+    api_observed_at: str | None
     cta_candidate: bool
     publication_gate_change_allowed: bool
     production_publication_allowed: bool
@@ -80,6 +81,7 @@ def _result(
     satisfied: bool = False,
     label: str | None = None,
     cta: bool = False,
+    observed_at: datetime | None = None,
     reasons: tuple[str, ...],
 ) -> ReducedSurfaceReview:
     return ReducedSurfaceReview(
@@ -89,6 +91,7 @@ def _result(
         satisfied,
         label if satisfied else None,
         TIMESTAMP_LABEL if satisfied else None,
+        observed_at.isoformat() if satisfied and observed_at is not None else None,
         cta if satisfied else False,
         False,
         False,
@@ -195,6 +198,7 @@ def review_reduced_surface(
             satisfied=True,
             label=SORT_LABELS[source_sort],
             cta=True,
+            observed_at=api_observed_at,
             reasons=(
                 "REDUCED_SURFACE_CONTRACT_SATISFIED",
                 "SEPARATE_GATE_REVIEW_REQUIRED",

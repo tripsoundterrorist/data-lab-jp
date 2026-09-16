@@ -69,6 +69,7 @@ class ReducedSurfaceSemanticsTests(unittest.TestCase):
                 self.assertTrue(result.gate_review_candidate)
                 self.assertEqual(result.allowed_sort_label, surface.SORT_LABELS[source_sort])
                 self.assertEqual(result.timestamp_label, "API取得日時")
+                self.assertEqual(result.api_observed_at, NOW.isoformat())
                 self.assertTrue(result.cta_candidate)
                 self.assert_no_activation(result)
 
