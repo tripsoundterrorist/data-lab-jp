@@ -8,16 +8,64 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from tests.test_revenue_mvp_offline_artifact_integration import (  # noqa: E402
-    PUBLIC_ID, encoded, evidence, fixture,
+    NOW, PUBLIC_ID, encoded, evidence, fixture, gate,
 )
 import revenue_mvp_offline_launch_rehearsal as rehearsal  # noqa: E402
+import revenue_mvp_official_lifecycle_policy as policy  # noqa: E402
+import revenue_mvp_offline_artifact_integration as integration  # noqa: E402
+import revenue_mvp_offline_lifecycle_filter as filter_contract  # noqa: E402
+import revenue_mvp_reduced_surface_semantics as surface  # noqa: E402
+from product_verification import Observation, VerificationObservation  # noqa: E402
+
+
+INDEX_FIELDS = ("public_id", "title", "last_observed_at")
+DETAIL_FIELDS = (
+    "public_id", "title", "last_observed_at", "affiliate_cta_eligible",
+)
+CTA = filter_contract.OfflineCtaEvidence(True, True, True, True)
+
+
+def observation(value, affiliate):
+    expected = (
+        True if value is Observation.API_ITEM_VISIBLE
+        else False if value is Observation.API_ITEM_NOT_RETURNED
+        else None
+    )
+    return VerificationObservation(
+        value, NOW, expected, affiliate, 200, ("PATH_SPECIFIC_FIXTURE",)
+    )
+
+
+def scenario(name, observed, *, fresh=True):
+    decision = policy.evaluate_official_lifecycle_policy(observed)
+    filtered = filter_contract.filter_offline_artifact_candidate(
+        decision, gate(), freshness_confirmed=fresh,
+        api_order_preserved=True, index_field_names=INDEX_FIELDS,
+        detail_field_names=DETAIL_FIELDS, cta_evidence=CTA,
+    )
+    reviewed = surface.review_reduced_surface(
+        contract_version=surface.CONTRACT_VERSION,
+        lifecycle_decision=decision, source_sort="rank",
+        public_order_matches_api=True, api_observed_at=NOW,
+        requested_sort_label=surface.SORT_LABELS["rank"],
+        timestamp_label=surface.TIMESTAMP_LABEL,
+        public_semantic_fields=surface.ALLOWED_PUBLIC_SEMANTIC_FIELDS,
+        public_claim_codes=surface.ALLOWED_CLAIMS,
+        affiliate_url_validated=True, cta_requested=True,
+        disclosure_visible=True, disclosure_proximate=True,
+    )
+    item_evidence = integration.OfflineArtifactItemEvidence(filtered, reviewed)
+    return rehearsal.ExclusionScenario(name, observed, {PUBLIC_ID: item_evidence})
 
 
 def excluded_scenarios():
-    excluded = evidence(False)
-    return tuple(
-        rehearsal.ExclusionScenario(name, {PUBLIC_ID: excluded})
-        for name in sorted(rehearsal.REQUIRED_EXCLUSION_SCENARIOS)
+    return (
+        scenario("NON_TARGET", observation(Observation.API_ITEM_NOT_RETURNED, None)),
+        scenario("AFFILIATE_URL_MISSING", observation(Observation.API_ITEM_VISIBLE, False)),
+        scenario("AFFILIATE_URL_UNKNOWN", observation(Observation.API_ITEM_VISIBLE, None)),
+        scenario("API_ERROR", observation(Observation.API_ERROR, None)),
+        scenario("RATE_LIMITED", observation(Observation.API_RATE_LIMITED, None)),
+        scenario("STALE", observation(Observation.API_ITEM_VISIBLE, True), fresh=False),
     )
 
 
@@ -78,6 +126,30 @@ class OfflineLaunchRehearsalTests(unittest.TestCase):
                 )
                 self.assertEqual(result.status, rehearsal.FAIL_CLOSED)
                 self.assertFalse(result.production_publication_allowed)
+
+    def test_swapped_or_reused_exclusion_evidence_fails_closed(self):
+        scenarios = list(excluded_scenarios())
+        scenarios[0] = replace(
+            scenarios[0], observation=scenarios[3].observation
+        )
+        result = rehearsal.run_offline_launch_rehearsal(
+            fixture(), {PUBLIC_ID: evidence()}, tuple(scenarios),
+            forbidden_scenarios(),
+        )
+        self.assertEqual(result.status, rehearsal.FAIL_CLOSED)
+        self.assertIn("EXCLUSION_SCENARIO_MISMATCH", result.reason_codes)
+
+        scenarios = list(excluded_scenarios())
+        scenarios[3] = replace(
+            scenarios[3],
+            evidence_by_public_id=scenarios[0].evidence_by_public_id,
+        )
+        result = rehearsal.run_offline_launch_rehearsal(
+            fixture(), {PUBLIC_ID: evidence()}, tuple(scenarios),
+            forbidden_scenarios(),
+        )
+        self.assertEqual(result.status, rehearsal.FAIL_CLOSED)
+        self.assertIn("EXCLUSION_FILTER_EVIDENCE_MISMATCH", result.reason_codes)
 
     def test_tampered_candidate_evidence_fails_closed(self):
         item = evidence()

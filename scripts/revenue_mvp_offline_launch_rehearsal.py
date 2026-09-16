@@ -9,19 +9,56 @@ from typing import Any, Mapping
 
 import publication_artifact_validator as validator
 import revenue_mvp_offline_artifact_integration as integration
+import revenue_mvp_official_lifecycle_policy as lifecycle_policy
+import revenue_mvp_offline_lifecycle_filter as lifecycle_filter
+from product_verification import Observation, VerificationObservation
 
 
 VERSION = "0.1-candidate"
 REHEARSAL_COMPLETE = "OFFLINE_REHEARSAL_COMPLETE"
 FAIL_CLOSED = "OFFLINE_REHEARSAL_FAIL_CLOSED"
 REQUIRED_EXCLUSION_SCENARIOS = frozenset({
-    "NON_TARGET", "AFFILIATE_URL_MISSING", "API_ERROR", "RATE_LIMITED", "STALE",
+    "NON_TARGET", "AFFILIATE_URL_MISSING", "AFFILIATE_URL_UNKNOWN",
+    "API_ERROR", "RATE_LIMITED", "STALE",
 })
+_EXPECTED_SCENARIOS = {
+    "NON_TARGET": (
+        Observation.API_ITEM_NOT_RETURNED,
+        lifecycle_policy.EligibilityState.EXCLUDED,
+        "API_UNAVAILABLE_EXCLUDED_FROM_PUBLIC_SITE",
+    ),
+    "AFFILIATE_URL_MISSING": (
+        Observation.API_ITEM_VISIBLE,
+        lifecycle_policy.EligibilityState.EXCLUDED,
+        "AFFILIATE_URL_ABSENT_OR_UNKNOWN",
+    ),
+    "AFFILIATE_URL_UNKNOWN": (
+        Observation.API_ITEM_VISIBLE,
+        lifecycle_policy.EligibilityState.EXCLUDED,
+        "AFFILIATE_URL_ABSENT_OR_UNKNOWN",
+    ),
+    "API_ERROR": (
+        Observation.API_ERROR,
+        lifecycle_policy.EligibilityState.TEMPORARILY_BLOCKED,
+        "API_ERROR_REQUIRES_BOUNDED_WAIT",
+    ),
+    "RATE_LIMITED": (
+        Observation.API_RATE_LIMITED,
+        lifecycle_policy.EligibilityState.TEMPORARILY_BLOCKED,
+        "RATE_LIMIT_MUST_BE_RESPECTED",
+    ),
+    "STALE": (
+        Observation.API_ITEM_VISIBLE,
+        lifecycle_policy.EligibilityState.CANDIDATE,
+        "API_VISIBLE_WITH_AFFILIATE_URL",
+    ),
+}
 
 
 @dataclass(frozen=True)
 class ExclusionScenario:
     name: str
+    observation: VerificationObservation
     evidence_by_public_id: Mapping[str, integration.OfflineArtifactItemEvidence]
 
 
@@ -153,6 +190,43 @@ def run_offline_launch_rehearsal(
 
         exclusions = 0
         for scenario in exclusion_scenarios:
+            expected_observation, expected_state, expected_reason = (
+                _EXPECTED_SCENARIOS[scenario.name]
+            )
+            decision = lifecycle_policy.evaluate_official_lifecycle_policy(
+                scenario.observation
+            )
+            evidence_values = tuple(scenario.evidence_by_public_id.values())
+            if (
+                type(scenario.observation) is not VerificationObservation
+                or scenario.observation.observation is not expected_observation
+                or decision.state is not expected_state
+                or expected_reason not in decision.reason_codes
+                or len(evidence_values) != 1
+            ):
+                return _failed("EXCLUSION_SCENARIO_MISMATCH")
+            lifecycle_result = evidence_values[0].lifecycle
+            expected_filter_reason = (
+                "FRESHNESS_NOT_CONFIRMED"
+                if scenario.name == "STALE" else "LIFECYCLE_NOT_ELIGIBLE"
+            )
+            if (
+                type(lifecycle_result)
+                is not lifecycle_filter.OfflineLifecycleFilterResult
+                or lifecycle_result.status != lifecycle_filter.EXCLUDED
+                or expected_filter_reason not in lifecycle_result.reason_codes
+                or lifecycle_result.lifecycle_state != decision.state.value
+                or lifecycle_result.lifecycle_reason_codes != decision.reason_codes
+            ):
+                return _failed("EXCLUSION_FILTER_EVIDENCE_MISMATCH")
+            if scenario.name == "AFFILIATE_URL_MISSING" and (
+                scenario.observation.affiliate_link_observed is not False
+            ):
+                return _failed("EXCLUSION_SCENARIO_MISMATCH")
+            if scenario.name == "AFFILIATE_URL_UNKNOWN" and (
+                scenario.observation.affiliate_link_observed is not None
+            ):
+                return _failed("EXCLUSION_SCENARIO_MISMATCH")
             result = integration.filter_offline_publication_artifacts(
                 source_files, scenario.evidence_by_public_id
             )

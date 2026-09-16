@@ -6,8 +6,9 @@ The rehearsal exercises the merged lifecycle-to-artifact integration using one
 safe synthetic `local_validation_only` artifact and fixed evidence. It verifies:
 
 - one allowed candidate remains paired in index and detail while CTA stays false;
-- non-target, missing affiliate URL, API error, rate limit, and stale scenarios
-  disappear from index and detail together;
+- API non-return, affiliate URL false, affiliate URL unknown, API error, rate
+  limit, and stale scenarios each use their own observation, lifecycle decision,
+  reason, and filter result and disappear from index and detail together;
 - manifest item count and artifact digests are regenerated and validated;
 - position, offset, rank, top, latest, and other invalid public fields or claims
   fail closed before any filtered output is accepted;

@@ -48,10 +48,13 @@ class OfflineLifecycleFilterResult:
     api_order_label_allowed: bool
     observation_observed_at: str | None
     index_detail_filter_required: bool
+    lifecycle_state: str | None
+    lifecycle_reason_codes: tuple[str, ...]
     reason_codes: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
+        value["lifecycle_reason_codes"] = list(self.lifecycle_reason_codes)
         value["reason_codes"] = list(self.reason_codes)
         return value
 
@@ -64,6 +67,7 @@ def _result(
     timestamp: bool = False,
     observed_at: str | None = None,
     api_order_label: bool = False,
+    decision: lifecycle.OfficialLifecycleDecision | None = None,
     reasons: tuple[str, ...],
 ) -> OfflineLifecycleFilterResult:
     return OfflineLifecycleFilterResult(
@@ -81,6 +85,8 @@ def _result(
         api_order_label,
         observed_at,
         True,
+        decision.state.value if decision is not None else None,
+        decision.reason_codes if decision is not None else (),
         reasons,
     )
 
@@ -151,17 +157,20 @@ def filter_offline_artifact_candidate(
             or decision.update_frequency_claim_allowed is not False
         ):
             return _result(
-                FAIL_CLOSED, reasons=("LIFECYCLE_DECISION_PERMISSIVE",)
+                FAIL_CLOSED, decision=decision,
+                reasons=("LIFECYCLE_DECISION_PERMISSIVE",)
             )
 
         if decision.state is not lifecycle.EligibilityState.CANDIDATE:
             return _result(
                 EXCLUDED,
+                decision=decision,
                 reasons=("LIFECYCLE_NOT_ELIGIBLE", "REMOVED_FROM_ARTIFACT_AND_CTA"),
             )
         if not freshness_confirmed:
             return _result(
                 EXCLUDED,
+                decision=decision,
                 reasons=("FRESHNESS_NOT_CONFIRMED", "NO_LATESTNESS_CLAIM"),
             )
         if (
@@ -169,11 +178,13 @@ def filter_offline_artifact_candidate(
             or decision.observation_observed_at.tzinfo is None
         ):
             return _result(
-                FAIL_CLOSED, reasons=("LIFECYCLE_OBSERVATION_TIME_INVALID",)
+                FAIL_CLOSED, decision=decision,
+                reasons=("LIFECYCLE_OBSERVATION_TIME_INVALID",)
             )
         if not _publication_gate_passed(gate):
             return _result(
                 EXCLUDED,
+                decision=decision,
                 timestamp=True,
                 observed_at=decision.observation_observed_at.isoformat(),
                 reasons=("PUBLICATION_GATE_NOT_PASSED", "CANDIDATE_ALONE_INSUFFICIENT"),
@@ -187,6 +198,7 @@ def filter_offline_artifact_candidate(
         )
         return _result(
             INCLUDE_CANDIDATE,
+            decision=decision,
             include=True,
             cta=cta_ready,
             timestamp=True,
