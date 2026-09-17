@@ -138,8 +138,8 @@ class BuilderLifecyclePrefilterTests(unittest.TestCase):
             builder.LifecycleReceipt.__slots__,
             ("version", "public_id", "observation", "inventory_signal", "freshness_confirmed"),
         )
-        source = (SCRIPTS / "build-public-data.py").read_text(encoding="utf-8")
-        receipt_section = source.split("class LifecycleReceipt:", 1)[1].split("def load_analysis_module", 1)[0]
+        source = (SCRIPTS / "revenue_mvp_lifecycle_receipt.py").read_text(encoding="utf-8")
+        receipt_section = source.split("class LifecycleReceipt:", 1)[1].split("__all__", 1)[0]
         for forbidden in ("affiliate_url", "affiliateURL", "api_id", "affiliate_id", "raw_response"):
             self.assertNotIn(forbidden, receipt_section)
 

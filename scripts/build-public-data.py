@@ -20,6 +20,11 @@ from urllib.parse import parse_qsl, urlsplit
 
 from publication_gate import evaluate_publication_gate
 from product_verification import VerificationObservation
+from revenue_mvp_lifecycle_receipt import (
+    LIFECYCLE_RECEIPT_VERSION,
+    LifecycleReceipt,
+    public_item_id,
+)
 from revenue_mvp_official_lifecycle_policy import (
     EligibilityState,
     InventorySignal,
@@ -32,9 +37,7 @@ DEFAULT_DATABASE_PATH = ROOT / "data" / "data-lab.db"
 DEFAULT_OUTPUT_PATH = Path(tempfile.gettempdir()) / "data-lab-public-data-v0.1"
 PUBLIC_SCHEMA_VERSION = "0.1"
 PUBLIC_POLICY_VERSION = "0.1"
-PUBLIC_ID_NAMESPACE = "data-lab-public-item-v0.1"
 PUBLIC_ENTITY_NAMESPACE = "data-lab-public-entity-v0.1"
-LIFECYCLE_RECEIPT_VERSION = "0.1"
 
 # Public-field policy is the single source of truth for every emitted object.
 # Validators consume these exact sets, so adding a field to a builder without
@@ -205,30 +208,6 @@ class PublicDataError(Exception):
     pass
 
 
-class LifecycleReceipt:
-    __slots__ = (
-        "version",
-        "public_id",
-        "observation",
-        "inventory_signal",
-        "freshness_confirmed",
-    )
-
-    def __init__(
-        self,
-        version: str,
-        public_id: str,
-        observation: VerificationObservation,
-        inventory_signal: InventorySignal,
-        freshness_confirmed: bool,
-    ) -> None:
-        self.version = version
-        self.public_id = public_id
-        self.observation = observation
-        self.inventory_signal = inventory_signal
-        self.freshness_confirmed = freshness_confirmed
-
-
 class SafeArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
         self.print_usage(sys.stderr)
@@ -279,11 +258,6 @@ def read_only_connection(path: Path) -> sqlite3.Connection:
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA query_only = ON")
     return connection
-
-
-def public_item_id(site: str, service: str, floor: str, content_id: str) -> str:
-    source = "\0".join((PUBLIC_ID_NAMESPACE, site, service, floor, content_id))
-    return "itm_" + hashlib.sha256(source.encode("utf-8")).hexdigest()[:24]
 
 
 def public_entity_id(entity_type: str, internal_id: str) -> str:
