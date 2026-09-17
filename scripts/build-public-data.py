@@ -19,6 +19,12 @@ from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 
 from publication_gate import evaluate_publication_gate
+from product_verification import VerificationObservation
+from revenue_mvp_official_lifecycle_policy import (
+    EligibilityState,
+    InventorySignal,
+    evaluate_official_lifecycle_policy,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -28,6 +34,7 @@ PUBLIC_SCHEMA_VERSION = "0.1"
 PUBLIC_POLICY_VERSION = "0.1"
 PUBLIC_ID_NAMESPACE = "data-lab-public-item-v0.1"
 PUBLIC_ENTITY_NAMESPACE = "data-lab-public-entity-v0.1"
+LIFECYCLE_RECEIPT_VERSION = "0.1"
 
 # Public-field policy is the single source of truth for every emitted object.
 # Validators consume these exact sets, so adding a field to a builder without
@@ -198,6 +205,30 @@ class PublicDataError(Exception):
     pass
 
 
+class LifecycleReceipt:
+    __slots__ = (
+        "version",
+        "public_id",
+        "observation",
+        "inventory_signal",
+        "freshness_confirmed",
+    )
+
+    def __init__(
+        self,
+        version: str,
+        public_id: str,
+        observation: VerificationObservation,
+        inventory_signal: InventorySignal,
+        freshness_confirmed: bool,
+    ) -> None:
+        self.version = version
+        self.public_id = public_id
+        self.observation = observation
+        self.inventory_signal = inventory_signal
+        self.freshness_confirmed = freshness_confirmed
+
+
 class SafeArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
         self.print_usage(sys.stderr)
@@ -330,6 +361,68 @@ def read_master_items(database_path: Path) -> dict[int, dict[str, Any]]:
                 "entity_maps": entity_maps,
             }
     return result
+
+
+def filter_master_items_by_lifecycle_receipts(
+    master_items: dict[int, dict[str, Any]],
+    confidence_by_id: dict[int, dict[str, Any]],
+    receipts: Any,
+) -> tuple[dict[int, dict[str, Any]], int]:
+    """Filter before artifact creation using exactly one sanitized receipt."""
+
+    if receipts is None:
+        receipts = ()
+    if type(receipts) is not tuple:
+        raise PublicDataError("LIFECYCLE_RECEIPTS_INVALID")
+    receipt_by_public_id: dict[str, LifecycleReceipt] = {}
+    for receipt in receipts:
+        if type(receipt) is not LifecycleReceipt:
+            raise PublicDataError("LIFECYCLE_RECEIPT_INVALID")
+        if (
+            receipt.version != LIFECYCLE_RECEIPT_VERSION
+            or type(receipt.public_id) is not str
+            or type(receipt.observation) is not VerificationObservation
+            or type(receipt.inventory_signal) is not InventorySignal
+            or type(receipt.freshness_confirmed) is not bool
+        ):
+            raise PublicDataError("LIFECYCLE_RECEIPT_INVALID")
+        if receipt.public_id in receipt_by_public_id:
+            raise PublicDataError("LIFECYCLE_RECEIPT_DUPLICATE")
+        receipt_by_public_id[receipt.public_id] = receipt
+
+    candidate_ids = {item["public_id"] for item in master_items.values()}
+    if set(receipt_by_public_id) - candidate_ids:
+        raise PublicDataError("LIFECYCLE_RECEIPT_ITEM_MISMATCH")
+
+    selected: dict[int, dict[str, Any]] = {}
+    for internal_id, item in master_items.items():
+        receipt = receipt_by_public_id.get(item["public_id"])
+        if receipt is None:
+            continue
+        decision = evaluate_official_lifecycle_policy(
+            receipt.observation,
+            inventory_signal=receipt.inventory_signal,
+        )
+        if (
+            decision.state is not EligibilityState.CANDIDATE
+            or decision.public_listing_candidate is not True
+            or decision.affiliate_candidate is not True
+            or decision.exclude_from_public_site is not False
+            or receipt.freshness_confirmed is not True
+            or decision.observation_observed_at is None
+        ):
+            continue
+        try:
+            public_observed_at = parse_timestamp(
+                confidence_by_id[internal_id]["observation_stats"]["last_observed_at"],
+                "last_observed_at",
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            raise PublicDataError("LIFECYCLE_OBSERVATION_BINDING_INVALID") from error
+        if decision.observation_observed_at.astimezone(timezone.utc) != public_observed_at:
+            raise PublicDataError("LIFECYCLE_OBSERVATION_ITEM_MISMATCH")
+        selected[internal_id] = item
+    return selected, len(master_items) - len(selected)
 
 
 def transform_label(label: dict[str, Any]) -> dict[str, str]:
@@ -681,6 +774,8 @@ def build_documents(
     database_path: Path,
     as_of: datetime,
     generated_at: datetime,
+    *,
+    lifecycle_receipts: Any = None,
 ) -> tuple[dict[str, bytes], dict[str, Any]]:
     confidence_module = load_analysis_module(
         "data_lab_confidence", "calculate-data-confidence.py"
@@ -694,6 +789,10 @@ def build_documents(
     price_by_id = {item["item_id"]: item for item in price_result["items"]}
     if set(master_items) != set(confidence_by_id) or set(master_items) != set(price_by_id):
         raise PublicDataError("ANALYSIS_ITEM_SET_MISMATCH")
+
+    master_items, lifecycle_excluded_count = filter_master_items_by_lifecycle_receipts(
+        master_items, confidence_by_id, lifecycle_receipts
+    )
 
     public_ids = [item["public_id"] for item in master_items.values()]
     if len(public_ids) != len(set(public_ids)):
@@ -789,6 +888,8 @@ def build_documents(
         "generated_at": iso_utc(generated_at),
         "item_count": len(index_items),
         "validated_item_count": len(detail_items),
+        "lifecycle_receipts_required": True,
+        "lifecycle_excluded_item_count": lifecycle_excluded_count,
         "duplicate_public_id_count": 0,
         "missing_detail_count": 0,
         "orphan_detail_count": 0,
@@ -800,8 +901,12 @@ def build_documents(
             "manifest_bytes": len(files["manifest.json"]),
             "index_bytes": len(files["index.json"]),
             "detail_total_bytes": sum(detail_sizes),
-            "detail_average_bytes": round(sum(detail_sizes) / len(detail_sizes), 2),
-            "detail_max_bytes": max(detail_sizes),
+            "detail_average_bytes": (
+                round(sum(detail_sizes) / len(detail_sizes), 2)
+                if detail_sizes
+                else 0
+            ),
+            "detail_max_bytes": max(detail_sizes, default=0),
             "total_bytes": sum(len(content) for content in files.values()),
         },
         "digests": {
