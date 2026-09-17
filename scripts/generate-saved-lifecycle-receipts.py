@@ -143,6 +143,8 @@ def generate_receipts(
                         observation,
                         InventorySignal.UNKNOWN,
                         fresh,
+                        evaluated_at,
+                        int(freshness_max_age.total_seconds()),
                     )
                 )
     except sqlite3.Error as error:
@@ -167,6 +169,11 @@ def receipt_to_dict(receipt: LifecycleReceipt) -> dict[str, Any]:
         },
         "inventory_signal": receipt.inventory_signal.value,
         "freshness_confirmed": receipt.freshness_confirmed,
+        "freshness_evaluated_at": (
+            iso_utc(receipt.freshness_evaluated_at)
+            if receipt.freshness_evaluated_at is not None else None
+        ),
+        "freshness_max_age_seconds": receipt.freshness_max_age_seconds,
     }
 
 
@@ -189,7 +196,8 @@ def validate_packet(packet: Any) -> tuple[LifecycleReceipt, ...]:
     for value in values:
         if not isinstance(value, dict) or set(value) != {
             "version", "public_id", "observation", "inventory_signal",
-            "freshness_confirmed",
+            "freshness_confirmed", "freshness_evaluated_at",
+            "freshness_max_age_seconds",
         }:
             raise SavedReceiptError("RECEIPT_FIELDS_INVALID")
         public_id = value["public_id"]
@@ -227,7 +235,12 @@ def validate_packet(packet: Any) -> tuple[LifecycleReceipt, ...]:
             raise SavedReceiptError("RECEIPT_VALUE_INVALID")
         age = as_of - observed_at if observed_at is not None else None
         expected_fresh = age is not None and timedelta(0) <= age <= timedelta(seconds=max_age)
-        if value["freshness_confirmed"] is not expected_fresh:
+        freshness_evaluated_at = parse_timestamp(value["freshness_evaluated_at"])
+        if (
+            value["freshness_max_age_seconds"] != max_age
+            or freshness_evaluated_at != as_of
+            or value["freshness_confirmed"] is not expected_fresh
+        ):
             raise SavedReceiptError("RECEIPT_FRESHNESS_MISMATCH")
         expected_reasons = (
             ("SAVED_OBSERVATION_MISSING",)
@@ -254,6 +267,7 @@ def validate_packet(packet: Any) -> tuple[LifecycleReceipt, ...]:
                     observed["affiliate_link_observed"], None, tuple(reasons),
                 ),
                 inventory, value["freshness_confirmed"],
+                freshness_evaluated_at, max_age,
             )
         )
     return tuple(receipts)
