@@ -52,12 +52,14 @@ def receipt(
         observation(value, affiliate),
         inventory,
         fresh,
+        NOW,
+        86400,
     )
 
 
 def selected(*receipts):
     return builder.filter_master_items_by_lifecycle_receipts(
-        MASTER, CONFIDENCE, tuple(receipts)
+        MASTER, CONFIDENCE, tuple(receipts), evaluated_at=NOW
     )
 
 
@@ -117,15 +119,24 @@ class BuilderLifecyclePrefilterTests(unittest.TestCase):
             ),
             builder.InventorySignal.UNKNOWN,
             True,
+            datetime(2026, 9, 16, 7, 0, tzinfo=timezone.utc),
+            86400,
         )
         with self.assertRaisesRegex(builder.PublicDataError, "OBSERVATION_ITEM_MISMATCH"):
-            selected(mismatched)
+            builder.filter_master_items_by_lifecycle_receipts(
+                MASTER,
+                CONFIDENCE,
+                (mismatched,),
+                evaluated_at=datetime(
+                    2026, 9, 16, 7, 0, tzinfo=timezone.utc
+                ),
+            )
 
     def test_unknown_type_version_and_non_tuple_fail_closed(self):
         for value in (
             [],
             (None,),
-            (builder.LifecycleReceipt("unknown", PUBLIC_ID, observation(Observation.API_ITEM_VISIBLE, True), builder.InventorySignal.UNKNOWN, True),),
+            (builder.LifecycleReceipt("unknown", PUBLIC_ID, observation(Observation.API_ITEM_VISIBLE, True), builder.InventorySignal.UNKNOWN, True, NOW, 86400),),
         ):
             with self.subTest(value=value):
                 with self.assertRaises(builder.PublicDataError):
@@ -136,7 +147,11 @@ class BuilderLifecyclePrefilterTests(unittest.TestCase):
     def test_receipt_and_builder_surface_contain_no_raw_sensitive_fields(self):
         self.assertEqual(
             builder.LifecycleReceipt.__slots__,
-            ("version", "public_id", "observation", "inventory_signal", "freshness_confirmed"),
+            (
+                "version", "public_id", "observation", "inventory_signal",
+                "freshness_confirmed", "freshness_evaluated_at",
+                "freshness_max_age_seconds",
+            ),
         )
         source = (SCRIPTS / "revenue_mvp_lifecycle_receipt.py").read_text(encoding="utf-8")
         receipt_section = source.split("class LifecycleReceipt:", 1)[1].split("__all__", 1)[0]

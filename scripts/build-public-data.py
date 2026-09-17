@@ -23,6 +23,7 @@ from product_verification import VerificationObservation
 from revenue_mvp_lifecycle_receipt import (
     LIFECYCLE_RECEIPT_VERSION,
     LifecycleReceipt,
+    MAX_LIFECYCLE_FRESHNESS_AGE_SECONDS,
     public_item_id,
 )
 from revenue_mvp_official_lifecycle_policy import (
@@ -341,6 +342,8 @@ def filter_master_items_by_lifecycle_receipts(
     master_items: dict[int, dict[str, Any]],
     confidence_by_id: dict[int, dict[str, Any]],
     receipts: Any,
+    *,
+    evaluated_at: datetime | None = None,
 ) -> tuple[dict[int, dict[str, Any]], int]:
     """Filter before artifact creation using exactly one sanitized receipt."""
 
@@ -358,6 +361,22 @@ def filter_master_items_by_lifecycle_receipts(
             or type(receipt.observation) is not VerificationObservation
             or type(receipt.inventory_signal) is not InventorySignal
             or type(receipt.freshness_confirmed) is not bool
+            or (
+                receipt.freshness_evaluated_at is not None
+                and (
+                    not isinstance(receipt.freshness_evaluated_at, datetime)
+                    or receipt.freshness_evaluated_at.tzinfo is None
+                )
+            )
+            or (
+                receipt.freshness_max_age_seconds is not None
+                and (
+                    type(receipt.freshness_max_age_seconds) is not int
+                    or receipt.freshness_max_age_seconds <= 0
+                    or receipt.freshness_max_age_seconds
+                    > MAX_LIFECYCLE_FRESHNESS_AGE_SECONDS
+                )
+            )
         ):
             raise PublicDataError("LIFECYCLE_RECEIPT_INVALID")
         if receipt.public_id in receipt_by_public_id:
@@ -384,6 +403,26 @@ def filter_master_items_by_lifecycle_receipts(
             or decision.exclude_from_public_site is not False
             or receipt.freshness_confirmed is not True
             or decision.observation_observed_at is None
+        ):
+            continue
+        freshness_evaluated_at = receipt.freshness_evaluated_at
+        freshness_max_age_seconds = receipt.freshness_max_age_seconds
+        consumption_time = evaluated_at
+        if (
+            freshness_evaluated_at is None
+            or freshness_max_age_seconds is None
+            or consumption_time is None
+            or not isinstance(consumption_time, datetime)
+            or consumption_time.tzinfo is None
+            or not (
+                decision.observation_observed_at
+                <= freshness_evaluated_at.astimezone(timezone.utc)
+                <= consumption_time.astimezone(timezone.utc)
+            )
+            or (
+                consumption_time.astimezone(timezone.utc)
+                - decision.observation_observed_at
+            ).total_seconds() > freshness_max_age_seconds
         ):
             continue
         try:
@@ -765,7 +804,7 @@ def build_documents(
         raise PublicDataError("ANALYSIS_ITEM_SET_MISMATCH")
 
     master_items, lifecycle_excluded_count = filter_master_items_by_lifecycle_receipts(
-        master_items, confidence_by_id, lifecycle_receipts
+        master_items, confidence_by_id, lifecycle_receipts, evaluated_at=generated_at
     )
 
     public_ids = [item["public_id"] for item in master_items.values()]
