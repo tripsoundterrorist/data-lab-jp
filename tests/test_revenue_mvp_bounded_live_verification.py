@@ -134,6 +134,8 @@ class BoundedLiveVerificationTests(unittest.TestCase):
             "https://affiliate.fanza.com/path\nheader:value",
             "https://affiliate.fanza.com/path%0d%0aheader:value",
             "https://affiliate.fanza.com:444/path",
+            "https://evil.invalid\\.dmm.com/a",
+            "https://affiliate.fanza.com/a\u00a0b",
         )
         for value in values:
             with self.subTest(value=value):
@@ -147,6 +149,48 @@ class BoundedLiveVerificationTests(unittest.TestCase):
                     "AFFILIATE_URL_VALIDATION_FAILED",
                     result.receipt.observation.reason_codes,
                 )
+                self.assertNotIn(
+                    "AFFILIATE_URL_VALIDATED",
+                    result.receipt.observation.reason_codes,
+                )
+
+    def test_parser_difference_urls_are_excluded_by_builder_without_echo(self):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "parser_difference_builder",
+            ROOT / "scripts" / "build-public-data.py",
+        )
+        builder = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = builder
+        spec.loader.exec_module(builder)
+        master = {1: {"public_id": PUBLIC_ID}}
+        confidence = {
+            1: {"observation_stats": {"last_observed_at": NOW.isoformat()}}
+        }
+        unsafe_values = (
+            "https://evil.invalid\\.dmm.com/a",
+            "https://affiliate.fanza.com/a\u00a0b",
+        )
+        for value in unsafe_values:
+            with self.subTest(value=value):
+                result, _, _, _ = live(
+                    transport=mock.Mock(
+                        return_value=(200, payload(affiliate=value))
+                    )
+                )
+                selected, excluded = (
+                    builder.filter_master_items_by_lifecycle_receipts(
+                        master,
+                        confidence,
+                        (result.receipt,),
+                        evaluated_at=NOW,
+                    )
+                )
+                self.assertEqual(selected, {})
+                self.assertEqual(excluded, 1)
+                safe = json.dumps(result.to_safe_dict(), ensure_ascii=False)
+                self.assertNotIn(value, safe)
 
     def test_request_context_binding_blocks_swap_before_claim_or_transport(self):
         transport = mock.Mock()

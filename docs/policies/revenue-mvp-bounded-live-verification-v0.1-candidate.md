@@ -30,7 +30,9 @@ not independently available during this review.
 
 Affiliate presence becomes true only for a non-empty HTTPS URL on an approved
 DMM/FANZA host, without embedded credentials, whitespace, or control
-characters. Absent and invalid/unvalidated states remain distinct sanitized
+characters. Backslashes and Unicode whitespace are rejected before URL parsing
+so Python/WHATWG parser differences cannot upgrade presence. Absent and
+invalid/unvalidated states remain distinct sanitized
 states; neither exposes nor retains the URL value.
 
 The adapter reads clocks before transport, immediately after transport, and at

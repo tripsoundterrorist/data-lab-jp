@@ -163,6 +163,8 @@ def _affiliate_presence(value: Any) -> tuple[bool | None, str]:
         return False, "AFFILIATE_URL_ABSENT"
     if not isinstance(value, str) or not value or value != value.strip():
         return None, "AFFILIATE_URL_VALIDATION_FAILED"
+    if "\\" in value or any(character.isspace() for character in value):
+        return None, "AFFILIATE_URL_VALIDATION_FAILED"
     if len(value) > 2048 or any(
         ord(character) < 33 or ord(character) == 127 for character in value
     ):
