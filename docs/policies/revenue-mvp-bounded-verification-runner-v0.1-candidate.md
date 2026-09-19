@@ -19,7 +19,10 @@ authority. The injected clock is read before secret confirmation, immediately
 after secret confirmation, and again by a required public adapter guard
 immediately before every transport attempt. Each check requires a current
 approval and monotonic time; invalid clocks, reversal, and approval expiry stop
-before the next transport.
+before the next transport. The guard returns its validated UTC timestamp to the
+adapter. That timestamp becomes the monotonic lower bound for the observation
+and evaluation clocks after transport, so a post-guard reversal creates no
+receipt and cannot enter a retry.
 
 The injected secret checker receives only the required names `DMM_API_ID` and
 `DMM_AFFILIATE_ID`. It must return exact boolean presence facts; secret values

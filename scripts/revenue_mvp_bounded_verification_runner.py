@@ -218,26 +218,28 @@ def run_verification(
         global_claimed = claimed is True
         return global_claimed
 
-    def pre_transport_approval_guard(request_started_at: datetime) -> bool:
+    def pre_transport_approval_guard(
+        request_started_at: datetime,
+    ) -> datetime | None:
         nonlocal last_approval_checked_at
         current = _read_runner_clock(clock)
         if current is None or last_approval_checked_at is None:
-            return False
+            return None
         if (
             request_started_at < last_approval_checked_at
             or current < request_started_at
             or current < last_approval_checked_at
         ):
-            return False
+            return None
         valid, _ = validate_live_approval(
             approval,
             evaluated_at=current,
             expected_idempotency_key=idempotency_key,
         )
         if not valid:
-            return False
+            return None
         last_approval_checked_at = current
-        return True
+        return current
 
     if mode == adapter.DRY_RUN:
         try:

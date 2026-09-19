@@ -43,7 +43,7 @@ def live(**changes):
     claim = changes.pop("claim_once", mock.Mock(return_value=True))
     global_claim = changes.pop("claim_global_slot", mock.Mock(return_value=True))
     pre_transport_guard = changes.pop(
-        "pre_transport_guard", mock.Mock(return_value=True)
+        "pre_transport_guard", mock.Mock(return_value=NOW)
     )
     clock = changes.pop("clock", mock.Mock(return_value=NOW))
     sleeper = changes.pop("sleeper", mock.Mock())
@@ -102,7 +102,7 @@ class BoundedLiveVerificationTests(unittest.TestCase):
         retry_transport = mock.Mock(
             side_effect=adapter.BoundedTransportFailure("TRANSIENT")
         )
-        retry_guard = mock.Mock(side_effect=(True, False))
+        retry_guard = mock.Mock(side_effect=(NOW, False))
         result, _, _, sleeper = live(
             transport=retry_transport,
             pre_transport_guard=retry_guard,
@@ -112,6 +112,23 @@ class BoundedLiveVerificationTests(unittest.TestCase):
         self.assertEqual(retry_transport.call_count, 1)
         self.assertEqual(retry_guard.call_count, 2)
         sleeper.assert_called_once()
+
+    def test_guard_time_is_a_lower_bound_for_post_transport_clocks(self):
+        transport = mock.Mock(return_value=(200, payload()))
+        result, _, _, _ = live(
+            transport=transport,
+            pre_transport_guard=mock.Mock(
+                return_value=NOW.replace(second=10)
+            ),
+            clock=mock.Mock(
+                side_effect=(NOW, NOW.replace(second=1))
+            ),
+        )
+        self.assertEqual(result.status, adapter.FAIL_CLOSED)
+        self.assertIsNone(result.receipt)
+        self.assertEqual((result.request_attempts, result.api_calls), (1, 1))
+        self.assertIn("POST_GUARD_CLOCK_REVERSED", result.reason_codes)
+        transport.assert_called_once_with(PRIVATE_ID)
 
     def test_live_requires_separate_approval_and_secret_confirmation(self):
         result = run(mode=adapter.LIVE)

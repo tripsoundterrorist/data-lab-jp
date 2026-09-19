@@ -257,6 +257,50 @@ class BoundedVerificationRunnerTests(unittest.TestCase):
                     "private clock", json.dumps(result.to_safe_dict())
                 )
 
+    def test_post_guard_clock_reversal_fails_after_one_transport_and_releases(self):
+        clock = mock.Mock(
+            side_effect=(
+                NOW,
+                NOW,
+                NOW,
+                NOW + timedelta(seconds=10),
+                NOW + timedelta(seconds=1),
+                NOW + timedelta(seconds=1),
+            )
+        )
+        result, callbacks = live(clock=clock)
+        self.assertEqual(result.status, adapter.FAIL_CLOSED)
+        self.assertIsNone(result.receipt)
+        self.assertEqual(
+            (result.api_calls, callbacks["transport"].call_count), (1, 1)
+        )
+        self.assertIn("POST_GUARD_CLOCK_REVERSED", result.reason_codes)
+        self.assertTrue(result.global_slot_released)
+        self.assertEqual(clock.call_count, 5)
+        callbacks["release_global_slot"].assert_called_once_with(KEY)
+
+    def test_post_guard_reversal_after_transient_prevents_retry_transport(self):
+        clock = mock.Mock(
+            side_effect=(
+                NOW,
+                NOW,
+                NOW,
+                NOW + timedelta(seconds=10),
+                NOW + timedelta(seconds=1),
+                NOW + timedelta(seconds=1),
+            )
+        )
+        transport = mock.Mock(
+            side_effect=adapter.BoundedTransportFailure("TRANSIENT")
+        )
+        result, callbacks = live(clock=clock, transport=transport)
+        self.assertEqual(result.status, adapter.FAIL_CLOSED)
+        self.assertIsNone(result.receipt)
+        self.assertEqual((result.api_calls, transport.call_count), (1, 1))
+        callbacks["sleeper"].assert_not_called()
+        self.assertTrue(result.global_slot_released)
+        callbacks["release_global_slot"].assert_called_once_with(KEY)
+
     def test_retry_expiry_blocks_second_transport_and_releases_slot(self):
         expired = NOW + timedelta(minutes=6)
         clock_values = (NOW, NOW, NOW, NOW, NOW, NOW, expired, expired)
