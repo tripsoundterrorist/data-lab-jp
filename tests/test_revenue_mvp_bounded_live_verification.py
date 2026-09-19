@@ -42,6 +42,9 @@ def live(**changes):
     transport = changes.pop("transport", mock.Mock(return_value=(200, payload())))
     claim = changes.pop("claim_once", mock.Mock(return_value=True))
     global_claim = changes.pop("claim_global_slot", mock.Mock(return_value=True))
+    pre_transport_guard = changes.pop(
+        "pre_transport_guard", mock.Mock(return_value=True)
+    )
     clock = changes.pop("clock", mock.Mock(return_value=NOW))
     sleeper = changes.pop("sleeper", mock.Mock())
     return run(
@@ -51,6 +54,7 @@ def live(**changes):
         transport=transport,
         claim_once=claim,
         claim_global_slot=global_claim,
+        pre_transport_guard=pre_transport_guard,
         clock=clock,
         sleeper=sleeper,
         **changes,
@@ -59,16 +63,55 @@ def live(**changes):
 
 class BoundedLiveVerificationTests(unittest.TestCase):
     def test_default_is_dry_run_with_zero_calls(self):
-        transport, claim, global_claim, clock, sleeper = (mock.Mock() for _ in range(5))
+        transport, claim, global_claim, guard, clock, sleeper = (
+            mock.Mock() for _ in range(6)
+        )
         result = run(transport=transport, claim_once=claim,
-                     claim_global_slot=global_claim, clock=clock, sleeper=sleeper)
+                     claim_global_slot=global_claim, pre_transport_guard=guard,
+                     clock=clock, sleeper=sleeper)
         self.assertEqual(result.status, adapter.DRY_RUN_READY)
         self.assertEqual(result.api_calls, 0)
         self.assertEqual(result.database_writes, 0)
         self.assertEqual(result.production_writes, 0)
         self.assertIsNone(result.receipt)
-        for callback in (transport, claim, global_claim, clock, sleeper):
+        for callback in (transport, claim, global_claim, guard, clock, sleeper):
             callback.assert_not_called()
+
+    def test_pre_transport_guard_is_required_before_every_transport(self):
+        transport = mock.Mock()
+        result, _, _, _ = live(
+            transport=transport,
+            pre_transport_guard=mock.Mock(return_value=False),
+        )
+        self.assertEqual(result.status, adapter.BLOCKED)
+        self.assertEqual((result.request_attempts, result.api_calls), (0, 0))
+        self.assertIn(
+            "PRE_TRANSPORT_APPROVAL_NOT_CURRENT", result.reason_codes
+        )
+        transport.assert_not_called()
+
+        result, _, _, _ = live(
+            transport=transport,
+            pre_transport_guard=mock.Mock(side_effect=RuntimeError("private")),
+        )
+        self.assertEqual(result.status, adapter.FAIL_CLOSED)
+        self.assertEqual((result.request_attempts, result.api_calls), (0, 0))
+        self.assertIn("PRE_TRANSPORT_GUARD_FAILED", result.reason_codes)
+        transport.assert_not_called()
+
+        retry_transport = mock.Mock(
+            side_effect=adapter.BoundedTransportFailure("TRANSIENT")
+        )
+        retry_guard = mock.Mock(side_effect=(True, False))
+        result, _, _, sleeper = live(
+            transport=retry_transport,
+            pre_transport_guard=retry_guard,
+        )
+        self.assertEqual(result.status, adapter.BLOCKED)
+        self.assertEqual((result.request_attempts, result.api_calls), (1, 1))
+        self.assertEqual(retry_transport.call_count, 1)
+        self.assertEqual(retry_guard.call_count, 2)
+        sleeper.assert_called_once()
 
     def test_live_requires_separate_approval_and_secret_confirmation(self):
         result = run(mode=adapter.LIVE)

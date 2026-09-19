@@ -14,7 +14,12 @@ versioned approval with the exact scope, an opaque approval identity, the same
 idempotency key used by the run, a maximum 15-minute validity window, current
 evaluation time, `one_shot=true`, and explicit LIVE permission. Missing,
 expired, future, overlong, wrong-scope, or mismatched approval is blocked before
-the secret-name checker.
+the secret-name checker. The supplied `approval_evaluated_at` is not execution
+authority. The injected clock is read before secret confirmation, immediately
+after secret confirmation, and again by a required public adapter guard
+immediately before every transport attempt. Each check requires a current
+approval and monotonic time; invalid clocks, reversal, and approval expiry stop
+before the next transport.
 
 The injected secret checker receives only the required names `DMM_API_ID` and
 `DMM_AFFILIATE_ID`. It must return exact boolean presence facts; secret values
@@ -23,6 +28,8 @@ concurrency claims are injected boundaries with no storage implementation in
 this candidate. A claimed global slot is released after every adapter path.
 Claim denial, callback exception, or release failure fails closed; release
 failure discards the receipt.
+This also applies after a retry wait: expiry prevents the retry transport, and
+an already-claimed global slot is still released by the runner.
 
 The runner result contains only bounded booleans, counts, status, and reason
 codes. It never serializes the approval identity, idempotency key, request URL,

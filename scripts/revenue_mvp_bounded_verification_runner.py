@@ -110,13 +110,20 @@ def validate_live_approval(
     ):
         reasons.append("APPROVAL_TIME_INVALID")
     else:
-        issued = approval.issued_at.astimezone(timezone.utc)
-        expires = approval.expires_at.astimezone(timezone.utc)
-        evaluated = evaluated_at.astimezone(timezone.utc)
-        if not issued <= evaluated < expires:
-            reasons.append("APPROVAL_NOT_CURRENT")
-        if not 0 < (expires - issued).total_seconds() <= MAX_APPROVAL_WINDOW_SECONDS:
-            reasons.append("APPROVAL_WINDOW_INVALID")
+        try:
+            issued = approval.issued_at.astimezone(timezone.utc)
+            expires = approval.expires_at.astimezone(timezone.utc)
+            evaluated = evaluated_at.astimezone(timezone.utc)
+            if not issued <= evaluated < expires:
+                reasons.append("APPROVAL_NOT_CURRENT")
+            if not (
+                0
+                < (expires - issued).total_seconds()
+                <= MAX_APPROVAL_WINDOW_SECONDS
+            ):
+                reasons.append("APPROVAL_WINDOW_INVALID")
+        except Exception:
+            reasons.append("APPROVAL_TIME_INVALID")
     return not reasons, tuple(sorted(set(reasons)))
 
 
@@ -167,6 +174,16 @@ def _secret_names_confirmed(
     )
 
 
+def _read_runner_clock(clock: Callable[[], datetime]) -> datetime | None:
+    try:
+        value = clock()
+        if not isinstance(value, datetime) or value.tzinfo is None:
+            return None
+        return value.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
 def run_verification(
     *,
     public_id: Any,
@@ -188,16 +205,39 @@ def run_verification(
 ) -> RunnerResult:
     """Run only through the public adapter contract; default mode is inert."""
 
+    _ = approval_evaluated_at  # Compatibility input; never LIVE time authority.
     adapter_result: adapter.BoundedVerificationResult | None = None
     global_claimed = False
     release_attempted = False
     released = False
+    last_approval_checked_at: datetime | None = None
 
     def tracked_global_claim(key: str) -> bool:
         nonlocal global_claimed
         claimed = claim_global_slot(key)
         global_claimed = claimed is True
         return global_claimed
+
+    def pre_transport_approval_guard(request_started_at: datetime) -> bool:
+        nonlocal last_approval_checked_at
+        current = _read_runner_clock(clock)
+        if current is None or last_approval_checked_at is None:
+            return False
+        if (
+            request_started_at < last_approval_checked_at
+            or current < request_started_at
+            or current < last_approval_checked_at
+        ):
+            return False
+        valid, _ = validate_live_approval(
+            approval,
+            evaluated_at=current,
+            expected_idempotency_key=idempotency_key,
+        )
+        if not valid:
+            return False
+        last_approval_checked_at = current
+        return True
 
     if mode == adapter.DRY_RUN:
         try:
@@ -226,9 +266,22 @@ def run_verification(
             reasons=("RUNNER_MODE_INVALID",),
         )
 
+    if type(approval) is not LiveApproval:
+        return _result(adapter.BLOCKED, reasons=("LIVE_APPROVAL_REQUIRED",))
+    if not callable(clock):
+        return _result(
+            adapter.FAIL_CLOSED,
+            reasons=("APPROVAL_CLOCK_INVALID",),
+        )
+    initial_approval_time = _read_runner_clock(clock)
+    if initial_approval_time is None:
+        return _result(
+            adapter.FAIL_CLOSED,
+            reasons=("APPROVAL_CLOCK_INVALID",),
+        )
     valid_approval, approval_reasons = validate_live_approval(
         approval,
-        evaluated_at=approval_evaluated_at,
+        evaluated_at=initial_approval_time,
         expected_idempotency_key=idempotency_key,
     )
     if not valid_approval:
@@ -246,6 +299,34 @@ def run_verification(
             approval_valid=True,
             reasons=("REQUIRED_SECRET_NAMES_NOT_CONFIRMED",),
         )
+    post_secret_time = _read_runner_clock(clock)
+    if post_secret_time is None:
+        return _result(
+            adapter.FAIL_CLOSED,
+            approval_valid=True,
+            secrets_confirmed=True,
+            reasons=("APPROVAL_CLOCK_INVALID",),
+        )
+    if post_secret_time < initial_approval_time:
+        return _result(
+            adapter.FAIL_CLOSED,
+            approval_valid=True,
+            secrets_confirmed=True,
+            reasons=("APPROVAL_CLOCK_REVERSED",),
+        )
+    valid_approval, approval_reasons = validate_live_approval(
+        approval,
+        evaluated_at=post_secret_time,
+        expected_idempotency_key=idempotency_key,
+    )
+    if not valid_approval:
+        return _result(
+            adapter.BLOCKED,
+            approval_valid=False,
+            secrets_confirmed=True,
+            reasons=approval_reasons,
+        )
+    last_approval_checked_at = post_secret_time
     if not all(
         callable(capability)
         for capability in (
@@ -253,7 +334,6 @@ def run_verification(
             claim_global_slot,
             release_global_slot,
             transport,
-            clock,
             sleeper,
         )
     ):
@@ -279,6 +359,7 @@ def run_verification(
             transport=transport,
             claim_once=claim_idempotency_once,
             claim_global_slot=tracked_global_claim,
+            pre_transport_guard=pre_transport_approval_guard,
             clock=clock,
             sleeper=sleeper,
         )

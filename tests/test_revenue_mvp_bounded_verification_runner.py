@@ -132,11 +132,31 @@ class BoundedVerificationRunnerTests(unittest.TestCase):
                         approval=value,
                         approval_evaluated_at=NOW,
                         secret_name_checker=checker,
+                        clock=mock.Mock(return_value=NOW),
                     )
                 )
                 self.assertEqual(result.status, adapter.BLOCKED)
                 self.assertFalse(result.approval_valid)
         checker.assert_not_called()
+
+    def test_stale_approval_evaluated_at_cannot_authorize_expired_live_run(self):
+        checker = mock.Mock()
+        transport = mock.Mock()
+        result = runner.run_verification(
+            **base(
+                mode=adapter.LIVE,
+                approval=approval(),
+                approval_evaluated_at=NOW,
+                secret_name_checker=checker,
+                clock=mock.Mock(return_value=NOW + timedelta(minutes=6)),
+                transport=transport,
+            )
+        )
+        self.assertEqual(result.status, adapter.BLOCKED)
+        self.assertFalse(result.approval_valid)
+        self.assertIn("APPROVAL_NOT_CURRENT", result.reason_codes)
+        checker.assert_not_called()
+        transport.assert_not_called()
 
     def test_pure_approval_contract_accepts_only_current_one_shot_scope(self):
         valid, reasons = runner.validate_live_approval(
@@ -177,6 +197,104 @@ class BoundedVerificationRunnerTests(unittest.TestCase):
         self.assertNotIn(
             "private secret value", json.dumps(result.to_safe_dict())
         )
+
+    def test_approval_expiry_during_secret_check_blocks_before_claim(self):
+        result, callbacks = live(
+            clock=mock.Mock(
+                side_effect=(NOW, NOW + timedelta(minutes=6))
+            )
+        )
+        self.assertEqual(result.status, adapter.BLOCKED)
+        self.assertFalse(result.approval_valid)
+        self.assertTrue(result.secret_names_confirmed)
+        callbacks["claim_idempotency_once"].assert_not_called()
+        callbacks["transport"].assert_not_called()
+
+    def test_expiry_immediately_before_first_transport_releases_slot(self):
+        clock = mock.Mock(
+            side_effect=(
+                NOW,
+                NOW,
+                NOW + timedelta(minutes=4, seconds=59),
+                NOW + timedelta(minutes=6),
+            )
+        )
+        result, callbacks = live(clock=clock)
+        self.assertEqual(result.status, adapter.BLOCKED)
+        self.assertIsNone(result.receipt)
+        self.assertEqual(result.api_calls, 0)
+        self.assertTrue(result.global_slot_claimed)
+        self.assertTrue(result.global_slot_released)
+        self.assertIn(
+            "PRE_TRANSPORT_APPROVAL_NOT_CURRENT", result.reason_codes
+        )
+        callbacks["transport"].assert_not_called()
+        callbacks["release_global_slot"].assert_called_once_with(KEY)
+
+    def test_pre_transport_clock_failure_and_reversal_block_and_release(self):
+        clocks = (
+            mock.Mock(
+                side_effect=(NOW, NOW, NOW, RuntimeError("private clock"))
+            ),
+            mock.Mock(
+                side_effect=(
+                    NOW,
+                    NOW + timedelta(seconds=1),
+                    NOW + timedelta(seconds=2),
+                    NOW + timedelta(seconds=1),
+                )
+            ),
+        )
+        for clock in clocks:
+            with self.subTest(clock=clock):
+                result, callbacks = live(clock=clock)
+                self.assertEqual(result.status, adapter.BLOCKED)
+                self.assertEqual(result.api_calls, 0)
+                self.assertTrue(result.global_slot_released)
+                callbacks["transport"].assert_not_called()
+                callbacks["release_global_slot"].assert_called_once_with(KEY)
+                self.assertNotIn(
+                    "private clock", json.dumps(result.to_safe_dict())
+                )
+
+    def test_retry_expiry_blocks_second_transport_and_releases_slot(self):
+        expired = NOW + timedelta(minutes=6)
+        clock_values = (NOW, NOW, NOW, NOW, NOW, NOW, expired, expired)
+        transport = mock.Mock(
+            side_effect=(
+                adapter.BoundedTransportFailure("TRANSIENT"),
+                (200, payload()),
+            )
+        )
+        result, callbacks = live(
+            clock=mock.Mock(side_effect=clock_values),
+            transport=transport,
+        )
+        self.assertEqual(result.status, adapter.BLOCKED)
+        self.assertIsNone(result.receipt)
+        self.assertEqual((result.api_calls, transport.call_count), (1, 1))
+        self.assertTrue(result.global_slot_released)
+        callbacks["sleeper"].assert_called_once()
+        callbacks["release_global_slot"].assert_called_once_with(KEY)
+
+    def test_retry_expiry_release_failure_remains_fail_closed(self):
+        expired = NOW + timedelta(minutes=6)
+        result, callbacks = live(
+            clock=mock.Mock(
+                side_effect=(NOW, NOW, NOW, NOW, NOW, NOW, expired, expired)
+            ),
+            transport=mock.Mock(
+                side_effect=adapter.BoundedTransportFailure("TRANSIENT")
+            ),
+            release_global_slot=mock.Mock(return_value=False),
+        )
+        self.assertEqual(result.status, adapter.FAIL_CLOSED)
+        self.assertIsNone(result.receipt)
+        self.assertEqual(result.api_calls, 1)
+        self.assertTrue(result.global_slot_release_attempted)
+        self.assertFalse(result.global_slot_released)
+        callbacks["transport"].assert_called_once()
+        callbacks["release_global_slot"].assert_called_once_with(KEY)
 
     def test_success_claims_once_releases_global_slot_and_returns_receipt(self):
         result, callbacks = live()

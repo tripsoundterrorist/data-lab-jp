@@ -322,6 +322,7 @@ def run_bounded_verification(
     transport: Callable[[str], tuple[int, Mapping[str, Any]]] | None = None,
     claim_once: Callable[[str], bool] | None = None,
     claim_global_slot: Callable[[str], bool] | None = None,
+    pre_transport_guard: Callable[[datetime], bool] | None = None,
     clock: Callable[[], datetime] | None = None,
     sleeper: Callable[[int], None] | None = None,
 ) -> BoundedVerificationResult:
@@ -377,6 +378,7 @@ def run_bounded_verification(
                 transport,
                 claim_once,
                 claim_global_slot,
+                pre_transport_guard,
                 clock,
                 sleeper,
             )
@@ -422,6 +424,20 @@ def run_bounded_verification(
                     FAIL_CLOSED,
                     state,
                     reasons=("RETRY_CLOCK_REVERSED",),
+                )
+            try:
+                transport_allowed = pre_transport_guard(request_started_at) is True
+            except Exception:
+                return _result(
+                    FAIL_CLOSED,
+                    state,
+                    reasons=("PRE_TRANSPORT_GUARD_FAILED",),
+                )
+            if not transport_allowed:
+                return _result(
+                    BLOCKED,
+                    state,
+                    reasons=("PRE_TRANSPORT_APPROVAL_NOT_CURRENT",),
                 )
             if attempt > 0:
                 state.retry_performed = True
