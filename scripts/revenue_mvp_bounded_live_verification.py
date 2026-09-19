@@ -279,9 +279,16 @@ def _read_clock(clock: Callable[[], datetime]) -> datetime | None:
         value = clock()
     except Exception:
         return None
+    return _normalize_time(value)
+
+
+def _normalize_time(value: Any) -> datetime | None:
     if not isinstance(value, datetime) or value.tzinfo is None:
         return None
-    return value.astimezone(timezone.utc)
+    try:
+        return value.astimezone(timezone.utc)
+    except Exception:
+        return None
 
 
 def _receipt(
@@ -322,6 +329,7 @@ def run_bounded_verification(
     transport: Callable[[str], tuple[int, Mapping[str, Any]]] | None = None,
     claim_once: Callable[[str], bool] | None = None,
     claim_global_slot: Callable[[str], bool] | None = None,
+    pre_transport_guard: Callable[[datetime], datetime | None] | None = None,
     clock: Callable[[], datetime] | None = None,
     sleeper: Callable[[int], None] | None = None,
 ) -> BoundedVerificationResult:
@@ -377,6 +385,7 @@ def run_bounded_verification(
                 transport,
                 claim_once,
                 claim_global_slot,
+                pre_transport_guard,
                 clock,
                 sleeper,
             )
@@ -423,6 +432,33 @@ def run_bounded_verification(
                     state,
                     reasons=("RETRY_CLOCK_REVERSED",),
                 )
+            try:
+                guard_value = pre_transport_guard(request_started_at)
+            except Exception:
+                return _result(
+                    FAIL_CLOSED,
+                    state,
+                    reasons=("PRE_TRANSPORT_GUARD_FAILED",),
+                )
+            if guard_value is None or guard_value is False:
+                return _result(
+                    BLOCKED,
+                    state,
+                    reasons=("PRE_TRANSPORT_APPROVAL_NOT_CURRENT",),
+                )
+            guard_checked_at = _normalize_time(guard_value)
+            if guard_checked_at is None:
+                return _result(
+                    FAIL_CLOSED,
+                    state,
+                    reasons=("PRE_TRANSPORT_GUARD_TIME_INVALID",),
+                )
+            if guard_checked_at < request_started_at:
+                return _result(
+                    FAIL_CLOSED,
+                    state,
+                    reasons=("PRE_TRANSPORT_GUARD_CLOCK_REVERSED",),
+                )
             if attempt > 0:
                 state.retry_performed = True
             state.request_attempts += 1
@@ -451,6 +487,12 @@ def run_bounded_verification(
                 return _result(
                     FAIL_CLOSED, state, reasons=("OBSERVATION_CLOCK_REVERSED",)
                 )
+            if observed_at < guard_checked_at:
+                return _result(
+                    FAIL_CLOSED,
+                    state,
+                    reasons=("POST_GUARD_CLOCK_REVERSED",),
+                )
             if unexpected_transport_failure:
                 return _result(
                     FAIL_CLOSED, state, reasons=("LIVE_TRANSPORT_FAILED",)
@@ -476,7 +518,7 @@ def run_bounded_verification(
                 return _result(
                     FAIL_CLOSED, state, reasons=("EVALUATION_CLOCK_INVALID",)
                 )
-            if evaluated_at < observed_at:
+            if evaluated_at < observed_at or evaluated_at < guard_checked_at:
                 return _result(
                     FAIL_CLOSED, state, reasons=("EVALUATION_CLOCK_REVERSED",)
                 )

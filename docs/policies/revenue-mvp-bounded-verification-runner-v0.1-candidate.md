@@ -1,0 +1,45 @@
+# Revenue MVP Bounded Verification Runner v0.1 Candidate
+
+Status: inert/default-deny runner and preflight. LIVE remains disabled unless a
+future caller supplies every approved capability.
+
+The runner delegates product verification exclusively to the public
+`run_bounded_verification` adapter contract. It does not duplicate response,
+URL, identity, lifecycle, freshness, or receipt logic and does not call private
+adapter functions.
+
+`DRY_RUN` is the default. It calls no secret checker, claim, release, transport,
+sleep, storage, or write capability. LIVE preflight requires an explicit
+versioned approval with the exact scope, an opaque approval identity, the same
+idempotency key used by the run, a maximum 15-minute validity window, current
+evaluation time, `one_shot=true`, and explicit LIVE permission. Missing,
+expired, future, overlong, wrong-scope, or mismatched approval is blocked before
+the secret-name checker. The supplied `approval_evaluated_at` is not execution
+authority. The injected clock is read before secret confirmation, immediately
+after secret confirmation, and again by a required public adapter guard
+immediately before every transport attempt. Each check requires a current
+approval and monotonic time; invalid clocks, reversal, and approval expiry stop
+before the next transport. The guard returns its validated UTC timestamp to the
+adapter. That timestamp becomes the monotonic lower bound for the observation
+and evaluation clocks after transport, so a post-guard reversal creates no
+receipt and cannot enter a retry.
+
+The injected secret checker receives only the required names `DMM_API_ID` and
+`DMM_AFFILIATE_ID`. It must return exact boolean presence facts; secret values
+are neither requested nor accepted. One-time idempotency and atomic global
+concurrency claims are injected boundaries with no storage implementation in
+this candidate. A claimed global slot is released after every adapter path.
+Claim denial, callback exception, or release failure fails closed; release
+failure discards the receipt.
+This also applies after a retry wait: expiry prevents the retry transport, and
+an already-claimed global slot is still released by the runner.
+
+The runner result contains only bounded booleans, counts, status, and reason
+codes. It never serializes the approval identity, idempotency key, request URL,
+API/affiliate IDs, private content ID, affiliate URL, raw response, credential,
+or raw exception. `adapter_database_writes=0` and `runner_writes=0` describe only
+writes performed by these pure modules; injected claim implementations remain
+future reviewed capabilities.
+
+No network client, environment/secret reader, database/D1 binding, production
+write, deployment, scheduler, publication, Gate, or CTA activation is included.
