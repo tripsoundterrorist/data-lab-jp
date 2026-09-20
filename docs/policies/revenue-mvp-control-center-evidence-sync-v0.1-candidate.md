@@ -1,32 +1,46 @@
-# Revenue MVP Control Center Evidence Sync v0.1 Candidate
+# Revenue MVP Control Center Evidence Sync v0.2 Candidate
 
-This pure, read-only contract separates merged Revenue MVP evidence from facts
-that still require current operational proof. It does not replace or relax the
-existing Control Center checkpoint.
+This read-only contract separates evidence collection from pure evaluation. It
+does not replace or relax the existing Control Center checkpoint.
 
-The merged 2026-09-16 lifecycle policy is recognized only for the reduced
-surface. The reduced-surface mapping remains a review candidate; full and
-expanded surfaces still require official confirmation. Merged offline
-lifecycle filtering, artifact integration, launch rehearsal, lifecycle
-receipts, and the inert bounded runner are version-bound. Builder prefiltering
-and saved-receipt fail-closed behavior are tracked implementation evidence.
+## Reviewed baseline
 
-The current tracked checkout does not establish a current source DB SHA/public
-artifact binding, a fresh read-only production D1 observation, or manual
-reduced-surface Gate approval. The default synchronized result therefore stays
-`CONTROL_CENTER_EVIDENCE_SYNCED_BLOCKED` with three explicit blockers and
-selects source DB/public artifact revalidation as the next action. It does not
-reuse untracked official-response files as evidence.
-The blocked CLI result exits nonzero so automation cannot treat synchronization
-as readiness.
+The evaluator accepts only
+`revenue-mvp-control-center-reviewed-baseline-v0.1.json`. That manifest binds
+the reduced-surface review to a fixed `main` commit, expected contract
+versions, an allowlist of tracked paths, and canonical LF-normalized SHA-256
+digests. A semantic manifest digest is fixed independently in the evaluator.
+The baseline is not generated from the currently imported dependency constants.
 
-Even when separately supplied evidence satisfies every synchronization field,
-the strongest result is `CONTROL_CENTER_REDUCED_SURFACE_REVIEW_CANDIDATE`.
+Builder lifecycle prefiltering and saved lifecycle receipts each have their own
+implementation-and-test path bindings. Neither is represented by a fixed
+boolean assertion.
+
+## Collector and evaluator
+
+The collector reads only the allowlisted tracked paths and gathers their
+canonical hashes plus current contract versions. It does not infer operational
+facts. The pure evaluator compares that collected state with the reviewed
+baseline.
+
+Unknown versions, missing paths, unreadable files, hash mismatch, malformed or
+tampered manifests, and independent builder or saved-receipt binding mismatch
+all fail closed. `official_response_pending` becomes false only after every
+required reduced-surface baseline comparison succeeds. Full and expanded
+surfaces remain pending.
+
+The current tracked checkout still lacks current source DB/public artifact
+binding, fresh read-only production D1 reconfirmation, and manual reduced-
+surface Gate review. The normal result is therefore
+`CONTROL_CENTER_EVIDENCE_SYNCED_BLOCKED` with exactly those three operational
+blockers. If all three are independently confirmed, the strongest result is
+only `CONTROL_CENTER_REDUCED_SURFACE_REVIEW_CANDIDATE`.
+
 Publication, production activation, affiliate eligibility, and Gate mutation
-remain false and require separate reviews.
+remain false for every outcome. The blocked CLI result exits nonzero so
+automation cannot treat synchronization as readiness.
 
 The module performs no API call, network access, secret read, source DB read,
 filesystem write, D1 operation, deployment, scheduler action, publication,
-route activation, affiliate enablement, or Gate mutation. Missing, malformed,
-unknown-version, wrong-scope, or contradictory evidence fails closed with a
-specific blocker.
+route activation, affiliate enablement, or Gate mutation. It does not consume
+untracked official-response files.
