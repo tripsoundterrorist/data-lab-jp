@@ -29,6 +29,49 @@ VERSION = "0.1-candidate"
 READY = "SOURCE_ARTIFACT_REVALIDATION_READY"
 FAIL_CLOSED = "SOURCE_ARTIFACT_REVALIDATION_FAIL_CLOSED"
 SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+SQLITE_SIDECAR_SUFFIXES = ("-wal", "-shm", "-journal")
+SAFE_REASON_CODES = frozenset({
+    "ARTIFACT_DIGEST_INVALID",
+    "DATABASE_ACCESS_OR_SCHEMA_ERROR",
+    "DATABASE_CHANGED_DURING_PREFLIGHT",
+    "DATABASE_CHANGED_DURING_REVALIDATION",
+    "DATABASE_IDENTITY_MISMATCH",
+    "DATABASE_MISSING",
+    "DATABASE_UNAVAILABLE",
+    "EXPECTED_SHA256_REQUIRED",
+    "FILTERED_ARTIFACT_INVALID",
+    "FOREIGN_KEY_VIOLATIONS_PRESENT",
+    "INPUT_ARTIFACT_INVALID",
+    "INTEGRITY_CHECK_FAILED",
+    "LIFECYCLE_CANDIDATE_REQUIRED",
+    "LIFECYCLE_NOT_ELIGIBLE",
+    "LIFECYCLE_RECEIPTS_INVALID",
+    "LIFECYCLE_RECEIPT_MISSING",
+    "LIFECYCLE_UNCONFIRMED",
+    "NO_COLLECTION_RUNS",
+    "NO_ITEMS",
+    "NO_SNAPSHOTS",
+    "OBSERVATION_NOT_ELIGIBLE",
+    "OBSERVATION_RANGE_UNAVAILABLE",
+    "OFFLINE_ARTIFACT_FILTER_FAILED",
+    "OFFLINE_LIFECYCLE_FILTER_BLOCKED",
+    "PUBLICATION_REMAINS_CLOSED",
+    "READ_ONLY_ENFORCEMENT_FAILED",
+    "REDUCED_SURFACE_ARTIFACT_REVALIDATED",
+    "REDUCED_SURFACE_SEMANTICS_NOT_EVALUATED",
+    "REDUCED_SURFACE_SEMANTICS_UNCONFIRMED",
+    "REMOVED_FROM_ARTIFACT_AND_CTA",
+    "REQUIRED_SCHEMA_MISSING",
+    "REVALIDATION_INPUT_INVALID",
+    "SOURCE_ARTIFACT_REVALIDATION_ERROR",
+    "SOURCE_DATABASE_IDENTITY_VERIFIED",
+    "SOURCE_SORT_UNSUPPORTED",
+    "SQLITE_SIDECAR_PRESENT",
+    "UNSAFE_DATABASE_ENTRY",
+    "UNTRUSTED_REASON_CODE_REJECTED",
+    "WRITTEN_ARTIFACT_REVALIDATION_FAILED",
+    "ZERO_OR_INCONSISTENT_CANDIDATE_ITEMS",
+})
 
 
 @dataclass(frozen=True)
@@ -60,6 +103,21 @@ class SourceArtifactRevalidation:
         value = asdict(self)
         value["reason_codes"] = list(self.reason_codes)
         return value
+
+
+def _safe_reasons(values: tuple[Any, ...]) -> tuple[str, ...]:
+    accepted: set[str] = set()
+    rejected = False
+    for value in values:
+        if type(value) is str and value in SAFE_REASON_CODES:
+            accepted.add(value)
+        else:
+            rejected = True
+    if rejected:
+        accepted.add("UNTRUSTED_REASON_CODE_REJECTED")
+    if not accepted:
+        accepted.add("SOURCE_ARTIFACT_REVALIDATION_ERROR")
+    return tuple(sorted(accepted))
 
 
 def _result(
@@ -102,7 +160,7 @@ def _result(
         False,
         0,
         False,
-        tuple(sorted(set(reasons))),
+        _safe_reasons(reasons),
     )
 
 
@@ -291,6 +349,56 @@ def _read_output(path: Path) -> dict[str, bytes]:
     return files
 
 
+def _sqlite_sidecars_present(database_path: Path) -> bool:
+    try:
+        database = database_path.resolve()
+        return any(
+            Path(f"{database}{suffix}").exists()
+            for suffix in SQLITE_SIDECAR_SUFFIXES
+        )
+    except (OSError, RuntimeError):
+        return True
+
+
+def _database_identity_is_stable(
+    database_path: Path,
+    expected_sha256: str,
+) -> bool:
+    if _sqlite_sidecars_present(database_path):
+        return False
+    try:
+        result = db_handoff.preflight(database_path, expected_sha256)
+    except Exception:
+        return False
+    return result.status == db_handoff.READY and result.identity_verified is True
+
+
+def _failure_after_source_read(
+    database_path: Path,
+    expected_sha256: str,
+    *,
+    reasons: tuple[Any, ...],
+    **values: Any,
+) -> SourceArtifactRevalidation:
+    sidecar_present = _sqlite_sidecars_present(database_path)
+    identity_verified = _database_identity_is_stable(
+        database_path,
+        expected_sha256,
+    )
+    final_reasons = list(reasons)
+    if sidecar_present:
+        final_reasons.append("SQLITE_SIDECAR_PRESENT")
+    if not identity_verified:
+        final_reasons.append("DATABASE_CHANGED_DURING_REVALIDATION")
+    values.pop("database_identity_verified", None)
+    return _result(
+        FAIL_CLOSED,
+        reasons=tuple(final_reasons),
+        database_identity_verified=identity_verified,
+        **values,
+    )
+
+
 def run_revalidation(
     database_path: Path,
     expected_sha256: Any,
@@ -310,6 +418,7 @@ def run_revalidation(
 ) -> SourceArtifactRevalidation:
     """Revalidate locally without API, DB writes, publication, or Gate changes."""
 
+    source_read_started = False
     try:
         if (
             not isinstance(database_path, Path)
@@ -331,21 +440,38 @@ def run_revalidation(
         if output_directory is not None:
             _safe_output_target(output_directory)
 
-        before = db_handoff.preflight(database_path, expected_sha256)
-        if before.status != db_handoff.READY or not before.identity_verified:
+        if _sqlite_sidecars_present(database_path):
             return _result(
                 FAIL_CLOSED,
+                reasons=("SQLITE_SIDECAR_PRESENT",),
+                source_db_sha256=expected_sha256,
+            )
+
+        source_read_started = True
+        before = db_handoff.preflight(database_path, expected_sha256)
+        if before.status != db_handoff.READY or not before.identity_verified:
+            return _failure_after_source_read(
+                database_path,
+                expected_sha256,
                 reasons=tuple(before.reason_codes),
+                database_item_count=before.items_count,
+                source_db_sha256=expected_sha256,
+            )
+        if _sqlite_sidecars_present(database_path):
+            return _failure_after_source_read(
+                database_path,
+                expected_sha256,
+                reasons=("SQLITE_SIDECAR_PRESENT",),
                 database_item_count=before.items_count,
                 source_db_sha256=expected_sha256,
             )
 
         receipts = receipt_loader(database_path, as_of)
         if type(receipts) is not tuple:
-            return _result(
-                FAIL_CLOSED,
+            return _failure_after_source_read(
+                database_path,
+                expected_sha256,
                 reasons=("LIFECYCLE_RECEIPTS_INVALID",),
-                database_identity_verified=True,
                 database_item_count=before.items_count,
                 source_db_sha256=expected_sha256,
             )
@@ -357,10 +483,10 @@ def run_revalidation(
         )
         initial = validator.validate_artifacts(files)
         if initial.artifact_validation != validator.PASS:
-            return _result(
-                FAIL_CLOSED,
-                reasons=tuple(initial.reason_codes) + ("INPUT_ARTIFACT_INVALID",),
-                database_identity_verified=True,
+            return _failure_after_source_read(
+                database_path,
+                expected_sha256,
+                reasons=("INPUT_ARTIFACT_INVALID",),
                 database_item_count=before.items_count,
                 lifecycle_receipt_count=len(receipts),
                 input_artifact_item_count=initial.item_count,
@@ -374,10 +500,10 @@ def run_revalidation(
             item_evidence,
         )
         if filtered.status != integration.COMPLETE:
-            return _result(
-                FAIL_CLOSED,
-                reasons=evidence_reasons + tuple(filtered.reason_codes),
-                database_identity_verified=True,
+            return _failure_after_source_read(
+                database_path,
+                expected_sha256,
+                reasons=evidence_reasons + ("OFFLINE_ARTIFACT_FILTER_FAILED",),
                 database_item_count=before.items_count,
                 lifecycle_receipt_count=len(receipts),
                 input_artifact_item_count=initial.item_count,
@@ -394,7 +520,6 @@ def run_revalidation(
             for evidence in item_evidence.values()
         )
         common = {
-            "database_identity_verified": True,
             "database_item_count": before.items_count,
             "lifecycle_receipt_count": len(receipts),
             "lifecycle_candidate_count": lifecycle_candidates,
@@ -405,10 +530,10 @@ def run_revalidation(
             "source_db_sha256": expected_sha256,
         }
         if final.artifact_validation != validator.PASS:
-            return _result(
-                FAIL_CLOSED,
-                reasons=evidence_reasons + tuple(final.reason_codes)
-                + ("FILTERED_ARTIFACT_INVALID",),
+            return _failure_after_source_read(
+                database_path,
+                expected_sha256,
+                reasons=evidence_reasons + ("FILTERED_ARTIFACT_INVALID",),
                 **common,
             )
         if (
@@ -425,24 +550,18 @@ def run_revalidation(
                         "REDUCED_SURFACE_SEMANTICS_NOT_EVALUATED",
                     )
                 )
-            return _result(
-                FAIL_CLOSED,
+            return _failure_after_source_read(
+                database_path,
+                expected_sha256,
                 reasons=tuple(zero_reasons),
                 **common,
             )
         if evidence_reasons:
-            return _result(
-                FAIL_CLOSED,
+            return _failure_after_source_read(
+                database_path,
+                expected_sha256,
                 reasons=evidence_reasons,
                 **common,
-            )
-
-        after = db_handoff.preflight(database_path, expected_sha256)
-        if after.status != db_handoff.READY or not after.identity_verified:
-            return _result(
-                FAIL_CLOSED,
-                reasons=("DATABASE_CHANGED_DURING_REVALIDATION",),
-                **{**common, "database_identity_verified": False},
             )
 
         manifest = json.loads(filtered.files["manifest.json"].decode("utf-8"))
@@ -453,8 +572,9 @@ def run_revalidation(
             or not isinstance(detail_sha256, str)
             or SHA256_RE.fullmatch(detail_sha256) is None
         ):
-            return _result(
-                FAIL_CLOSED,
+            return _failure_after_source_read(
+                database_path,
+                expected_sha256,
                 reasons=("ARTIFACT_DIGEST_INVALID",),
                 **common,
             )
@@ -468,12 +588,23 @@ def run_revalidation(
                 disk.artifact_validation != validator.PASS
                 or _snapshot_sha256(disk_files) != snapshot_sha256
             ):
-                return _result(
-                    FAIL_CLOSED,
+                return _failure_after_source_read(
+                    database_path,
+                    expected_sha256,
                     reasons=("WRITTEN_ARTIFACT_REVALIDATION_FAILED",),
                     **common,
                 )
             written = True
+        if not _database_identity_is_stable(database_path, expected_sha256):
+            changed_reasons = ["DATABASE_CHANGED_DURING_REVALIDATION"]
+            if _sqlite_sidecars_present(database_path):
+                changed_reasons.append("SQLITE_SIDECAR_PRESENT")
+            return _result(
+                FAIL_CLOSED,
+                reasons=tuple(changed_reasons),
+                database_identity_verified=False,
+                **common,
+            )
         return _result(
             READY,
             reasons=(
@@ -485,9 +616,22 @@ def run_revalidation(
             detail_aggregate_sha256=detail_sha256,
             artifact_snapshot_sha256=snapshot_sha256,
             output_written=written,
+            database_identity_verified=True,
             **common,
         )
     except Exception:
+        if (
+            source_read_started
+            and isinstance(database_path, Path)
+            and isinstance(expected_sha256, str)
+            and SHA256_RE.fullmatch(expected_sha256)
+        ):
+            return _failure_after_source_read(
+                database_path,
+                expected_sha256,
+                reasons=("SOURCE_ARTIFACT_REVALIDATION_ERROR",),
+                source_db_sha256=expected_sha256,
+            )
         return _result(
             FAIL_CLOSED,
             reasons=("SOURCE_ARTIFACT_REVALIDATION_ERROR",),

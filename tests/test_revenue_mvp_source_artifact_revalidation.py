@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
+import sqlite3
 from types import SimpleNamespace
 import sys
 import tempfile
@@ -340,6 +342,71 @@ class SourceArtifactRevalidationTests(unittest.TestCase):
         self.assertFalse(result.database_identity_verified)
         self.assertIn("DATABASE_CHANGED_DURING_REVALIDATION", result.reason_codes)
 
+    def test_early_failure_still_runs_final_identity_check(self):
+        with mock.patch.object(
+            revalidation.db_handoff,
+            "preflight",
+            side_effect=(handoff(), handoff(False)),
+        ) as preflight:
+            result = revalidation.run_revalidation(
+                Path("source.db"),
+                EXPECTED_SHA256,
+                as_of=STAMP,
+                generated_at=STAMP,
+                receipt_loader=lambda *_args: [],
+            )
+        self.assertEqual(preflight.call_count, 2)
+        self.assertEqual(result.status, revalidation.FAIL_CLOSED)
+        self.assertFalse(result.database_identity_verified)
+        self.assertIn("LIFECYCLE_RECEIPTS_INVALID", result.reason_codes)
+        self.assertIn("DATABASE_CHANGED_DURING_REVALIDATION", result.reason_codes)
+
+    def test_sqlite_wal_update_cannot_preserve_ready_identity(self):
+        connections = []
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "source.db"
+            connection = sqlite3.connect(database)
+            connection.execute("CREATE TABLE state(value INTEGER NOT NULL)")
+            connection.execute("INSERT INTO state VALUES (1)")
+            connection.commit()
+            connection.close()
+            expected = hashlib.sha256(database.read_bytes()).hexdigest()
+
+            def mutate_in_wal(_database, _as_of):
+                writer = sqlite3.connect(database)
+                self.assertEqual(
+                    writer.execute("PRAGMA journal_mode=WAL").fetchone()[0],
+                    "wal",
+                )
+                writer.execute("UPDATE state SET value = 2")
+                writer.commit()
+                connections.append(writer)
+                self.assertTrue(Path(f"{database}-wal").is_file())
+                return []
+
+            with mock.patch.object(
+                revalidation.db_handoff,
+                "preflight",
+                return_value=handoff(),
+            ):
+                result = revalidation.run_revalidation(
+                    database,
+                    expected,
+                    as_of=STAMP,
+                    generated_at=STAMP,
+                    receipt_loader=mutate_in_wal,
+                )
+            observed = connections[0].execute(
+                "SELECT value FROM state"
+            ).fetchone()[0]
+            for writer in connections:
+                writer.close()
+        self.assertEqual(observed, 2)
+        self.assertEqual(result.status, revalidation.FAIL_CLOSED)
+        self.assertFalse(result.database_identity_verified)
+        self.assertIn("SQLITE_SIDECAR_PRESENT", result.reason_codes)
+        self.assertIn("DATABASE_CHANGED_DURING_REVALIDATION", result.reason_codes)
+
     def test_invalid_hash_and_timestamps_fail_before_preflight(self):
         preflight = mock.Mock()
         with mock.patch.object(revalidation.db_handoff, "preflight", preflight):
@@ -387,6 +454,40 @@ class SourceArtifactRevalidationTests(unittest.TestCase):
             "https://",
         ):
             self.assertNotIn(forbidden, rendered)
+
+    def test_untrusted_reason_is_replaced_without_marker_leak(self):
+        marker = (
+            "https://invalid.example/?"
+            + "affiliate"
+            + "_id"
+            + "=secret-C:\\private"
+        )
+
+        def malicious_reason(files, loaded_receipts):
+            values, _ = valid_evidence(files, loaded_receipts)
+            return values, (marker,)
+
+        with mock.patch.object(
+            revalidation.db_handoff,
+            "preflight",
+            side_effect=(handoff(), handoff()),
+        ):
+            result = revalidation.run_revalidation(
+                Path("source.db"),
+                EXPECTED_SHA256,
+                as_of=STAMP,
+                generated_at=STAMP,
+                receipt_loader=receipts,
+                artifact_builder=build,
+                evidence_builder=malicious_reason,
+            )
+        rendered = json.dumps(result.to_dict())
+        self.assertEqual(result.status, revalidation.FAIL_CLOSED)
+        self.assertIn("UNTRUSTED_REASON_CODE_REJECTED", result.reason_codes)
+        self.assertNotIn("invalid.example", rendered)
+        self.assertNotIn("affiliate_id", rendered)
+        self.assertNotIn("secret", rendered.casefold())
+        self.assertNotIn("private", rendered.casefold())
 
 
 if __name__ == "__main__":
