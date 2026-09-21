@@ -195,3 +195,15 @@ CREATE TABLE item_lifecycle_observations (
 
 CREATE INDEX idx_item_lifecycle_observations_observed_at
   ON item_lifecycle_observations (observed_at DESC);
+
+CREATE TABLE item_snapshot_titles (
+  -- Immutable sanitized title observed with this exact snapshot. It contains no
+  -- identifier, URL, raw response, credential, or affiliate value.
+  snapshot_id INTEGER PRIMARY KEY,
+  contract_version TEXT NOT NULL CHECK (contract_version = '0.1'),
+  title TEXT NOT NULL CHECK (length(title) BETWEEN 1 AND 512),
+  observed_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (snapshot_id) REFERENCES item_snapshots (id) ON DELETE CASCADE,
+  CHECK (created_at >= observed_at)
+) STRICT;
