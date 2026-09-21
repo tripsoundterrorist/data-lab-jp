@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import publication_gate  # noqa: E402
 import revenue_mvp_official_lifecycle_policy as lifecycle  # noqa: E402
 import revenue_mvp_offline_lifecycle_filter as adapter  # noqa: E402
+import revenue_mvp_offline_review_candidate_eligibility as review_adapter  # noqa: E402
 from product_verification import Observation, VerificationObservation  # noqa: E402
 
 
@@ -74,6 +75,11 @@ def apply(value, gate_value, *, fresh=True, order=True, cta=CTA, **changes):
     )
 
 
+def review(value, gate_value, *, fresh=True, order=False, **changes):
+    _ = order, changes
+    return review_adapter.evaluate(value, gate_value, freshness_confirmed=fresh)
+
+
 class OfflineLifecycleFilterTests(unittest.TestCase):
     def assert_not_public(self, result):
         self.assertFalse(result.production_cta_allowed)
@@ -90,6 +96,18 @@ class OfflineLifecycleFilterTests(unittest.TestCase):
         self.assertFalse(result.affiliate_cta_candidate)
         self.assertIn("CANDIDATE_ALONE_INSUFFICIENT", result.reason_codes)
         self.assert_not_public(result)
+
+    def test_closed_gate_can_identify_review_only_candidate_without_artifact_or_cta(self):
+        actual = apply(decision(), gate(False))
+        candidate = review(decision(), gate(False))
+        self.assertEqual(actual.status, adapter.EXCLUDED)
+        self.assertEqual(candidate.status, review_adapter.REVIEW_CANDIDATE)
+        self.assertTrue(candidate.eligible)
+        self.assertFalse(candidate.cta_allowed)
+        self.assertFalse(candidate.api_order_label_allowed)
+        self.assertFalse(candidate.publication_allowed)
+        self.assertFalse(candidate.affiliate_eligibility_allowed)
+        self.assertFalse(candidate.gate_mutation_allowed)
 
     def test_unavailable_missing_link_error_and_rate_limit_are_excluded(self):
         cases = (

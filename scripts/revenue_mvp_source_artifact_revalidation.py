@@ -21,6 +21,7 @@ import revenue_mvp_db_handoff_preflight as db_handoff
 import revenue_mvp_official_lifecycle_policy as lifecycle_policy
 import revenue_mvp_offline_artifact_integration as integration
 import revenue_mvp_offline_lifecycle_filter as lifecycle_filter
+import revenue_mvp_offline_review_candidate_eligibility as review_eligibility
 import revenue_mvp_reduced_surface_semantics as reduced_surface
 
 
@@ -243,7 +244,7 @@ def _decode_item_documents(files: Mapping[str, bytes]) -> tuple[list[Any], dict[
 def _default_item_evidence(
     files: Mapping[str, bytes],
     receipts: tuple[Any, ...],
-) -> tuple[dict[str, integration.OfflineArtifactItemEvidence], tuple[str, ...]]:
+) -> tuple[dict[str, integration.OfflineArtifactItemEvidence], tuple[str, ...], int]:
     """Use only present evidence; never infer unavailable sort/disclosure facts."""
 
     items, details = _decode_item_documents(files)
@@ -255,6 +256,7 @@ def _default_item_evidence(
     gate = publication_gate.evaluate_publication_gate(files)
     evidence: dict[str, integration.OfflineArtifactItemEvidence] = {}
     reasons: set[str] = set()
+    review_candidate_count = 0
     for item in items:
         public_id = item["public_id"]
         receipt = receipt_by_id.get(public_id)
@@ -275,6 +277,11 @@ def _default_item_evidence(
             detail_field_names=tuple(detail),
             cta_evidence=None,
         )
+        review = review_eligibility.evaluate(
+            decision, gate, freshness_confirmed=receipt.freshness_confirmed
+        )
+        if review.eligible:
+            review_candidate_count += 1
         surface = reduced_surface.review_reduced_surface(
             contract_version=reduced_surface.CONTRACT_VERSION,
             lifecycle_decision=decision,
@@ -297,7 +304,10 @@ def _default_item_evidence(
         if decision.state is not lifecycle_policy.EligibilityState.CANDIDATE:
             reasons.add("LIFECYCLE_UNCONFIRMED")
             reasons.update(decision.reason_codes)
-        if lifecycle.status != lifecycle_filter.INCLUDE_CANDIDATE:
+        if (
+            lifecycle.status != lifecycle_filter.INCLUDE_CANDIDATE
+            and not review.eligible
+        ):
             reasons.add("OFFLINE_LIFECYCLE_FILTER_BLOCKED")
             reasons.update(lifecycle.reason_codes)
         if surface.status != reduced_surface.REVIEW_CANDIDATE:
@@ -307,7 +317,7 @@ def _default_item_evidence(
             lifecycle,
             surface,
         )
-    return evidence, tuple(sorted(reasons))
+    return evidence, tuple(sorted(reasons)), review_candidate_count
 
 
 def _snapshot_sha256(files: Mapping[str, bytes]) -> str:
@@ -526,7 +536,11 @@ def run_revalidation(
                 source_db_sha256=expected_sha256,
             )
 
-        item_evidence, evidence_reasons = evidence_builder(files, receipts)
+        built_evidence = evidence_builder(files, receipts)
+        if not isinstance(built_evidence, tuple) or len(built_evidence) not in {2, 3}:
+            return _failure_after_source_read(database_path, expected_sha256, reasons=("REVALIDATION_INPUT_INVALID",))
+        item_evidence, evidence_reasons = built_evidence[:2]
+        review_candidate_count = built_evidence[2] if len(built_evidence) == 3 else 0
         filtered = integration.filter_offline_publication_artifacts(
             files,
             item_evidence,
@@ -543,10 +557,7 @@ def run_revalidation(
                 source_db_sha256=expected_sha256,
             )
         final = validator.validate_artifacts(filtered.files)
-        lifecycle_candidates = sum(
-            evidence.lifecycle.status == lifecycle_filter.INCLUDE_CANDIDATE
-            for evidence in item_evidence.values()
-        )
+        lifecycle_candidates = review_candidate_count
         surface_candidates = sum(
             evidence.reduced_surface.status == reduced_surface.REVIEW_CANDIDATE
             for evidence in item_evidence.values()
