@@ -1,0 +1,75 @@
+{
+  "evidence_type": "UNORDERED_REDUCED_SURFACE_NEW_EXPLICIT_ACTIVATION_REQUEST",
+  "evidence_version": "0.2",
+  "decision": "APPROVE_NEW_EXPLICIT_ACTIVATION_REQUEST",
+  "decision_boundary": "This approves presenting one replacement exact activation request only. It does not change any Gate, route, artifact, deployment, CTA, affiliate eligibility, or database state.",
+  "supersession": {
+    "invalidated_activation_request_pr": 267,
+    "invalidated_artifact_sha256": "081d72a82ac098a4325374df27c90e0c6ee314bfd14f7e7476149c31777008c4",
+    "invalidating_regression_pr": 268,
+    "invalidating_regression_pr_state": "CLOSED_UNMERGED",
+    "invalidating_regression_validation": "FAILURE",
+    "reason": "the old artifact and approval are not reusable after regression failure"
+  },
+  "source": {
+    "origin_main_commit": "e1153eccfa6b31ec9437b0d1391411fbff10c932",
+    "renderer_fix_pr": 269,
+    "renderer_version": "0.2-candidate",
+    "source_packet_sha256": "9d67bd58bcf3b2305be2e36bfb20d1ed6ef526973216ba80d1ff2536c23637fd",
+    "rendered_artifact_sha256": "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d",
+    "candidate_count": 100,
+    "target_route": "/items/",
+    "replacement_source": "items/index.html",
+    "replacement_source_sha256": "07dd2ba6932befd82a69a503a94ed4a8232326997e076587c26c54de2c0de027",
+    "preflight_receipt_status": "READY_FOR_EXPLICIT_ACTIVATION_REVIEW"
+  },
+  "verified_boundary": {
+    "rendered_artifact_validation": "PASS",
+    "route_configuration_review": "EXISTING_STATIC_ROUTE_CONFIRMED",
+    "noindex_nofollow": true,
+    "unreviewed_external_or_active_markup_absent": true,
+    "allowed_existing_shell_assets_only": true,
+    "items_js_absent": true,
+    "product_and_affiliate_links_absent": true,
+    "exact_transparency_notice": true,
+    "global_publication_gate": "unchanged"
+  },
+  "user_must_explicitly_approve": {
+    "exact_source_packet_sha256": "9d67bd58bcf3b2305be2e36bfb20d1ed6ef526973216ba80d1ff2536c23637fd",
+    "exact_rendered_artifact_sha256": "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d",
+    "exact_candidate_count": 100,
+    "target_route": "/items/",
+    "replacement_source_and_sha256": "items/index.html @ 07dd2ba6932befd82a69a503a94ed4a8232326997e076587c26c54de2c0de027",
+    "proposed_scoped_gate_transition": "CLOSED -> APPROVED_FOR_ONE_TIME_EXACT_ARTIFACT_ACTIVATION",
+    "operation": "atomically replace the reviewed route artifact only if every replacement binding still matches immediately before execution",
+    "excluded_operations": [
+      "global Publication Gate change",
+      "CTA or affiliate eligibility enablement",
+      "D1 write or collector execution",
+      "scope expansion"
+    ]
+  },
+  "rollback": {
+    "operation": "atomically restore items/index.html with the recorded replacement source hash and return the scoped Gate to CLOSED",
+    "global_publication_gate": "unchanged",
+    "required_if_any_binding_fails": true
+  },
+  "expiry_conditions": [
+    "any source packet, artifact, count, route, replacement-source, renderer-version, or preflight binding differs",
+    "the source packet no longer passes freshness and exact-scope validation immediately before execution",
+    "the receipt is not regenerated as READY_FOR_EXPLICIT_ACTIVATION_REVIEW for these exact new bindings",
+    "the static route configuration or approved policy changes",
+    "any CTA, affiliate value, identifier, product link, ordering claim, or unreviewed active markup is introduced"
+  ],
+  "activation": {
+    "publication_allowed": false,
+    "production_activation_allowed": false,
+    "affiliate_eligibility_allowed": false,
+    "gate_mutation_allowed": false,
+    "cta_allowed": false,
+    "public_data_deployment_allowed": false
+  },
+  "artifact_committed": false,
+  "packet_contents_committed": false,
+  "product_titles_committed": false
+}
