@@ -47,7 +47,8 @@ class CandidateTests(unittest.TestCase):
         value = packet(); value["candidates"][0]["title"] = '<script>alert(1)</script>'
         rendered, _ = self.render(value)
         self.assertNotIn(b"<script>", rendered)
-        self.assertNotIn(b"href=", rendered)
+        self.assertNotIn(b"https://example", rendered)
+        self.assertNotIn(b"items.js", rendered)
 
     def test_fail_closed_for_extra_field_activation_stale_or_price_mismatch(self):
         mutations = []

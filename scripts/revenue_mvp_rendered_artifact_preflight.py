@@ -11,8 +11,8 @@ import revenue_mvp_unordered_surface_review as contract
 
 
 VERSION = "0.1-candidate"
-ALLOWED_TAGS = frozenset({"html", "head", "meta", "title", "body", "main", "h1", "article", "h2", "p", "time"})
-FORBIDDEN_ATTRIBUTES = frozenset({"href", "src", "srcset", "action", "style", "onclick"})
+ALLOWED_TAGS = frozenset({"html", "head", "meta", "title", "body", "main", "h1", "article", "h2", "p", "time", "link", "script", "a", "header", "footer", "nav", "section"})
+FORBIDDEN_ATTRIBUTES = frozenset({"srcset", "action", "style", "onclick"})
 
 
 class ValidationFailure(ValueError):
@@ -34,7 +34,7 @@ class _Inspector(HTMLParser):
             raise ValidationFailure("EXTERNAL_OR_ACTIVE_ATTRIBUTE")
         allowed = {
             "html": {"lang"}, "meta": {"charset", "name", "content"},
-            "article": {"class"}, "p": {"class"},
+            "article": {"class"}, "p": {"class", "id", "role", "aria-live"}, "section": {"class"}, "header": {"class"}, "footer": {"class"}, "a": {"class", "href"}, "main": {"id"}, "nav": {"aria-label"}, "link": {"rel", "href"}, "script": {"src", "defer"},
         }.get(tag, set())
         if not set(values) <= allowed:
             raise ValidationFailure("ATTRIBUTE_NOT_ALLOWED")
@@ -91,6 +91,11 @@ def validate_and_preflight(
     inspector = _Inspector()
     inspector.feed(decoded)
     inspector.close()
+    allowed_references = {"items.css", "/analytics-consent.css", "/analytics-consent.js", "#main-content", "/about", "/disclosure", "/privacy", "/terms", "/contact", "https://datalabx.jp/items/"}
+    for tag, attrs in inspector.attrs:
+        reference = attrs.get("href", attrs.get("src"))
+        if reference is not None and reference not in allowed_references:
+            raise ValidationFailure("EXTERNAL_OR_UNREVIEWED_REFERENCE")
     if inspector.tags.count("article") != expected_count:
         raise ValidationFailure("CANDIDATE_COUNT_MISMATCH")
     if inspector.tags.count("h2") != expected_count or inspector.tags.count("time") != expected_count:
@@ -100,6 +105,10 @@ def validate_and_preflight(
         raise ValidationFailure("ROBOTS_DIRECTIVE_INVALID")
     if inspector.text.count(contract.TRANSPARENCY_NOTICE) != 1:
         raise ValidationFailure("TRANSPARENCY_NOTICE_INVALID")
+    required = {"/analytics-consent.css", "/analytics-consent.js", "/about", "/disclosure", "/privacy", "/terms", "/contact", "#main-content", "https://datalabx.jp/items/"}
+    links = {attrs.get("href", attrs.get("src")) for _tag, attrs in inspector.attrs}
+    if not required <= links or "items.js" in decoded or 'id="result-count" role="status" aria-live="polite"' not in decoded or 'id="page-status" aria-live="polite"' not in decoded:
+        raise ValidationFailure("ACCESSIBILITY_OR_CONSENT_CONTRACT_INVALID")
     source = repo_root.resolve() / "items" / "index.html"
     if not source.is_file():
         raise ValidationFailure("TARGET_ROUTE_SOURCE_MISSING")

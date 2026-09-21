@@ -19,7 +19,7 @@ import revenue_mvp_unordered_surface_review as contract
 
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1-candidate"
+VERSION = "0.2-candidate"
 PACKET_VERSION = "0.1-candidate"
 MAX_AGE = timedelta(hours=24)
 TOP_LEVEL_FIELDS = frozenset({
@@ -128,9 +128,17 @@ def render(packet_bytes: bytes, *, evaluated_at: datetime, target_route: str) ->
     html = (
         '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
         '<meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1">'
-        '<title>DATA LAB 公開候補</title></head><body><main><h1>確認時点の商品情報</h1>'
-        + ''.join(cards) + '<p class="notice">' + escape(contract.TRANSPARENCY_NOTICE)
-        + '</p></main></body></html>\n'
+        '<link rel="canonical" href="https://datalabx.jp/items/"><link rel="stylesheet" href="items.css">'
+        '<link rel="stylesheet" href="/analytics-consent.css"><script src="/analytics-consent.js" defer></script>'
+        '<title>確認時点の商品情報 | DATA LAB</title></head><body><a class="skip-link" href="#main-content">本文へ移動</a>'
+        '<header class="topbar"><h1>確認時点の商品情報</h1></header><main id="main-content">'
+        '<p id="result-count" role="status" aria-live="polite">' + str(len(items)) + '件</p>'
+        '<p id="page-status" aria-live="polite">1 / 1</p><section class="item-grid">'
+        + ''.join(cards) + '</section><p class="notice">' + escape(contract.TRANSPARENCY_NOTICE)
+        + '</p></main><footer class="site-footer"><nav aria-label="サイト情報">'
+        '<a href="/about">DATA LABについて</a><a href="/disclosure">広告・データ表示方針</a>'
+        '<a href="/privacy">プライバシー</a><a href="/terms">利用規約</a><a href="/contact">お問い合わせ</a>'
+        '</nav></footer></body></html>\n'
     ).encode("utf-8")
     packet_hash = hashlib.sha256(packet_bytes).hexdigest()
     artifact_hash = hashlib.sha256(html).hexdigest()
