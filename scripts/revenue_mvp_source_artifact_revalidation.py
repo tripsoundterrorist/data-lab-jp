@@ -285,7 +285,11 @@ def _default_item_evidence(
             timestamp_label=reduced_surface.TIMESTAMP_LABEL,
             public_semantic_fields=(),
             public_claim_codes=(),
-            affiliate_url_validated=False,
+            # This is a saved, sanitized observation fact only. It does not
+            # request a CTA or disclose/order a public surface.
+            affiliate_url_validated=(
+                receipt.observation.affiliate_link_observed is True
+            ),
             cta_requested=False,
             disclosure_visible=False,
             disclosure_proximate=False,

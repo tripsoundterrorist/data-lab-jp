@@ -21,6 +21,7 @@ from tests.test_revenue_mvp_offline_artifact_integration import (  # noqa: E402
     PUBLIC_ID,
     evidence,
     fixture,
+    gate,
 )
 
 
@@ -348,6 +349,50 @@ class SourceArtifactRevalidationTests(unittest.TestCase):
         self.assertIn("OBSERVATION_NOT_ELIGIBLE", reasons)
         self.assertIn("LIFECYCLE_NOT_ELIGIBLE", reasons)
         self.assertIn("SOURCE_SORT_UNSUPPORTED", reasons)
+
+    def test_saved_visible_affiliate_receipt_is_lifecycle_only_candidate(self):
+        receipt = LifecycleReceipt(
+            "0.1",
+            PUBLIC_ID,
+            VerificationObservation(
+                Observation.API_ITEM_VISIBLE,
+                STAMP,
+                True,
+                True,
+                200,
+                (
+                    "AFFILIATE_URL_VALIDATED",
+                    "COLLECTION_ITEM_IDENTITY_MATCH_OBSERVED",
+                ),
+            ),
+            InventorySignal.UNKNOWN,
+            True,
+            STAMP,
+            86400,
+        )
+        with mock.patch.object(
+            revalidation.publication_gate,
+            "evaluate_publication_gate",
+            return_value=gate(),
+        ):
+            values, reasons = revalidation._default_item_evidence(
+                fixture(),
+                (receipt,),
+            )
+        value = values[PUBLIC_ID]
+        self.assertEqual(
+            value.lifecycle.status,
+            revalidation.lifecycle_filter.INCLUDE_CANDIDATE,
+        )
+        self.assertFalse(value.lifecycle.affiliate_cta_candidate)
+        self.assertFalse(value.lifecycle.api_order_label_allowed)
+        self.assertEqual(
+            value.reduced_surface.status,
+            revalidation.reduced_surface.INVALID_INPUT,
+        )
+        self.assertIn("REDUCED_SURFACE_SEMANTICS_UNCONFIRMED", reasons)
+        self.assertNotIn("LIFECYCLE_UNCONFIRMED", reasons)
+        self.assertNotIn("OFFLINE_LIFECYCLE_FILTER_BLOCKED", reasons)
 
     def test_database_change_after_filtering_fails_closed(self):
         with mock.patch.object(
