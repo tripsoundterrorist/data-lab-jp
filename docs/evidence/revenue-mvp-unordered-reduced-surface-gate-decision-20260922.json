@@ -1,0 +1,102 @@
+{
+  "evidence_type": "UNORDERED_REDUCED_SURFACE_PUBLICATION_GATE_DECISION",
+  "evidence_version": "0.1",
+  "decision": "BLOCK",
+  "source": {
+    "origin_main_commit": "b9cca0a2fbf2caccbe5d64d82f01350199b9ddd0",
+    "contract_pr": 259,
+    "packet_builder_pr": 261,
+    "manual_review_evidence_pr": 262,
+    "packet_sha256": "9d67bd58bcf3b2305be2e36bfb20d1ed6ef526973216ba80d1ff2536c23637fd",
+    "candidate_count": 100,
+    "contract_version": "0.1"
+  },
+  "exact_scope": {
+    "allowed_fields": [
+      "title",
+      "api_observed_at",
+      "transparency_notice",
+      "current_price",
+      "price_observed_at"
+    ],
+    "price_rule": "current_price and price_observed_at are present together and their timestamps equal",
+    "transparency_notice_rule": "exact approved text only",
+    "serialization_rule": "unordered serialization is not a public order claim"
+  },
+  "excluded_scope": [
+    "rank_order_offset_source_sort_or_review",
+    "history_or_price_history",
+    "availability_inventory_or_update_claim",
+    "content_or_item_identifier",
+    "url_or_affiliate_value",
+    "affiliate_cta"
+  ],
+  "required_gate_assessment": {
+    "RIGHTS_GATE": {
+      "status": "PASS_FOR_EXACT_SCOPE",
+      "basis": "title and price have direct-support display decisions; transparency notice is a local required disclosure"
+    },
+    "LIFECYCLE_GATE": {
+      "status": "PASS_FOR_EXACT_SCOPE",
+      "basis": "confirmed lifecycle policy plus current sanitized candidate evidence; this is not publication permission"
+    },
+    "SEMANTICS_GATE": {
+      "status": "PASS_FOR_EXACT_SCOPE",
+      "basis": "only timestamped unordered facts are considered; no ranking, order, offset, update, or history meaning is asserted"
+    },
+    "DATA_POLICY_GATE": {
+      "status": "PASS_FOR_EXACT_SCOPE",
+      "basis": "packet schema is allowlisted and excludes identifiers, URLs, affiliate values, and prohibited claims"
+    },
+    "ARTIFACT_MANUAL_REVIEW_GATE": {
+      "status": "PASS_FOR_EXACT_SCOPE",
+      "basis": "sanitized packet review evidence records 100 valid candidates, exact notice, timestamp pairing, and closed activation flags"
+    },
+    "PRODUCTION_READINESS_GATE": {
+      "status": "BLOCK",
+      "basis": "no separately reviewed public renderer, artifact validation, production build, deployment preflight, or explicit activation approval exists"
+    }
+  },
+  "unresolved_official_topics": {
+    "not_required_by_exact_scope": [
+      "rank_review_offset_and_source_sort_public_semantics",
+      "provider_update_or_requery_behavior",
+      "history_retention_or_public_history",
+      "availability_or_sale_end_meaning"
+    ],
+    "still_block_expanded_scope": true,
+    "new_official_query_required_before_expansion": true
+  },
+  "activation": {
+    "publication_allowed": false,
+    "production_activation_allowed": false,
+    "affiliate_eligibility_allowed": false,
+    "gate_mutation_allowed": false,
+    "cta_allowed": false
+  },
+  "minimum_future_gate_mutation_diff": [
+    "add a dedicated exact-scope artifact validator that rejects any field, claim, control, or route behavior outside this evidence",
+    "record separate passing artifact validation, production build, and deployment preflight evidence without changing the existing global Publication Gate",
+    "make a separately reviewed atomic scoped-gate change only after explicit user approval names the exact artifact hash and production target"
+  ],
+  "rollback": {
+    "current_state": "no Gate value has changed",
+    "if_future_scoped_gate_is_approved": "atomically restore the scoped gate to CLOSED and withdraw the exact artifact and route together",
+    "global_publication_gate": "unchanged"
+  },
+  "expiry_conditions": [
+    "packet hash or contract version changes",
+    "candidate data is older than its allowed freshness window",
+    "any allowed field loses same-observation provenance",
+    "any excluded field, claim, CTA, ordering implication, or activation is introduced",
+    "official policy or support response changes"
+  ],
+  "explicit_user_approval_required_for": [
+    "the exact production artifact and target route",
+    "the scoped gate value change and its rollback owner",
+    "production build and deployment preflight execution",
+    "any expansion beyond the exact scope"
+  ],
+  "packet_contents_committed": false,
+  "product_titles_committed": false
+}
