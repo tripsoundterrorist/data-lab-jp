@@ -1,0 +1,57 @@
+{
+  "evidence_type": "SANITIZED_UNORDERED_MANUAL_REVIEW_PACKET",
+  "evidence_version": "0.1",
+  "decision": "MANUAL_REVIEW_PACKET_APPROVED",
+  "source": {
+    "origin_main_commit": "f6652e7f62943ed903204efc96c4a33a68b391dc",
+    "packet_sha256": "9d67bd58bcf3b2305be2e36bfb20d1ed6ef526973216ba80d1ff2536c23637fd",
+    "packet_version": "0.1-candidate",
+    "contract_version": "0.1",
+    "candidate_count": 100
+  },
+  "allowed_scope": {
+    "fields": [
+      "title",
+      "api_observed_at",
+      "transparency_notice",
+      "current_price",
+      "price_observed_at"
+    ],
+    "price_rule": "current_price and price_observed_at are present together and price_observed_at equals api_observed_at",
+    "unordered_serialization": "serialization order is not a public order claim",
+    "required_transparency_notice": "表示内容は、各項目を確認できた時点の記録です。順位・並び順・更新頻度・在庫・販売状況を示すものではありません。"
+  },
+  "forbidden_scope": [
+    "content_or_item_identifier",
+    "url_or_affiliate_value",
+    "rank_order_offset_or_source_sort",
+    "history_or_price_history",
+    "availability_inventory_or_sale_status",
+    "update_frequency_latest_or_realtime_claim",
+    "affiliate_cta_or_public_activation"
+  ],
+  "validation": {
+    "all_candidate_schemas_exactly_allowed": true,
+    "all_required_fields_present": true,
+    "all_titles_nonempty": true,
+    "title_url_like_count": 0,
+    "all_price_timestamps_equal_api_observed_at": true,
+    "stale_over_24h_count": 0,
+    "future_observation_count": 0,
+    "transparency_notice_exact": true
+  },
+  "activation": {
+    "publication_allowed": false,
+    "production_activation_allowed": false,
+    "affiliate_eligibility_allowed": false,
+    "gate_mutation_allowed": false,
+    "cta_allowed": false
+  },
+  "remaining_blockers": [
+    "MANUAL_PUBLICATION_GATE_PASS_REQUIRED",
+    "NO_LIVE_ROUTE_OR_DEPLOYMENT_AUTHORIZATION",
+    "NO_AFFILIATE_CTA_OR_ELIGIBILITY_AUTHORIZATION"
+  ],
+  "packet_contents_committed": false,
+  "product_titles_committed": false
+}
