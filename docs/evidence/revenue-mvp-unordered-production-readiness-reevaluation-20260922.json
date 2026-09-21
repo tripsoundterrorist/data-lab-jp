@@ -1,0 +1,69 @@
+{
+  "evidence_type": "UNORDERED_REDUCED_SURFACE_PRODUCTION_READINESS_REEVALUATION",
+  "evidence_version": "0.1",
+  "decision": "BLOCK:RENDERED_ARTIFACT_VALIDATION_AND_DEPLOYMENT_PREFLIGHT_INCOMPLETE",
+  "source": {
+    "origin_main_commit": "28f434a03ac080649eac5649e220d605182a54b6",
+    "gate_decision_pr": 263,
+    "renderer_pr": 264,
+    "source_packet_sha256": "9d67bd58bcf3b2305be2e36bfb20d1ed6ef526973216ba80d1ff2536c23637fd",
+    "candidate_count": 100,
+    "rendered_artifact_sha256": "081d72a82ac098a4325374df27c90e0c6ee314bfd14f7e7476149c31777008c4",
+    "proposed_target_route": "/items/"
+  },
+  "verified_non_activation_facts": [
+    "exact_scope_validator_and_deterministic_offline_renderer_are_merged",
+    "renderer_rejects_extra_fields_stale_input_open_activation_and_price_provenance_mismatch",
+    "renderer_output_is_noindex_nofollow_and_contains_no_link",
+    "renderer_receipt_binds_source_packet_hash_artifact_hash_candidate_count_and_proposed_route",
+    "repository_output_is_rejected",
+    "ci_validation_fast_and_cloudflare_pages_succeeded",
+    "production_shell_preflight_passed_as_shell_validated_only"
+  ],
+  "current_preflight": {
+    "production_build": "PASS",
+    "status": "SHELL_VALIDATED",
+    "public_data_state": "UNPUBLISHED",
+    "deployment_preflight": "NOT_EVALUATED_NO_PUBLIC_DATA",
+    "public_data_deployment_allowed": false
+  },
+  "missing_required_checks": [
+    "read_only_rendered_html_artifact_validator_for_the_exact_artifact_hash",
+    "validator_recheck_of_noindex_nofollow_no_links_no_external_resources_and_exact_scope_only_output",
+    "non_deploy_preflight_that_binds_the_validated_artifact_hash_to_the_proposed_route",
+    "production_target_route_configuration_review_without_creating_the_route",
+    "explicit_user_activation_approval_after_all_prior_checks_pass"
+  ],
+  "safe_before_explicit_user_approval": [
+    "implement_and_test_a_pure_offline_rendered_artifact_validator",
+    "implement_and_test_a_non_deploy_route_bound_preflight",
+    "record_sanitized_hash_count_route_and_result_receipts_only",
+    "review_static_configuration_without_deploying_or_adding_a_route"
+  ],
+  "not_safe_without_explicit_user_approval": [
+    "change_any_gate_value",
+    "create_or_activate_the_public_route",
+    "deploy_or_promote_any_artifact",
+    "enable_cta_or_affiliate_eligibility",
+    "write_to_d1_or_run_a_live_collector"
+  ],
+  "explicit_activation_request_candidate": {
+    "status": "NOT_READY",
+    "becomes_presentable_only_after": [
+      "all_missing_required_checks_pass_for_the_same_source_packet_hash_rendered_artifact_hash_and_route",
+      "a_scoped_rollback_owner_and_atomic_withdrawal_plan_are_recorded",
+      "the_user_explicitly_approves_the_exact_hashes_route_and_gate_transition"
+    ],
+    "global_publication_gate": "unchanged"
+  },
+  "activation": {
+    "publication_allowed": false,
+    "production_activation_allowed": false,
+    "affiliate_eligibility_allowed": false,
+    "gate_mutation_allowed": false,
+    "cta_allowed": false,
+    "public_data_deployment_allowed": false
+  },
+  "packet_contents_committed": false,
+  "product_titles_committed": false
+}
