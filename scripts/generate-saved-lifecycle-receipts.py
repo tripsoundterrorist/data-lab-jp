@@ -1,8 +1,8 @@
-"""Generate sanitized lifecycle receipts from saved read-only observations.
+"""Generate lifecycle receipts from sanitized saved observations.
 
-Saved collection rows do not prove an exact item lookup or affiliate-link
-presence. They therefore generate UNKNOWN receipts and never create an eligible
-candidate. A future bounded live verifier may produce stronger evidence.
+Legacy snapshots and snapshots without a strictly bound sanitized lifecycle
+row remain UNKNOWN.  Raw provider payloads, URLs, identifiers, and credentials
+are never read into the receipt contract.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from revenue_mvp_official_lifecycle_policy import InventorySignal
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE_PATH = ROOT / "data" / "data-lab.db"
-PACKET_VERSION = "0.1"
+PACKET_VERSION = "0.2"
 DEFAULT_FRESHNESS_MAX_AGE = timedelta(hours=24)
 PUBLIC_ID_RE = re.compile(r"itm_[0-9a-f]{24}\Z")
 REASON_RE = re.compile(r"[A-Z][A-Z0-9_]{2,63}\Z")
@@ -43,16 +43,55 @@ FORBIDDEN_KEYS = frozenset(
     }
 )
 
-SAVED_OBSERVATIONS_SQL = """
+LEGACY_SAVED_OBSERVATIONS_SQL = """
 SELECT i.id, i.site, i.service, i.floor, i.content_id, i.last_observed_at,
-       s.latest_observed_at
+       s.latest_snapshot_id, s.latest_observed_at,
+       NULL AS lifecycle_snapshot_id, NULL AS lifecycle_contract_version,
+       NULL AS verification_mode, NULL AS lifecycle_observation,
+       NULL AS lifecycle_observed_at, NULL AS expected_content_id_match,
+       NULL AS affiliate_link_observed, NULL AS source_status_code,
+       NULL AS inventory_signal, NULL AS reason_code, NULL AS created_at
 FROM items AS i
 LEFT JOIN (
-  SELECT item_id, MAX(observed_at) AS latest_observed_at
-  FROM item_snapshots
-  GROUP BY item_id
+  SELECT snapshots.id AS latest_snapshot_id, snapshots.item_id,
+         snapshots.observed_at AS latest_observed_at
+  FROM item_snapshots AS snapshots
+  JOIN (
+    SELECT item_id, MAX(observed_at) AS latest_observed_at
+    FROM item_snapshots
+    GROUP BY item_id
+  ) AS latest
+    ON latest.item_id = snapshots.item_id
+   AND latest.latest_observed_at = snapshots.observed_at
 ) AS s ON s.item_id = i.id
-ORDER BY i.id
+ORDER BY i.id, s.latest_snapshot_id
+"""
+
+SAVED_OBSERVATIONS_SQL = """
+SELECT i.id, i.site, i.service, i.floor, i.content_id, i.last_observed_at,
+       s.latest_snapshot_id, s.latest_observed_at,
+       o.snapshot_id AS lifecycle_snapshot_id,
+       o.contract_version AS lifecycle_contract_version,
+       o.verification_mode, o.observation AS lifecycle_observation,
+       o.observed_at AS lifecycle_observed_at,
+       o.expected_content_id_match, o.affiliate_link_observed,
+       o.source_status_code, o.inventory_signal, o.reason_code, o.created_at
+FROM items AS i
+LEFT JOIN (
+  SELECT snapshots.id AS latest_snapshot_id, snapshots.item_id,
+         snapshots.observed_at AS latest_observed_at
+  FROM item_snapshots AS snapshots
+  JOIN (
+    SELECT item_id, MAX(observed_at) AS latest_observed_at
+    FROM item_snapshots
+    GROUP BY item_id
+  ) AS latest
+    ON latest.item_id = snapshots.item_id
+   AND latest.latest_observed_at = snapshots.observed_at
+) AS s ON s.item_id = i.id
+LEFT JOIN item_lifecycle_observations AS o
+  ON o.snapshot_id = s.latest_snapshot_id
+ORDER BY i.id, s.latest_snapshot_id
 """
 
 
@@ -87,6 +126,67 @@ def read_only_connection(path: Path) -> sqlite3.Connection:
     return connection
 
 
+def _has_lifecycle_observation_table(connection: sqlite3.Connection) -> bool:
+    row = connection.execute(
+        """
+        SELECT COUNT(*) FROM sqlite_master
+        WHERE type = 'table' AND name = 'item_lifecycle_observations'
+        """
+    ).fetchone()
+    return row is not None and row[0] == 1
+
+
+def _stored_observation(
+    row: sqlite3.Row,
+    *,
+    snapshot_time: str,
+) -> tuple[VerificationObservation, InventorySignal]:
+    if row["lifecycle_snapshot_id"] is None:
+        raise SavedReceiptError("SAVED_LIFECYCLE_OBSERVATION_MISSING")
+    if (
+        row["lifecycle_snapshot_id"] != row["latest_snapshot_id"]
+        or row["lifecycle_contract_version"] != "0.1"
+        or row["verification_mode"] != "COLLECTION_PAGE_ITEM"
+        or row["lifecycle_observation"] != Observation.API_ITEM_VISIBLE.value
+        or row["lifecycle_observed_at"] != snapshot_time
+        or row["expected_content_id_match"] != 1
+        or row["source_status_code"] != 200
+        or row["inventory_signal"] != InventorySignal.UNKNOWN.value
+        or row["reason_code"] not in {
+            "AFFILIATE_URL_ABSENT",
+            "AFFILIATE_URL_VALIDATED",
+            "AFFILIATE_URL_VALIDATION_FAILED",
+        }
+    ):
+        raise SavedReceiptError("SAVED_LIFECYCLE_OBSERVATION_INVALID")
+    affiliate_value = row["affiliate_link_observed"]
+    expected_reason = {
+        1: "AFFILIATE_URL_VALIDATED",
+        0: "AFFILIATE_URL_ABSENT",
+        None: "AFFILIATE_URL_VALIDATION_FAILED",
+    }.get(affiliate_value)
+    if expected_reason is None or row["reason_code"] != expected_reason:
+        raise SavedReceiptError("SAVED_AFFILIATE_OBSERVATION_INVALID")
+    observed_at = parse_timestamp(row["lifecycle_observed_at"])
+    created_at = parse_timestamp(row["created_at"])
+    if created_at < observed_at:
+        raise SavedReceiptError("SAVED_LIFECYCLE_TIME_INVALID")
+    return (
+        VerificationObservation(
+            Observation.API_ITEM_VISIBLE,
+            observed_at,
+            True,
+            None if affiliate_value is None else bool(affiliate_value),
+            200,
+            tuple(sorted((
+                "COLLECTION_ITEM_IDENTITY_MATCH_OBSERVED",
+                row["reason_code"],
+            ))),
+        ),
+        InventorySignal.UNKNOWN,
+    )
+
+
 def generate_receipts(
     database_path: Path,
     *,
@@ -100,7 +200,12 @@ def generate_receipts(
     seen_public_ids: set[str] = set()
     try:
         with closing(read_only_connection(database_path)) as connection:
-            rows = connection.execute(SAVED_OBSERVATIONS_SQL)
+            sql = (
+                SAVED_OBSERVATIONS_SQL
+                if _has_lifecycle_observation_table(connection)
+                else LEGACY_SAVED_OBSERVATIONS_SQL
+            )
+            rows = connection.execute(sql)
             for row in rows:
                 identity = (row["site"], row["service"], row["floor"], row["content_id"])
                 if not all(isinstance(value, str) and value for value in identity):
@@ -116,32 +221,52 @@ def generate_receipts(
                     observed_at = None
                     fresh = False
                     reasons = ("SAVED_OBSERVATION_MISSING",)
+                    observation = VerificationObservation(
+                        Observation.UNKNOWN,
+                        None,
+                        None,
+                        None,
+                        None,
+                        reasons,
+                    )
+                    inventory = InventorySignal.UNKNOWN
                 else:
                     observed_at = parse_timestamp(snapshot_time)
                     if master_time != snapshot_time:
                         raise SavedReceiptError("SAVED_OBSERVATION_ITEM_MISMATCH")
                     age = evaluated_at - observed_at
                     fresh = timedelta(0) <= age <= freshness_max_age
-                    reasons = (
-                        "SAVED_COLLECTION_NOT_EXACT_ITEM_VERIFICATION",
-                        "SAVED_AFFILIATE_EVIDENCE_UNAVAILABLE",
-                    )
-                    if not fresh:
-                        reasons += ("SAVED_OBSERVATION_STALE_OR_FUTURE",)
-                observation = VerificationObservation(
-                    Observation.UNKNOWN,
-                    observed_at,
-                    None,
-                    None,
-                    None,
-                    tuple(sorted(reasons)),
-                )
+                    if row["lifecycle_snapshot_id"] is None:
+                        reasons = (
+                            "SAVED_COLLECTION_NOT_EXACT_ITEM_VERIFICATION",
+                            "SAVED_AFFILIATE_EVIDENCE_UNAVAILABLE",
+                        )
+                        if not fresh:
+                            reasons += ("SAVED_OBSERVATION_STALE_OR_FUTURE",)
+                        observation = VerificationObservation(
+                            Observation.UNKNOWN,
+                            observed_at,
+                            None,
+                            None,
+                            None,
+                            tuple(sorted(reasons)),
+                        )
+                        inventory = InventorySignal.UNKNOWN
+                    else:
+                        observation, inventory = _stored_observation(
+                            row,
+                            snapshot_time=snapshot_time,
+                        )
+                        if observation.observed_at != observed_at:
+                            raise SavedReceiptError(
+                                "SAVED_LIFECYCLE_SNAPSHOT_TIME_MISMATCH"
+                            )
                 receipts.append(
                     LifecycleReceipt(
                         LIFECYCLE_RECEIPT_VERSION,
                         public_id,
                         observation,
-                        InventorySignal.UNKNOWN,
+                        inventory,
                         fresh,
                         evaluated_at,
                         int(freshness_max_age.total_seconds()),
@@ -227,7 +352,13 @@ def validate_packet(packet: Any) -> tuple[LifecycleReceipt, ...]:
             or type(value["freshness_confirmed"]) is not bool
             or observed["expected_content_id_match"] not in (True, False, None)
             or observed["affiliate_link_observed"] not in (True, False, None)
-            or observed["source_status_code"] is not None
+            or (
+                observed["source_status_code"] is not None
+                and (
+                    type(observed["source_status_code"]) is not int
+                    or not 100 <= observed["source_status_code"] <= 599
+                )
+            )
             or not isinstance(reasons, list)
             or not reasons
             or any(not isinstance(reason, str) or REASON_RE.fullmatch(reason) is None for reason in reasons)
@@ -242,21 +373,41 @@ def validate_packet(packet: Any) -> tuple[LifecycleReceipt, ...]:
             or value["freshness_confirmed"] is not expected_fresh
         ):
             raise SavedReceiptError("RECEIPT_FRESHNESS_MISMATCH")
-        expected_reasons = (
-            ("SAVED_OBSERVATION_MISSING",)
-            if observed_at is None
-            else (
-                "SAVED_AFFILIATE_EVIDENCE_UNAVAILABLE",
-                "SAVED_COLLECTION_NOT_EXACT_ITEM_VERIFICATION",
-            ) + (() if expected_fresh else ("SAVED_OBSERVATION_STALE_OR_FUTURE",))
-        )
-        if (
-            observation_value is not Observation.UNKNOWN
-            or inventory is not InventorySignal.UNKNOWN
-            or observed["expected_content_id_match"] is not None
-            or observed["affiliate_link_observed"] is not None
-            or tuple(reasons) != expected_reasons
-        ):
+        if inventory is not InventorySignal.UNKNOWN:
+            raise SavedReceiptError("SAVED_RECEIPT_EVIDENCE_OVERCLAIMED")
+        if observation_value is Observation.UNKNOWN:
+            expected_reasons = (
+                ("SAVED_OBSERVATION_MISSING",)
+                if observed_at is None
+                else (
+                    "SAVED_AFFILIATE_EVIDENCE_UNAVAILABLE",
+                    "SAVED_COLLECTION_NOT_EXACT_ITEM_VERIFICATION",
+                ) + (() if expected_fresh else ("SAVED_OBSERVATION_STALE_OR_FUTURE",))
+            )
+            valid_shape = (
+                observed["expected_content_id_match"] is None
+                and observed["affiliate_link_observed"] is None
+                and observed["source_status_code"] is None
+                and tuple(reasons) == expected_reasons
+            )
+        elif observation_value is Observation.API_ITEM_VISIBLE:
+            affiliate_reason = {
+                True: "AFFILIATE_URL_VALIDATED",
+                False: "AFFILIATE_URL_ABSENT",
+                None: "AFFILIATE_URL_VALIDATION_FAILED",
+            }[observed["affiliate_link_observed"]]
+            valid_shape = (
+                observed_at is not None
+                and observed["expected_content_id_match"] is True
+                and observed["source_status_code"] == 200
+                and tuple(reasons) == tuple(sorted((
+                    "COLLECTION_ITEM_IDENTITY_MATCH_OBSERVED",
+                    affiliate_reason,
+                )))
+            )
+        else:
+            valid_shape = False
+        if not valid_shape:
             raise SavedReceiptError("SAVED_RECEIPT_EVIDENCE_OVERCLAIMED")
         receipts.append(
             LifecycleReceipt(
@@ -264,7 +415,8 @@ def validate_packet(packet: Any) -> tuple[LifecycleReceipt, ...]:
                 VerificationObservation(
                     observation_value, observed_at,
                     observed["expected_content_id_match"],
-                    observed["affiliate_link_observed"], None, tuple(reasons),
+                    observed["affiliate_link_observed"],
+                    observed["source_status_code"], tuple(reasons),
                 ),
                 inventory, value["freshness_confirmed"],
                 freshness_evaluated_at, max_age,
