@@ -341,7 +341,7 @@ class SourceArtifactRevalidationTests(unittest.TestCase):
             STAMP,
             86400,
         )
-        values, reasons = revalidation._default_item_evidence(
+        values, reasons, _count = revalidation._default_item_evidence(
             fixture(),
             (receipt,),
         )
@@ -375,7 +375,7 @@ class SourceArtifactRevalidationTests(unittest.TestCase):
             "evaluate_publication_gate",
             return_value=gate(),
         ):
-            values, reasons = revalidation._default_item_evidence(
+            values, reasons, count = revalidation._default_item_evidence(
                 fixture(),
                 (receipt,),
             )
@@ -384,6 +384,7 @@ class SourceArtifactRevalidationTests(unittest.TestCase):
             value.lifecycle.status,
             revalidation.lifecycle_filter.INCLUDE_CANDIDATE,
         )
+        self.assertEqual(count, 1)
         self.assertFalse(value.lifecycle.affiliate_cta_candidate)
         self.assertFalse(value.lifecycle.api_order_label_allowed)
         self.assertEqual(
