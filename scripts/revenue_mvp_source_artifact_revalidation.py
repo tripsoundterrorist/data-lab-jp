@@ -325,18 +325,45 @@ def _safe_output_target(path: Path) -> Path:
     return target
 
 
-def _write_output(path: Path, files: Mapping[str, bytes]) -> None:
+def _cleanup_staging(path: Path | None) -> None:
+    if path is None:
+        return
+    try:
+        staging = path.resolve()
+        temp_root = Path(tempfile.gettempdir()).resolve(strict=True)
+        staging.relative_to(temp_root)
+        if ".stage-" not in staging.name or not staging.is_dir():
+            return
+        shutil.rmtree(staging)
+    except (OSError, RuntimeError, ValueError):
+        return
+
+
+def _stage_output(path: Path, files: Mapping[str, bytes]) -> Path:
     target = _safe_output_target(path)
-    temporary = Path(tempfile.mkdtemp(prefix=f"{target.name}.tmp-", dir=target.parent))
+    staging = Path(
+        tempfile.mkdtemp(prefix=f"{target.name}.stage-", dir=target.parent)
+    )
     try:
         for relative, content in files.items():
-            destination = temporary / relative
+            destination = staging / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(content)
-        os.replace(temporary, target)
+        return staging
     except Exception:
-        shutil.rmtree(temporary, ignore_errors=True)
+        _cleanup_staging(staging)
         raise
+
+
+def _expose_staged_output(path: Path, staging: Path) -> None:
+    target = _safe_output_target(path)
+    resolved_staging = staging.resolve(strict=True)
+    if (
+        resolved_staging.parent != target.parent
+        or not resolved_staging.name.startswith(f"{target.name}.stage-")
+    ):
+        raise ValueError("unsafe staging")
+    os.replace(resolved_staging, target)
 
 
 def _read_output(path: Path) -> dict[str, bytes]:
@@ -419,6 +446,7 @@ def run_revalidation(
     """Revalidate locally without API, DB writes, publication, or Gate changes."""
 
     source_read_started = False
+    staged_output: Path | None = None
     try:
         if (
             not isinstance(database_path, Path)
@@ -581,21 +609,24 @@ def run_revalidation(
         snapshot_sha256 = _snapshot_sha256(filtered.files)
         written = False
         if output_directory is not None:
-            _write_output(output_directory, filtered.files)
-            disk_files = _read_output(output_directory.resolve())
+            staged_output = _stage_output(output_directory, filtered.files)
+            disk_files = _read_output(staged_output)
             disk = validator.validate_artifacts(disk_files)
             if (
                 disk.artifact_validation != validator.PASS
                 or _snapshot_sha256(disk_files) != snapshot_sha256
             ):
+                _cleanup_staging(staged_output)
+                staged_output = None
                 return _failure_after_source_read(
                     database_path,
                     expected_sha256,
                     reasons=("WRITTEN_ARTIFACT_REVALIDATION_FAILED",),
                     **common,
                 )
-            written = True
         if not _database_identity_is_stable(database_path, expected_sha256):
+            _cleanup_staging(staged_output)
+            staged_output = None
             changed_reasons = ["DATABASE_CHANGED_DURING_REVALIDATION"]
             if _sqlite_sidecars_present(database_path):
                 changed_reasons.append("SQLITE_SIDECAR_PRESENT")
@@ -605,6 +636,10 @@ def run_revalidation(
                 database_identity_verified=False,
                 **common,
             )
+        if output_directory is not None and staged_output is not None:
+            _expose_staged_output(output_directory, staged_output)
+            staged_output = None
+            written = True
         return _result(
             READY,
             reasons=(
@@ -620,6 +655,8 @@ def run_revalidation(
             **common,
         )
     except Exception:
+        _cleanup_staging(staged_output)
+        staged_output = None
         if (
             source_read_started
             and isinstance(database_path, Path)

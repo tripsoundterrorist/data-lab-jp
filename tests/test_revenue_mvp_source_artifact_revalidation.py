@@ -227,6 +227,24 @@ class SourceArtifactRevalidationTests(unittest.TestCase):
         self.assertEqual(result.status, revalidation.READY)
         self.assertTrue(result.output_written)
 
+    def test_final_identity_failure_never_exposes_staged_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "candidate"
+            with mock.patch.object(
+                revalidation.db_handoff,
+                "preflight",
+                side_effect=(handoff(), handoff(False)),
+            ) as preflight:
+                result = self.run(output_directory=output)
+            self.assertEqual(preflight.call_count, 2)
+            self.assertFalse(output.exists())
+            self.assertEqual(tuple(root.glob("candidate.stage-*")), ())
+        self.assertEqual(result.status, revalidation.FAIL_CLOSED)
+        self.assertFalse(result.database_identity_verified)
+        self.assertFalse(result.output_written)
+        self.assertIn("DATABASE_CHANGED_DURING_REVALIDATION", result.reason_codes)
+
     def test_database_identity_mismatch_stops_before_receipt_read(self):
         loader = mock.Mock()
         with mock.patch.object(
