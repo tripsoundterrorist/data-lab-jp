@@ -55,7 +55,7 @@ class RenderedArtifactPreflightTests(unittest.TestCase):
                 preflight.validate_and_preflight(html, **values)
 
     def test_active_or_external_markup_is_rejected(self):
-        html = self.artifact(); tampered = html.replace(b"<main>", b'<main><a href="https://example.com">x</a>')
+        html = self.artifact(); tampered = html.replace(b'<main id="main-content">', b'<main id="main-content"><a href="https://example.com">x</a>')
         with self.assertRaises(preflight.ValidationFailure):
             preflight.validate_and_preflight(tampered,
                 expected_sha256=hashlib.sha256(tampered).hexdigest(), expected_count=1,
