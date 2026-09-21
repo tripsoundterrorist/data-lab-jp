@@ -20,7 +20,7 @@ import revenue_mvp_reduced_surface_gate_mapping as gate_mapping
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE_PATH = ROOT / "docs" / "policies" / "revenue-mvp-control-center-reviewed-baseline-v0.1.json"
-BASELINE_MANIFEST_SHA256 = "08372823c308cbc28f7ae91a12a6cee1d158b05c7c6444ed2b1a13bb00f48b03"
+BASELINE_MANIFEST_SHA256 = "f4aca734855dce9f72b64ccf838b7000fb350f861f17f8c506eb46afae3cde50"
 VERSION = "0.2-candidate"
 COLLECTOR_VERSION = "0.1"
 BASELINE_VERSION = "0.2"
@@ -29,7 +29,7 @@ REVIEW_CANDIDATE = "CONTROL_CENTER_REDUCED_SURFACE_REVIEW_CANDIDATE"
 FAIL_CLOSED = "CONTROL_CENTER_EVIDENCE_SYNC_FAIL_CLOSED"
 REDUCED_SURFACE_ONLY = "REDUCED_SURFACE_ONLY"
 RESPONSE_DATE = "2026-09-16"
-REVIEWED_BASE_COMMIT = "365d616b3581b2c6db6f4e2165ec07a4e2e60275"
+REVIEWED_BASE_COMMIT = "dc245e4de9c117279990918696c23c5a6d20269d"
 SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 VERSION_KEYS = (
     "artifact_integration", "bounded_runner", "launch_rehearsal",

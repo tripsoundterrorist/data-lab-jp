@@ -2,7 +2,7 @@
   "manifest_version": "0.2",
   "review_status": "REVIEWED_BASELINE",
   "reviewed_base_ref": "main",
-  "reviewed_base_commit": "365d616b3581b2c6db6f4e2165ec07a4e2e60275",
+  "reviewed_base_commit": "dc245e4de9c117279990918696c23c5a6d20269d",
   "official_response_received_on": "2026-09-16",
   "official_response_scope": "REDUCED_SURFACE_ONLY",
   "expected_versions": {
