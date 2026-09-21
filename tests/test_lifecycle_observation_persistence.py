@@ -111,6 +111,43 @@ class LifecycleObservationPersistenceTests(unittest.TestCase):
         self.assertEqual(row[9], "AFFILIATE_URL_VALIDATED")
         self.assertNotIn(SAFE_URL, json.dumps(row))
 
+    def test_snapshot_title_is_bounded_and_rolls_back_with_lifecycle_observation(self):
+        self.insert_snapshot()
+        with self.connection:
+            collector.store_sanitized_lifecycle_observation(
+                self.connection, snapshot_id=1, observed_at=STAMP,
+                source_status_code=200, affiliate_url=SAFE_URL,
+            )
+            collector.store_snapshot_title(
+                self.connection, snapshot_id=1, title="fixture title", observed_at=STAMP,
+            )
+        row = self.connection.execute(
+            "SELECT title, observed_at FROM item_snapshot_titles WHERE snapshot_id = 1"
+        ).fetchone()
+        self.assertEqual(row, ("fixture title", STAMP))
+        self.insert_snapshot(2)
+        with self.assertRaises(ValueError):
+            collector.store_snapshot_title(
+                self.connection, snapshot_id=2, title="", observed_at=STAMP,
+            )
+        self.assertEqual(self.connection.execute(
+            "SELECT COUNT(*) FROM item_snapshot_titles"
+        ).fetchone()[0], 1)
+        with self.assertRaisesRegex(ValueError, "SNAPSHOT_TITLE_PROVENANCE_INVALID"):
+            collector.store_snapshot_title(
+                self.connection,
+                snapshot_id=2,
+                title="fixture title",
+                observed_at="2026-09-16T07:00:43Z",
+            )
+        with self.assertRaises(sqlite3.IntegrityError):
+            collector.store_snapshot_title(
+                self.connection,
+                snapshot_id=1,
+                title="duplicate",
+                observed_at=STAMP,
+            )
+
     def test_absent_and_invalid_urls_store_false_or_unknown(self):
         cases = (
             (None, 0, "AFFILIATE_URL_ABSENT"),
@@ -174,6 +211,12 @@ class LifecycleObservationPersistenceTests(unittest.TestCase):
                     source_status_code=200,
                     affiliate_url=SAFE_URL,
                 )
+                collector.store_snapshot_title(
+                    self.connection,
+                    snapshot_id=1,
+                    title="fixture title",
+                    observed_at=STAMP,
+                )
                 raise RuntimeError("rollback")
         self.assertEqual(
             self.connection.execute("SELECT COUNT(*) FROM item_snapshots").fetchone()[0],
@@ -182,6 +225,12 @@ class LifecycleObservationPersistenceTests(unittest.TestCase):
         self.assertEqual(
             self.connection.execute(
                 "SELECT COUNT(*) FROM item_lifecycle_observations"
+            ).fetchone()[0],
+            0,
+        )
+        self.assertEqual(
+            self.connection.execute(
+                "SELECT COUNT(*) FROM item_snapshot_titles"
             ).fetchone()[0],
             0,
         )

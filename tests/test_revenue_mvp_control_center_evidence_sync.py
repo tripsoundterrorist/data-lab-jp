@@ -27,7 +27,7 @@ class RevenueMvpControlCenterEvidenceSyncTests(unittest.TestCase):
         self.assertEqual(self.baseline.reviewed_base_ref, "main")
         self.assertEqual(
             self.baseline.reviewed_base_commit,
-            "f637829b080e0a95a03e3a8880935553c9fbfcb7",
+            "a7610a908878e23b49a054e5ac4ceb2ea51d22ae",
         )
         self.assertEqual(self.baseline.manifest_version, "0.2")
         self.assertEqual(

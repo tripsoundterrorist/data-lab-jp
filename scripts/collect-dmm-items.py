@@ -191,6 +191,23 @@ def store_sanitized_lifecycle_observation(
     )
 
 
+def store_snapshot_title(connection, *, snapshot_id: int, title: object, observed_at: str) -> None:
+    """Persist only a bounded title that arrived with the exact snapshot."""
+    if type(title) is not str or not (1 <= len(title) <= 512) or "\x00" in title:
+        raise ValueError("SNAPSHOT_TITLE_INVALID")
+    snapshot = connection.execute(
+        "SELECT observed_at FROM item_snapshots WHERE id = ?", (snapshot_id,)
+    ).fetchone()
+    if snapshot is None or snapshot[0] != observed_at:
+        raise ValueError("SNAPSHOT_TITLE_PROVENANCE_INVALID")
+    connection.execute(
+        """INSERT INTO item_snapshot_titles
+        (snapshot_id, contract_version, title, observed_at, created_at)
+        VALUES (?, '0.1', ?, ?, ?)""",
+        (snapshot_id, title, observed_at, observed_at),
+    )
+
+
 def mark_run_failed(
     connection: sqlite3.Connection,
     collection_run_id: str,
@@ -622,6 +639,12 @@ def main() -> int:
                     observed_at=observed_at,
                     source_status_code=source_status_code,
                     affiliate_url=item.get("affiliateURL"),
+                )
+                store_snapshot_title(
+                    connection,
+                    snapshot_id=snapshot_cursor.lastrowid,
+                    title=item.get("title"),
+                    observed_at=observed_at,
                 )
                 snapshot_count += 1
                 processed_count += 1
