@@ -17,26 +17,19 @@ class RevenueMvpControlCenterEvidenceSyncTests(unittest.TestCase):
         self.baseline = sync.load_reviewed_baseline()
         self.assertIsNotNone(self.baseline)
         self.current = sync.collect_current_evidence(self.baseline)
-        self.reviewed_current = replace(
-            self.current,
-            current_versions=self.baseline.expected_versions,
-            current_evidence_sha256=self.baseline.required_evidence_sha256,
-        )
 
     def with_hash(self, path, digest):
-        hashes = dict(self.reviewed_current.current_evidence_sha256)
+        hashes = dict(self.current.current_evidence_sha256)
         hashes[path] = digest
-        return replace(
-            self.reviewed_current,
-            current_evidence_sha256=tuple(sorted(hashes.items())),
-        )
+        return replace(self.current, current_evidence_sha256=tuple(sorted(hashes.items())))
 
     def test_manifest_is_fixed_to_reviewed_commit_versions_paths_and_digest(self):
         self.assertEqual(self.baseline.reviewed_base_ref, "main")
         self.assertEqual(
             self.baseline.reviewed_base_commit,
-            "365d616b3581b2c6db6f4e2165ec07a4e2e60275",
+            "f637829b080e0a95a03e3a8880935553c9fbfcb7",
         )
+        self.assertEqual(self.baseline.manifest_version, "0.2")
         self.assertEqual(
             tuple(path for path, _digest in self.baseline.required_evidence_sha256),
             sync.REQUIRED_EVIDENCE_PATHS,
@@ -53,32 +46,35 @@ class RevenueMvpControlCenterEvidenceSyncTests(unittest.TestCase):
             sync._baseline_digest(self.baseline), sync.BASELINE_MANIFEST_SHA256
         )
 
-    def test_unreviewed_lifecycle_contract_version_fails_closed(self):
+    def test_current_state_matches_baseline_but_keeps_operational_blockers(self):
         result = sync.current_sync()
-        self.assertEqual(result.status, sync.FAIL_CLOSED)
-        self.assertTrue(result.official_response_pending)
-        self.assertFalse(result.lifecycle_pipeline_verified)
+        self.assertEqual(result.status, sync.SYNCED_BLOCKED)
+        self.assertFalse(result.official_response_pending)
+        self.assertEqual(result.official_response_scope, sync.REDUCED_SURFACE_ONLY)
+        self.assertTrue(result.reduced_surface_review_candidate)
+        self.assertTrue(result.full_surface_official_confirmation_pending)
+        self.assertTrue(result.lifecycle_pipeline_verified)
         self.assertEqual(
-            result.blocker_codes,
-            ("TRACKED_EVIDENCE_VERSION_MISMATCH",),
+            set(result.blocker_codes),
+            {
+                "SOURCE_DB_AND_PUBLIC_ARTIFACT_REVALIDATION_REQUIRED",
+                "PRODUCTION_D1_READ_ONLY_RECONFIRMATION_REQUIRED",
+                "REDUCED_SURFACE_MANUAL_GATE_REVIEW_REQUIRED",
+            },
         )
-        self.assertEqual(result.reason_codes, ("UNREVIEWED_CONTRACT_VERSION_DETECTED",))
 
-    def test_version_compatible_unreviewed_receipt_hash_still_fails_closed(self):
+    def test_unreviewed_lifecycle_contract_version_fails_closed(self):
         current = replace(
             self.current,
-            current_versions=self.baseline.expected_versions,
+            current_versions=tuple(sorted({
+                **dict(self.current.current_versions),
+                "lifecycle_receipt": "unknown",
+            }.items())),
         )
         result = sync.evaluate_control_center_evidence(self.baseline, current)
         self.assertEqual(result.status, sync.FAIL_CLOSED)
-        self.assertEqual(
-            result.blocker_codes,
-            (
-                "SAVED_RECEIPT_BINDING_MISMATCH",
-                "TRACKED_EVIDENCE_HASH_MISMATCH",
-            ),
-        )
-        self.assertEqual(result.reason_codes, ("REVIEWED_CONTENT_BINDING_MISMATCH",))
+        self.assertEqual(result.blocker_codes, ("TRACKED_EVIDENCE_VERSION_MISMATCH",))
+        self.assertEqual(result.reason_codes, ("UNREVIEWED_CONTRACT_VERSION_DETECTED",))
 
     def test_unknown_contract_versions_fail_closed(self):
         cases = (
@@ -145,6 +141,12 @@ class RevenueMvpControlCenterEvidenceSyncTests(unittest.TestCase):
         self.assertEqual(
             result.blocker_codes, ("REVIEWED_BASELINE_MANIFEST_INVALID",)
         )
+        wrong_ref = replace(self.baseline, reviewed_base_ref="not-main")
+        result = sync.evaluate_control_center_evidence(wrong_ref, self.current)
+        self.assertEqual(result.status, sync.FAIL_CLOSED)
+        self.assertEqual(
+            result.blocker_codes, ("REVIEWED_BASELINE_MANIFEST_INVALID",)
+        )
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "baseline.json"
@@ -159,7 +161,7 @@ class RevenueMvpControlCenterEvidenceSyncTests(unittest.TestCase):
 
     def test_all_operational_evidence_reaches_review_candidate_only(self):
         current = replace(
-            self.reviewed_current,
+            self.current,
             source_db_artifact_binding_verified=True,
             production_d1_read_only_reconfirmed=True,
             manual_reduced_surface_gate_approved=True,
@@ -175,7 +177,7 @@ class RevenueMvpControlCenterEvidenceSyncTests(unittest.TestCase):
 
     def test_full_surface_overclaim_and_non_boolean_fail_closed(self):
         overclaim = replace(
-            self.reviewed_current, full_surface_official_confirmation_received=True
+            self.current, full_surface_official_confirmation_received=True
         )
         result = sync.evaluate_control_center_evidence(self.baseline, overclaim)
         self.assertEqual(result.status, sync.FAIL_CLOSED)
@@ -183,7 +185,7 @@ class RevenueMvpControlCenterEvidenceSyncTests(unittest.TestCase):
         self.assertIn("FULL_SURFACE_EVIDENCE_OUT_OF_SCOPE", result.blocker_codes)
 
         malformed = replace(
-            self.reviewed_current,
+            self.current,
             production_d1_read_only_reconfirmed=1,
         )
         result = sync.evaluate_control_center_evidence(self.baseline, malformed)
@@ -195,7 +197,7 @@ class RevenueMvpControlCenterEvidenceSyncTests(unittest.TestCase):
 
     def test_permissions_remain_false_for_all_outcomes(self):
         review_current = replace(
-            self.reviewed_current,
+            self.current,
             source_db_artifact_binding_verified=True,
             production_d1_read_only_reconfirmed=True,
             manual_reduced_surface_gate_approved=True,
