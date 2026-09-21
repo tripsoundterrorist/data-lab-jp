@@ -47,6 +47,11 @@ REQUIRED_COLUMNS = {
         "source_offset", "source_position", "price_raw", "price_min",
         "review_average", "review_count", "query_context_json",
     },
+    "item_lifecycle_observations": {
+        "snapshot_id", "contract_version", "verification_mode", "observation",
+        "observed_at", "expected_content_id_match", "affiliate_link_observed",
+        "source_status_code", "inventory_signal", "reason_code", "created_at",
+    },
 }
 UTC_ISO_PATTERN = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|\+00:00)$"
@@ -240,6 +245,23 @@ def inspect_schema(connection: sqlite3.Connection) -> tuple[str | None, str | No
         "collection_run_id",
         "RESTRICT",
     ):
+        structural_mismatch = True
+    if not _has_foreign_key(
+        connection,
+        "item_lifecycle_observations",
+        "snapshot_id",
+        "item_snapshots",
+        "id",
+        "CASCADE",
+    ):
+        structural_mismatch = True
+    lifecycle_pk = {
+        row[1]: row[5]
+        for row in connection.execute(
+            "PRAGMA table_info(item_lifecycle_observations)"
+        )
+    }
+    if lifecycle_pk.get("snapshot_id") != 1:
         structural_mismatch = True
     collection_pk = {
         row[1]: row[5]

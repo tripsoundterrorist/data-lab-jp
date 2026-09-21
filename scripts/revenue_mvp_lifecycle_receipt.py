@@ -9,7 +9,7 @@ from product_verification import VerificationObservation
 from revenue_mvp_official_lifecycle_policy import InventorySignal
 
 
-LIFECYCLE_RECEIPT_VERSION = "0.1"
+LIFECYCLE_RECEIPT_VERSION = "0.2"
 PUBLIC_ID_NAMESPACE = "data-lab-public-item-v0.1"
 MAX_LIFECYCLE_FRESHNESS_AGE_SECONDS = 86400
 

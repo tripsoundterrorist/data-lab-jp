@@ -25,10 +25,7 @@ class RevenueMvpControlCenterEvidenceSyncTests(unittest.TestCase):
 
     def test_manifest_is_fixed_to_reviewed_commit_versions_paths_and_digest(self):
         self.assertEqual(self.baseline.reviewed_base_ref, "main")
-        self.assertEqual(
-            self.baseline.reviewed_base_commit,
-            "365d616b3581b2c6db6f4e2165ec07a4e2e60275",
-        )
+        self.assertEqual(self.baseline.reviewed_base_commit, sync.REVIEWED_BASE_COMMIT)
         self.assertEqual(
             tuple(path for path, _digest in self.baseline.required_evidence_sha256),
             sync.REQUIRED_EVIDENCE_PATHS,

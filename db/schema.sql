@@ -156,3 +156,42 @@ CREATE TABLE item_snapshots (
 
 CREATE INDEX idx_item_snapshots_observed_at
   ON item_snapshots (observed_at DESC);
+
+CREATE TABLE item_lifecycle_observations (
+  -- A returned item can have at most one sanitized lifecycle observation for
+  -- its saved snapshot. No URL, provider payload, content ID, or credential is
+  -- retained here.
+  snapshot_id INTEGER PRIMARY KEY,
+  contract_version TEXT NOT NULL CHECK (contract_version = '0.1'),
+  verification_mode TEXT NOT NULL
+    CHECK (verification_mode = 'COLLECTION_PAGE_ITEM'),
+  observation TEXT NOT NULL CHECK (observation = 'API_ITEM_VISIBLE'),
+  observed_at TEXT NOT NULL,
+  expected_content_id_match INTEGER NOT NULL
+    CHECK (expected_content_id_match = 1),
+  affiliate_link_observed INTEGER
+    CHECK (affiliate_link_observed IS NULL OR affiliate_link_observed IN (0, 1)),
+  source_status_code INTEGER NOT NULL CHECK (source_status_code = 200),
+  inventory_signal TEXT NOT NULL CHECK (inventory_signal = 'UNKNOWN'),
+  reason_code TEXT NOT NULL CHECK (
+    reason_code IN (
+      'AFFILIATE_URL_ABSENT',
+      'AFFILIATE_URL_VALIDATED',
+      'AFFILIATE_URL_VALIDATION_FAILED'
+    )
+  ),
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (snapshot_id) REFERENCES item_snapshots (id) ON DELETE CASCADE,
+  CHECK (created_at >= observed_at),
+  CHECK (
+    (affiliate_link_observed = 1 AND reason_code = 'AFFILIATE_URL_VALIDATED')
+    OR (affiliate_link_observed = 0 AND reason_code = 'AFFILIATE_URL_ABSENT')
+    OR (
+      affiliate_link_observed IS NULL
+      AND reason_code = 'AFFILIATE_URL_VALIDATION_FAILED'
+    )
+  )
+) STRICT;
+
+CREATE INDEX idx_item_lifecycle_observations_observed_at
+  ON item_lifecycle_observations (observed_at DESC);

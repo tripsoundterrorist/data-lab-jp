@@ -29,7 +29,16 @@ NOW = datetime(2026, 9, 17, 0, 0, tzinfo=timezone.utc)
 STAMP = "2026-09-16T07:00:42Z"
 
 
-def create_database(path: Path, *, master_time=STAMP, snapshot_time=STAMP, second=False):
+def create_database(
+    path: Path,
+    *,
+    master_time=STAMP,
+    snapshot_time=STAMP,
+    second=False,
+    lifecycle=False,
+    affiliate_link_observed=1,
+    lifecycle_time=None,
+):
     connection = sqlite3.connect(path)
     connection.executescript(
         """
@@ -57,6 +66,38 @@ def create_database(path: Path, *, master_time=STAMP, snapshot_time=STAMP, secon
         )
         connection.execute(
             "INSERT INTO item_snapshots VALUES (2,2,?)", (snapshot_time,)
+        )
+    if lifecycle:
+        connection.executescript(
+            """
+            CREATE TABLE item_lifecycle_observations (
+              snapshot_id INTEGER PRIMARY KEY,
+              contract_version TEXT,
+              verification_mode TEXT,
+              observation TEXT,
+              observed_at TEXT,
+              expected_content_id_match INTEGER,
+              affiliate_link_observed INTEGER,
+              source_status_code INTEGER,
+              inventory_signal TEXT,
+              reason_code TEXT,
+              created_at TEXT
+            );
+            """
+        )
+        reason = {
+            1: "AFFILIATE_URL_VALIDATED",
+            0: "AFFILIATE_URL_ABSENT",
+            None: "AFFILIATE_URL_VALIDATION_FAILED",
+        }[affiliate_link_observed]
+        observed = lifecycle_time or snapshot_time
+        connection.execute(
+            """
+            INSERT INTO item_lifecycle_observations VALUES
+              (1,'0.1','COLLECTION_PAGE_ITEM','API_ITEM_VISIBLE',?,1,?,200,
+               'UNKNOWN',?,?)
+            """,
+            (observed, affiliate_link_observed, reason, STAMP),
         )
     connection.commit()
     connection.close()
@@ -90,6 +131,101 @@ class SavedLifecycleReceiptTests(unittest.TestCase):
         confidence = {1: {"observation_stats": {"last_observed_at": STAMP}}}
         selected, excluded = builder.filter_master_items_by_lifecycle_receipts(
             master, confidence, receipts
+        )
+        self.assertEqual(selected, {})
+        self.assertEqual(excluded, 1)
+
+    def test_strict_latest_observation_generates_visible_candidate_receipt(self):
+        receipt = self.generate(lifecycle=True)[0]
+        self.assertIs(
+            receipt.observation.observation,
+            generator.Observation.API_ITEM_VISIBLE,
+        )
+        self.assertIs(receipt.observation.expected_content_id_match, True)
+        self.assertIs(receipt.observation.affiliate_link_observed, True)
+        self.assertEqual(receipt.observation.source_status_code, 200)
+        self.assertTrue(receipt.freshness_confirmed)
+
+        master = {1: {"public_id": receipt.public_id}}
+        confidence = {1: {"observation_stats": {"last_observed_at": STAMP}}}
+        selected, excluded = builder.filter_master_items_by_lifecycle_receipts(
+            master, confidence, (receipt,), evaluated_at=NOW
+        )
+        self.assertEqual(set(selected), {1})
+        self.assertEqual(excluded, 0)
+
+    def test_absent_or_invalid_affiliate_evidence_is_not_candidate(self):
+        for value in (0, None):
+            with self.subTest(value=value):
+                receipt = self.generate(
+                    lifecycle=True,
+                    affiliate_link_observed=value,
+                )[0]
+                self.assertIs(
+                    receipt.observation.affiliate_link_observed,
+                    None if value is None else False,
+                )
+                master = {1: {"public_id": receipt.public_id}}
+                confidence = {1: {"observation_stats": {"last_observed_at": STAMP}}}
+                selected, excluded = builder.filter_master_items_by_lifecycle_receipts(
+                    master, confidence, (receipt,), evaluated_at=NOW
+                )
+                self.assertEqual(selected, {})
+                self.assertEqual(excluded, 1)
+
+    def test_lifecycle_observation_must_match_latest_snapshot_time(self):
+        with self.assertRaisesRegex(generator.SavedReceiptError, "OBSERVATION_INVALID"):
+            self.generate(
+                lifecycle=True,
+                lifecycle_time="2026-09-16T06:00:00Z",
+            )
+
+    def test_older_observation_never_upgrades_a_newer_snapshot(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        database = Path(temporary.name) / "saved.db"
+        create_database(database, lifecycle=True)
+        newer = "2026-09-16T08:00:42Z"
+        connection = sqlite3.connect(database)
+        connection.execute(
+            "INSERT INTO item_snapshots VALUES (2,1,?)",
+            (newer,),
+        )
+        connection.execute(
+            "UPDATE items SET last_observed_at = ? WHERE id = 1",
+            (newer,),
+        )
+        connection.commit()
+        connection.close()
+
+        receipt = generator.generate_receipts(database, as_of=NOW)[0]
+        self.assertIs(receipt.observation.observation, generator.Observation.UNKNOWN)
+        self.assertIsNone(receipt.observation.affiliate_link_observed)
+        self.assertEqual(
+            receipt.observation.reason_codes,
+            (
+                "SAVED_AFFILIATE_EVIDENCE_UNAVAILABLE",
+                "SAVED_COLLECTION_NOT_EXACT_ITEM_VERIFICATION",
+            ),
+        )
+
+    def test_strict_observation_can_be_valid_but_stale_and_is_excluded(self):
+        old = "2026-09-15T00:00:00Z"
+        receipt = self.generate(
+            master_time=old,
+            snapshot_time=old,
+            lifecycle=True,
+            lifecycle_time=old,
+        )[0]
+        self.assertIs(
+            receipt.observation.observation,
+            generator.Observation.API_ITEM_VISIBLE,
+        )
+        self.assertFalse(receipt.freshness_confirmed)
+        master = {1: {"public_id": receipt.public_id}}
+        confidence = {1: {"observation_stats": {"last_observed_at": old}}}
+        selected, excluded = builder.filter_master_items_by_lifecycle_receipts(
+            master, confidence, (receipt,), evaluated_at=NOW
         )
         self.assertEqual(selected, {})
         self.assertEqual(excluded, 1)
@@ -138,6 +274,17 @@ class SavedLifecycleReceiptTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, text)
 
+    def test_candidate_packet_round_trip_remains_sanitized(self):
+        receipts = self.generate(lifecycle=True)
+        packet = generator.create_packet(receipts, as_of=NOW)
+        generator.safety_scan(packet)
+        restored = generator.validate_packet(json.loads(json.dumps(packet)))
+        self.assertIs(
+            restored[0].observation.observation,
+            generator.Observation.API_ITEM_VISIBLE,
+        )
+        self.assertIs(restored[0].observation.affiliate_link_observed, True)
+
     def test_packet_duplicate_and_freshness_tamper_fail_closed(self):
         packet = generator.create_packet(self.generate(), as_of=NOW)
         packet["receipts"].append(dict(packet["receipts"][0]))
@@ -146,6 +293,12 @@ class SavedLifecycleReceiptTests(unittest.TestCase):
         packet = generator.create_packet(self.generate(), as_of=NOW)
         packet["receipts"][0]["freshness_confirmed"] = False
         with self.assertRaisesRegex(generator.SavedReceiptError, "FRESHNESS_MISMATCH"):
+            generator.validate_packet(packet)
+
+    def test_legacy_packet_version_is_rejected(self):
+        packet = generator.create_packet(self.generate(), as_of=NOW)
+        packet["version"] = "0.1"
+        with self.assertRaisesRegex(generator.SavedReceiptError, "PACKET_VERSION"):
             generator.validate_packet(packet)
 
     def test_packet_cannot_upgrade_saved_evidence_to_candidate(self):

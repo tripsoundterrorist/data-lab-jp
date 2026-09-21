@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from collector_preflight import NativeRunClaim, claim_native_run, run_preflight
+from sanitized_affiliate_observation import observe_affiliate_url
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -157,6 +158,37 @@ def parse_optional_int(value: Any) -> int | None:
     except (TypeError, ValueError):
         return None
     return parsed if str(parsed) == str(value).strip() else None
+
+
+def store_sanitized_lifecycle_observation(
+    connection: sqlite3.Connection,
+    *,
+    snapshot_id: int,
+    observed_at: str,
+    source_status_code: int,
+    affiliate_url: Any,
+) -> None:
+    """Persist bounded evidence only; the transient URL is never stored."""
+
+    affiliate_presence, reason_code = observe_affiliate_url(affiliate_url)
+    connection.execute(
+        """
+        INSERT INTO item_lifecycle_observations (
+          snapshot_id, contract_version, verification_mode, observation,
+          observed_at, expected_content_id_match, affiliate_link_observed,
+          source_status_code, inventory_signal, reason_code, created_at
+        ) VALUES (?, '0.1', 'COLLECTION_PAGE_ITEM', 'API_ITEM_VISIBLE',
+                  ?, 1, ?, ?, 'UNKNOWN', ?, ?)
+        """,
+        (
+            snapshot_id,
+            observed_at,
+            None if affiliate_presence is None else int(affiliate_presence),
+            source_status_code,
+            reason_code,
+            utc_now(),
+        ),
+    )
 
 
 def mark_run_failed(
@@ -336,7 +368,11 @@ def main() -> int:
                 ) from None
 
             result = payload.get("result") if isinstance(payload, dict) else None
-            if not isinstance(result, dict) or str(result.get("status")) != "200":
+            if (
+                http_status != 200
+                or not isinstance(result, dict)
+                or str(result.get("status")) != "200"
+            ):
                 raise CollectionFailure(
                     "validation_error",
                     "INVALID_API_STATUS",
@@ -405,6 +441,7 @@ def main() -> int:
             pages.append(
                 {
                     "offset": offset,
+                    "source_status_code": http_status,
                     "items": response_items,
                     "query_context_json": json.dumps(
                         query_context, ensure_ascii=False, separators=(",", ":")
@@ -451,6 +488,7 @@ def main() -> int:
             work_items = (
                 (
                     page["offset"],
+                    page["source_status_code"],
                     page["query_context_json"],
                     source_position,
                     item,
@@ -458,7 +496,13 @@ def main() -> int:
                 for page in pages
                 for source_position, item in enumerate(page["items"], start=1)
             )
-            for source_offset, query_context_json, source_position, item in work_items:
+            for (
+                source_offset,
+                source_status_code,
+                query_context_json,
+                source_position,
+                item,
+            ) in work_items:
                 content_id = item.get("content_id")
                 if not isinstance(content_id, str) or not content_id.strip():
                     raise ValueError("An item did not contain a usable content_id.")
@@ -550,7 +594,7 @@ def main() -> int:
                 if item_row is None:
                     raise RuntimeError("The stored item could not be resolved.")
 
-                connection.execute(
+                snapshot_cursor = connection.execute(
                     """
                     INSERT INTO item_snapshots (
                       item_id, collection_run_id, observed_at, source_sort,
@@ -571,6 +615,13 @@ def main() -> int:
                         parse_optional_int(review.get("count")),
                         query_context_json,
                     ),
+                )
+                store_sanitized_lifecycle_observation(
+                    connection,
+                    snapshot_id=snapshot_cursor.lastrowid,
+                    observed_at=observed_at,
+                    source_status_code=source_status_code,
+                    affiliate_url=item.get("affiliateURL"),
                 )
                 snapshot_count += 1
                 processed_count += 1

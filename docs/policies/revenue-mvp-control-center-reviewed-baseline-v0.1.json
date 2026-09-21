@@ -1,5 +1,5 @@
 {
-  "manifest_version": "0.1",
+  "manifest_version": "0.2",
   "review_status": "REVIEWED_BASELINE",
   "reviewed_base_ref": "main",
   "reviewed_base_commit": "365d616b3581b2c6db6f4e2165ec07a4e2e60275",
@@ -11,24 +11,32 @@
     "launch_rehearsal": "0.1-candidate",
     "lifecycle_filter": "0.1-candidate",
     "lifecycle_policy": "2026-09-16.1",
-    "lifecycle_receipt": "0.1",
+    "lifecycle_receipt": "0.2",
     "reduced_surface_mapping": "0.1-candidate",
     "reduced_surface_mapping_status": "REDUCED_SURFACE_REVIEW_CANDIDATE"
   },
   "required_evidence_sha256": {
+    "db/schema.sql": "e4e6b32a299fce564943d32b4e234c783a35e23ece1f429f050a105110b46e5b",
     "docs/policies/revenue-mvp-official-lifecycle-policy-v20260916.md": "f6c34d854a20a25fe4ebdb39cb1cd3e9b375e375eac7b173132fba8e07f86c2f",
     "docs/policies/revenue-mvp-reduced-surface-gate-mapping-v0.1-candidate.md": "9f6edef10e7a110abce4446aaf495e5e8329d1fb2162103fc41c57d7e7fc99b1",
+    "docs/policies/revenue-mvp-saved-lifecycle-receipt-v0.1-candidate.md": "16f4bb38de08bd93fb265903f394a17fbdd933e44b35f83a8953f9339f03e577",
     "scripts/build-public-data.py": "94eac3e2f634152ffbb6769d1ecd42202a8e1dfa17b98546d68c99db35a56a0d",
-    "scripts/generate-saved-lifecycle-receipts.py": "ef15613768f2b933a9033b9c749c978ab1eef7e2518e6528ee1e8bf1277a3ee9",
+    "scripts/collect-dmm-items.py": "fcd9acf210ea2b093fb099edad63c6439b332cf24d18c4d18c196895f21dec24",
+    "scripts/collector_preflight.py": "b2d7ec63c1de3549dec12edefaa200141e5c0705dc63c95500e3ffb021902f23",
+    "scripts/generate-saved-lifecycle-receipts.py": "c37cb06eb610c8a6029ff4eacde9ad456545ec2e2694395d40dee4d283dfac2c",
+    "scripts/migrate-add-lifecycle-observations.py": "147bbd8b11435ec1e1fb7177cc54ea1a6a14850244876478ae80d26b7467ddcf",
     "scripts/revenue_mvp_bounded_verification_runner.py": "815a719edd31a84d23dfdd3f99a117b6ab762674ab232d039605fdab227abf81",
-    "scripts/revenue_mvp_lifecycle_receipt.py": "c67a78456e4e30d3ff0eaab8e255a62d352e0546074659c7e3089c3f2265e42a",
+    "scripts/revenue_mvp_bounded_live_verification.py": "cd1677e2cd8541cfc94b0e70d8d6ad7aa8126a7dab091f8b3ed82e972d8dcb80",
+    "scripts/revenue_mvp_lifecycle_receipt.py": "b96982a384e4dcf3347938fc9aaa3807380fbbb42db00448ca0aa979acd3466d",
     "scripts/revenue_mvp_official_lifecycle_policy.py": "193c3c2dff560b5fd654640012afe8cf66e257c3ee50840d7ff11ad87c8f5fb1",
     "scripts/revenue_mvp_offline_artifact_integration.py": "16c1e9f1969643cfac386c10ea5e0b4b0881d4ef3a95f31a0ab92560ebaaa4a5",
     "scripts/revenue_mvp_offline_launch_rehearsal.py": "c4071ca21368eeaa2f162513c4c12c008804ed653d5d1e63ae4107cc8fa6aa06",
     "scripts/revenue_mvp_offline_lifecycle_filter.py": "6a80e72e6c2ef8d6be452701cb003b596cc06c8ecd46cdb6525361642e4ee8a1",
     "scripts/revenue_mvp_reduced_surface_gate_mapping.py": "9ab2bae5deeb3b55bf9a9479bcb7120f6bbfce4c244736bdedbb5e5de30d63d3",
+    "scripts/sanitized_affiliate_observation.py": "e5e3b1a2e7c2b5d2cce200afb67df6732dd7e92122adcefd81fdf682b285e8b9",
     "tests/test_revenue_mvp_builder_lifecycle_prefilter.py": "aa9957f2b6502a7eb058e3e53d9e057ef5ca76e367eb129bd62c7cc5df9f7bf8",
-    "tests/test_revenue_mvp_saved_lifecycle_receipts.py": "9865a6c90ce78ea3607a0b57abc68e777f669686466fc96dadfe387b4436dbec"
+    "tests/test_lifecycle_observation_persistence.py": "2caee331a45bac7e7118f7ca74b1ebfeb8cc6847b9d0a46c84c251c3438e38c6",
+    "tests/test_revenue_mvp_saved_lifecycle_receipts.py": "a24b0d204c7315ba2326aaf48b43ffb7fbe173dad63739a2f9f7f548dfb359f9"
   },
   "builder_prefilter_evidence_paths": [
     "scripts/build-public-data.py",

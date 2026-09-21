@@ -20,10 +20,10 @@ import revenue_mvp_reduced_surface_gate_mapping as gate_mapping
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE_PATH = ROOT / "docs" / "policies" / "revenue-mvp-control-center-reviewed-baseline-v0.1.json"
-BASELINE_MANIFEST_SHA256 = "3d2997353517538e1ab54a2deacf44e1643e5fdc62fee50ec2fa53774a58c5de"
+BASELINE_MANIFEST_SHA256 = "08372823c308cbc28f7ae91a12a6cee1d158b05c7c6444ed2b1a13bb00f48b03"
 VERSION = "0.2-candidate"
 COLLECTOR_VERSION = "0.1"
-BASELINE_VERSION = "0.1"
+BASELINE_VERSION = "0.2"
 SYNCED_BLOCKED = "CONTROL_CENTER_EVIDENCE_SYNCED_BLOCKED"
 REVIEW_CANDIDATE = "CONTROL_CENTER_REDUCED_SURFACE_REVIEW_CANDIDATE"
 FAIL_CLOSED = "CONTROL_CENTER_EVIDENCE_SYNC_FAIL_CLOSED"
@@ -37,10 +37,16 @@ VERSION_KEYS = (
     "reduced_surface_mapping", "reduced_surface_mapping_status",
 )
 REQUIRED_EVIDENCE_PATHS = (
+    "db/schema.sql",
     "docs/policies/revenue-mvp-official-lifecycle-policy-v20260916.md",
     "docs/policies/revenue-mvp-reduced-surface-gate-mapping-v0.1-candidate.md",
+    "docs/policies/revenue-mvp-saved-lifecycle-receipt-v0.1-candidate.md",
     "scripts/build-public-data.py",
+    "scripts/collect-dmm-items.py",
+    "scripts/collector_preflight.py",
     "scripts/generate-saved-lifecycle-receipts.py",
+    "scripts/migrate-add-lifecycle-observations.py",
+    "scripts/revenue_mvp_bounded_live_verification.py",
     "scripts/revenue_mvp_bounded_verification_runner.py",
     "scripts/revenue_mvp_lifecycle_receipt.py",
     "scripts/revenue_mvp_official_lifecycle_policy.py",
@@ -48,6 +54,8 @@ REQUIRED_EVIDENCE_PATHS = (
     "scripts/revenue_mvp_offline_launch_rehearsal.py",
     "scripts/revenue_mvp_offline_lifecycle_filter.py",
     "scripts/revenue_mvp_reduced_surface_gate_mapping.py",
+    "scripts/sanitized_affiliate_observation.py",
+    "tests/test_lifecycle_observation_persistence.py",
     "tests/test_revenue_mvp_builder_lifecycle_prefilter.py",
     "tests/test_revenue_mvp_saved_lifecycle_receipts.py",
 )
