@@ -1,0 +1,17 @@
+{
+  "version": "0.1",
+  "scope": "UNORDERED_REDUCED_SURFACE",
+  "state": "APPROVED_FOR_ONE_TIME_EXACT_ARTIFACT_ACTIVATION",
+  "source_packet_sha256": "9d67bd58bcf3b2305be2e36bfb20d1ed6ef526973216ba80d1ff2536c23637fd",
+  "artifact_sha256": "081d72a82ac098a4325374df27c90e0c6ee314bfd14f7e7476149c31777008c4",
+  "candidate_count": 100,
+  "target_route": "/items/",
+  "replacement_source": "items/index.html",
+  "replacement_source_before_sha256": "07dd2ba6932befd82a69a503a94ed4a8232326997e076587c26c54de2c0de027",
+  "rollback": "restore the prior items/index.html and set this scoped state to CLOSED atomically",
+  "global_publication_gate": "unchanged",
+  "cta_allowed": false,
+  "affiliate_eligibility_allowed": false,
+  "d1_write_allowed": false,
+  "scope_expansion_allowed": false
+}
