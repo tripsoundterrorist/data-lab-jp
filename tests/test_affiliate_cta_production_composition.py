@@ -28,7 +28,7 @@ class ProductionCompositionTests(unittest.TestCase):
   calls=[]
   def transport(request):
    calls.append(request);self.assertEqual(repr(request),"<OpaqueProviderRequest>");return payload(request._content_id)
-  result=build(transport).records(CONTEXT)
+  lifecycle=build(transport);result=lifecycle.records(lifecycle.context)
   self.assertEqual(len(result),10);self.assertEqual(len(calls),10);self.assertEqual(len({id(value) for value in calls}),10)
  def test_mapping_or_context_failure_has_zero_transport_calls(self):
   calls=[];bad=mapping();bad.pop(IDS[0])
@@ -43,7 +43,7 @@ class ProductionCompositionTests(unittest.TestCase):
      calls.append(request)
      if len(calls)-1==stop_at:raise TimeoutError()
      return payload(request._content_id)
-    self.assertIsNone(build(transport).records(CONTEXT));self.assertEqual(len(calls),stop_at+1)
+    lifecycle=build(transport);self.assertIsNone(lifecycle.records(lifecycle.context));self.assertEqual(len(calls),stop_at+1)
  def test_click_and_render_share_composition_provider(self):
   value=build()
   with mock.patch.object(composition,"production_provider",return_value=value),mock.patch.object(approved,"production_context",return_value=CONTEXT):

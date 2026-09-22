@@ -13,6 +13,7 @@ from typing import Any
 
 import affiliate_runtime_route_contract as route
 import affiliate_cta_click_revalidation_candidate as click
+import affiliate_cta_production_composition as composition
 
 
 VERSION = "0.1-candidate"
@@ -91,18 +92,25 @@ def assess(
             return _receipt(BLOCKED, tuple(route_result.reason_codes))
 
         public_id = path.removeprefix("/go/") if type(path) is str else None
-        click_result = click.decide(
+        lifecycle = composition.production_provider()
+        if not composition._valid_lifecycle(lifecycle):
+            return _receipt(BLOCKED, ("LIFECYCLE_BLOCKED",), click_assessed=True)
+        click_result = click._decide(
             version=click.VERSION,
             clicked_public_id=public_id,
             evaluated_at=evaluated_at,
+            context=lifecycle.context, observe=lifecycle.observe, provider=lifecycle.provider,
         )
         if click_result.status != click.ALLOWED:
             return _receipt(BLOCKED, tuple(click_result.reason_codes), click_assessed=True)
-        return _receipt(
+        receipt = _receipt(
             READY,
             ("ROUTE_CONTRACT_CONFIRMED",) + tuple(click_result.reason_codes),
             click_assessed=True,
             response_status=click_result.redirect_status_candidate,
+        )
+        return receipt if composition._valid_lifecycle(lifecycle) else _receipt(
+            BLOCKED, ("LIFECYCLE_BLOCKED",), click_assessed=True,
         )
     except Exception:
         return _receipt(FAIL_CLOSED, ("INERT_INTEGRATION_INTERNAL_ERROR",))

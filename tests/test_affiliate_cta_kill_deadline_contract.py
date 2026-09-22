@@ -2,30 +2,50 @@ from pathlib import Path
 import sys
 import unittest
 
-ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/"scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import affiliate_cta_kill_deadline_contract as subject
 
-class KillDeadlineTests(unittest.TestCase):
- def test_default_is_blocked_and_token_is_redacted(self):
-  self.assertEqual(subject.default_state(),subject.BLOCKED);self.assertEqual(repr(subject._new_test_token()),"<KillToken>")
- def test_revoke_is_idempotent_and_blocks_before_transport(self):
-  token=subject._new_test_token();token.revoke();token.revoke();calls=[]
-  guarded=subject._guarded_transport_for_test(token,lambda:0,10,lambda request:calls.append(request))
-  self.assertIsNone(guarded(object()));self.assertEqual(calls,[])
- def test_deadline_before_and_after_return_blocks_no_retry(self):
-  token=subject._new_test_token();calls=[]
-  self.assertIsNone(subject._guarded_transport_for_test(token,lambda:10,10,lambda request:calls.append(request))(object()));self.assertEqual(calls,[])
-  ticks=iter((0,10));guarded=subject._guarded_transport_for_test(token,lambda:next(ticks),10,lambda request:calls.append(request) or {})
-  self.assertIsNone(guarded(object()));self.assertEqual(len(calls),1)
- def test_middle_revoke_stops_later_calls(self):
-  token=subject._new_test_token();calls=[]
-  def transport(request):
-   calls.append(request)
-   if len(calls)==1:token.revoke()
-   return {}
-  guarded=subject._guarded_transport_for_test(token,lambda:0,10,transport)
-  self.assertIsNone(guarded(object()));self.assertIsNone(guarded(object()));self.assertEqual(len(calls),1)
- def test_public_inputs_are_not_accepted(self):
-  with self.assertRaises(TypeError):subject.default_state(token=object())
 
-if __name__=='__main__':unittest.main()
+class KillDeadlineTests(unittest.TestCase):
+    def test_no_public_issuer_or_mutable_generation(self):
+        self.assertEqual(subject.default_state(), subject.BLOCKED)
+        with self.assertRaises(TypeError):
+            subject._LifecycleLease()
+        lease = subject._issue_lease_for_test(lambda: 0, 10)
+        self.assertEqual(repr(lease), "<LifecycleLease>")
+        for field in ("_active", "_generation", "generation", "_terminal_generation"):
+            with self.assertRaises(AttributeError):
+                setattr(lease, field, True)
+        lease.revoke()
+        lease.revoke()
+        self.assertFalse(lease.valid())
+
+    def test_invalid_times_and_clock_regression_are_terminal(self):
+        for invalid in (True, False, float("nan"), float("inf"), -float("inf"), None, "0", object()):
+            with self.subTest(kind=type(invalid).__name__):
+                self.assertFalse(subject._issue_lease_for_test(lambda: 0, invalid).valid())
+                state = [invalid]
+                lease = subject._issue_lease_for_test(lambda: state[0], 10)
+                self.assertFalse(lease.valid())
+                state[0] = 0
+                self.assertFalse(lease.valid())
+        for second in (1, 10):
+            state = [2]
+            lease = subject._issue_lease_for_test(lambda: state[0], 10)
+            self.assertTrue(lease.valid())
+            state[0] = second
+            self.assertFalse(lease.valid())
+            state[0] = 3
+            self.assertFalse(lease.valid())
+
+    def test_revocation_during_clock_callback_is_terminal(self):
+        holder = {}
+        def clock():
+            holder["lease"].revoke()
+            return 0
+        holder["lease"] = subject._issue_lease_for_test(clock, 10)
+        self.assertFalse(holder["lease"].valid())
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import affiliate_cta_approved_context as approved
 import affiliate_cta_canary_offline_candidate as candidate
+import affiliate_cta_production_composition as composition
 
 NOW = datetime(2026, 9, 22, 4, 0, tzinfo=timezone.utc)
 IDS = tuple(f"itm_{value:024x}" for value in range(10))
@@ -27,8 +28,16 @@ def record(value, observation=None):
 
 def render(records, context=CONTEXT, provider=None):
     provider = provider or (lambda _context: records)
-    with mock.patch.object(approved, "production_context", return_value=context), \
-         mock.patch.object(approved, "production_render_records", side_effect=provider):
+    lifecycle = composition._build_offline_composition_for_test(CONTEXT, {pid: "content-"+str(i) for i,pid in enumerate(IDS)}, lambda request: None, lambda: NOW)
+    if not approved._context_valid(context):
+        lifecycle = replace(lifecycle, context=context)
+    def bound(_context):
+        source = provider(context)
+        return tuple(replace(item, observation=replace(item.observation, context=lifecycle.context,
+                     provider=lifecycle.provider, lease=lifecycle.lease, generation=lifecycle.generation))
+                     if type(item) is approved._InternalPresentationRecord else item for item in source)
+    with mock.patch.object(composition, "production_provider", return_value=lifecycle), \
+         mock.patch.object(composition._OfflineComposition, "records", side_effect=bound):
         return candidate.render(as_of=NOW)
 
 

@@ -1,69 +1,100 @@
-"""Internal fake-lifecycle kill and deadline contract; production remains off."""
+"""Internal lease for offline review. No production issuer or network code.
+
+State lives in a closure: revoke, expiry, invalid time and clock regression are
+terminal for the entire lifecycle. Python process/code mutation is not an
+isolation boundary. A transport that never returns is not interrupted here.
+"""
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
-from typing import Any, Callable
-
+from typing import Any
 
 BLOCKED = "BLOCKED"
-ACTIVE = "ACTIVE"
 
 
-@dataclass
-class _TestKillToken:
-    _generation: object = None  # type: ignore[assignment]
-    _terminal_generation: object | None = None
+def _finite(value: Any) -> bool:
+    try:
+        return type(value) in (int, float) and math.isfinite(value)
+    except (OverflowError, TypeError, ValueError):
+        return False
 
-    def __post_init__(self) -> None:
-        self._generation = object()
+
+class _LifecycleLease:
+    __slots__ = ("__check", "__revoke", "__bind", "__matches", "__generation")
+
+    def __new__(cls):
+        raise TypeError("LEASE_INTERNAL_ISSUER_REQUIRED")
+
+    def __setattr__(self, name, value):
+        raise AttributeError("LEASE_IMMUTABLE")
+
+    def __repr__(self):
+        return "<LifecycleLease>"
+
+    @property
+    def generation(self):
+        return self.__generation
+
+    def valid(self) -> bool:
+        return self.__check()
 
     def revoke(self) -> None:
-        self._terminal_generation = self._generation
+        self.__revoke()
 
-    def __repr__(self) -> str:
-        return "<KillToken>"
+    def bind(self, context, provider) -> bool:
+        return self.__bind(context, provider)
 
-
-def _new_test_token() -> _TestKillToken:
-    """Internal-only token issuer; no production issuer exists."""
-    return _TestKillToken()
+    def matches(self, context, provider, generation) -> bool:
+        return self.__matches(context, provider, generation)
 
 
-def _valid_for_test(token: Any, clock: Any, deadline: Any, last: Any = None) -> tuple[bool, float | None]:
-    if type(token) is not _TestKillToken or not callable(clock) or type(deadline) not in (int, float) or type(deadline) is bool or not math.isfinite(deadline):
-        return False, None
-    try:
-        now = clock()
-    except Exception:
-        return False, None
-    if type(now) not in (int, float) or type(now) is bool or not math.isfinite(now):
-        return False, None
-    if last is not None and now < last:
-        return False, None
-    return token._terminal_generation is not token._generation and now < deadline, now
+def _issue_lease_for_test(monotonic_clock: Any, deadline: Any) -> _LifecycleLease:
+    """Called by offline builders only; deadline is exclusive (now < deadline)."""
+    lease = object.__new__(_LifecycleLease)
+    generation = object()
+    terminal = not callable(monotonic_clock) or not _finite(deadline)
+    checking = False
+    last = None
+    bound = None
 
+    def revoke():
+        nonlocal terminal
+        terminal = True
 
-def _guarded_transport_for_test(
-    token: Any, clock: Any, deadline: Any, transport: Any,
-) -> Callable[[Any], Any]:
-    """Bind one fake lifecycle to a token and trusted monotonic deadline."""
-    if type(token) is not _TestKillToken or not callable(clock) or not callable(transport):
-        raise ValueError("KILL_DEADLINE_INPUT_INVALID")
-
-    def guarded(request: Any) -> Any:
+    def check():
+        nonlocal terminal, last, checking
+        if terminal or checking:
+            revoke()
+            return False
+        checking = True
         try:
-            valid, before = _valid_for_test(token, clock, deadline)
-            if not valid:
-                return None
-            response = transport(request)
-            valid, _after = _valid_for_test(token, clock, deadline, before)
-            if not valid:
-                return None
-            return response
+            now = monotonic_clock()
+            if terminal or not _finite(now) or (last is not None and now < last) or now >= deadline:
+                revoke()
+                return False
+            last = now
+            return True
         except Exception:
-            return None
-    return guarded
+            revoke()
+            return False
+        finally:
+            checking = False
+
+    def bind(context, provider):
+        nonlocal bound
+        if bound is not None or not check():
+            return False
+        bound = (context, provider)
+        return True
+
+    def matches(context, provider, candidate_generation):
+        return (bound is not None and context is bound[0] and provider is bound[1]
+                and candidate_generation is generation and check())
+
+    for name, value in (("check", check), ("revoke", revoke), ("bind", bind),
+                        ("matches", matches), ("generation", generation)):
+        object.__setattr__(lease, "_LifecycleLease__" + name, value)
+    return lease
 
 
 def default_state() -> str:

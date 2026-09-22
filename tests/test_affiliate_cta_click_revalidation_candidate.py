@@ -8,6 +8,7 @@ from unittest import mock
 ROOT=Path(__file__).resolve().parents[1]; sys.path.insert(0,str(ROOT/"scripts"))
 import affiliate_cta_approved_context as approved
 import affiliate_cta_click_revalidation_candidate as candidate
+import affiliate_cta_production_composition as composition
 
 NOW=datetime(2026,9,22,5,0,tzinfo=timezone.utc)
 IDS=tuple(f"itm_{value:024x}" for value in range(10))
@@ -21,9 +22,18 @@ def observation(public_id=IDS[0], **changes):
 def decide(observe=lambda value: observation(value), **changes):
  value=context(observe)
  value=changes.pop("context",value)
+ base=context(observe)
+ lifecycle=composition._build_offline_composition_for_test(base,{pid:"content-"+str(i) for i,pid in enumerate(IDS)},lambda request:None,lambda:NOW)
+ if value.selection_digest != base.selection_digest:
+  lifecycle=replace(lifecycle,context=value)
+ def bound(public_id):
+  item=observe(public_id)
+  if type(item) is approved._InternalObservation:
+   return replace(item,context=lifecycle.context,provider=lifecycle.provider,lease=lifecycle.lease,generation=lifecycle.generation)
+  return item
  kwargs={"version":candidate.VERSION,"clicked_public_id":IDS[0],"evaluated_at":NOW}
  kwargs.update(changes)
- with mock.patch.object(approved,"production_context",return_value=value),mock.patch.object(approved,"production_observe",observe): return candidate.decide(**kwargs)
+ with mock.patch.object(composition,"production_provider",return_value=lifecycle),mock.patch.object(composition._OfflineComposition,"observe",side_effect=bound): return candidate.decide(**kwargs)
 
 
 class ClickTests(unittest.TestCase):

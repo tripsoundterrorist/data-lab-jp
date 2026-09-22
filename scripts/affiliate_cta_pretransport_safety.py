@@ -9,7 +9,6 @@ from typing import Any, Mapping
 
 import affiliate_cta_approved_context as approved
 import affiliate_cta_production_composition as composition
-import affiliate_cta_kill_deadline_contract as kill_deadline
 
 
 REQUIRED_SETTING_NAMES = frozenset({
@@ -108,7 +107,7 @@ def _verified_mapping_for_test(
 
 
 def _build_fake_lifecycle_for_test(
-    *, context: Any, transport: Any, clock: Any, token: Any,
+    *, context: Any, transport: Any, clock: Any,
     monotonic_clock: Any, deadline: Any,
     source_bytes: Any, artifact_bytes: Any,
     expected_source_sha256: Any, expected_artifact_sha256: Any,
@@ -121,11 +120,9 @@ def _build_fake_lifecycle_for_test(
     if verified is None or not callable(transport):
         return None
     try:
-        guarded = kill_deadline._guarded_transport_for_test(
-            token, monotonic_clock, deadline, transport,
+        return composition._build_offline_composition_for_test(
+            context, verified, transport, clock,
+            monotonic_clock=monotonic_clock, deadline=deadline,
         )
-    except ValueError:
+    except Exception:
         return None
-    return composition._build_offline_composition_for_test(
-        context, verified, guarded, clock,
-    )

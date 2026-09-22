@@ -16,7 +16,7 @@ SOURCE="".join(f"{public_id}\tcontent-{index}\n" for index,public_id in enumerat
 ARTIFACT=b"artifact-fixture"
 
 def build(**changes):
- values={"context":CONTEXT,"transport":lambda request:{"result":{"status":200,"items":[{"content_id":request._content_id,"affiliateURL":"https://al.dmm.co.jp/?lurl=https%3A%2F%2Fexample.invalid%2F"}]}},"clock":lambda:NOW,"token":kill_deadline._new_test_token(),"monotonic_clock":lambda:0,"deadline":10,"source_bytes":SOURCE,"artifact_bytes":ARTIFACT,"expected_source_sha256":hashlib.sha256(SOURCE).hexdigest(),"expected_artifact_sha256":hashlib.sha256(ARTIFACT).hexdigest()}
+ values={"context":CONTEXT,"transport":lambda request:{"result":{"status":200,"items":[{"content_id":request._content_id,"affiliateURL":"https://al.dmm.co.jp/?lurl=https%3A%2F%2Fexample.invalid%2F"}]}},"clock":lambda:NOW,"monotonic_clock":lambda:0,"deadline":10,"source_bytes":SOURCE,"artifact_bytes":ARTIFACT,"expected_source_sha256":hashlib.sha256(SOURCE).hexdigest(),"expected_artifact_sha256":hashlib.sha256(ARTIFACT).hexdigest()}
  values.update(changes);return subject._build_fake_lifecycle_for_test(**values)
 
 class PretransportSafetyTests(unittest.TestCase):
@@ -32,7 +32,7 @@ class PretransportSafetyTests(unittest.TestCase):
    with self.subTest(changes=changes):self.assertIsNone(build(transport=lambda request:calls.append(request),**changes))
   self.assertEqual(calls,[])
  def test_source_derives_mapping_and_external_mapping_is_not_an_api(self):
-  lifecycle=build();self.assertEqual(len(lifecycle.records(CONTEXT)),10)
+  lifecycle=build();self.assertEqual(len(lifecycle.records(lifecycle.context)),10)
   with self.assertRaises(TypeError):build(mapping={})
  def test_malformed_duplicate_trailing_and_mutation_fail_before_transport(self):
   calls=[]
@@ -46,12 +46,12 @@ class PretransportSafetyTests(unittest.TestCase):
  def test_mutable_source_is_owned_before_later_mutation(self):
   source=bytearray(SOURCE);lifecycle=build(source_bytes=source,expected_source_sha256=hashlib.sha256(SOURCE).hexdigest())
   source[0]=ord("x")
-  self.assertEqual(len(lifecycle.records(CONTEXT)),10)
+  self.assertEqual(len(lifecycle.records(lifecycle.context)),10)
  def test_built_lifecycle_stops_after_revoke_or_deadline(self):
-  token=kill_deadline._new_test_token();lifecycle=build(token=token)
-  token.revoke();self.assertIsNone(lifecycle.records(CONTEXT))
+  lifecycle=build()
+  lifecycle.revoke();self.assertIsNone(lifecycle.records(lifecycle.context))
   expired=build(monotonic_clock=lambda:10,deadline=10)
-  self.assertIsNone(expired.records(CONTEXT))
+  self.assertIsNone(expired)
  def test_lifecycle_returns_one_shared_composition_and_timeout_stops(self):
   calls=[]
   def transport(request):
@@ -59,9 +59,9 @@ class PretransportSafetyTests(unittest.TestCase):
    if len(calls)==4:raise TimeoutError()
    return {"result":{"status":200,"items":[{"content_id":request._content_id,"affiliateURL":"https://al.dmm.co.jp/?lurl=https%3A%2F%2Fexample.invalid%2F"}]}}
   lifecycle=build(transport=transport)
-  self.assertIsNotNone(lifecycle);self.assertIsNone(lifecycle.records(CONTEXT));self.assertEqual(len(calls),4)
+  self.assertIsNotNone(lifecycle);self.assertIsNone(lifecycle.records(lifecycle.context));self.assertEqual(len(calls),4)
  def test_success_is_sequential_bounded_and_receipts_are_sanitized(self):
-  lifecycle=build();records=lifecycle.records(CONTEXT)
+  lifecycle=build();records=lifecycle.records(lifecycle.context)
   self.assertEqual(len(records),10);self.assertTrue(all(not value for value in (subject.SafetyReceipt(subject.BLOCKED,("X",)).transport_allowed,subject.SafetyReceipt(subject.BLOCKED,("X",)).settings_values_exposed,subject.SafetyReceipt(subject.BLOCKED,("X",)).production_write_performed)))
  def test_internal_builder_is_not_public_entry(self):
   with self.assertRaises(TypeError):subject.kill_switch_state(True,transport=object())

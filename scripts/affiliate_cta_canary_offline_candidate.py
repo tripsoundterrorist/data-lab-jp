@@ -9,9 +9,10 @@ from typing import Any
 import affiliate_cta_approved_context as approved_context
 import affiliate_cta_click_revalidation_candidate as click
 import affiliate_cta_presentation as presentation
+import affiliate_cta_production_composition as composition
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class CandidateResult:
     html: str
     rendered_count: int
@@ -21,18 +22,25 @@ class CandidateResult:
     gate_mutation_allowed: bool = False
     cta_activation_allowed: bool = False
 
+    def __repr__(self):
+        return "<CandidateResult>"
+
 
 def render(*, as_of: Any) -> CandidateResult:
     """Render exactly one provider-owned approved selection, or fail closed."""
     if not isinstance(as_of, datetime) or as_of.tzinfo is None:
         raise ValueError("CANARY_INPUT_INVALID")
-    context = approved_context.production_context()
-    if not approved_context._context_valid(context):
-        raise ValueError("APPROVED_CONTEXT_UNAVAILABLE")
     try:
-        records = approved_context.production_render_records(context)
-    except Exception as error:
-        raise ValueError("CANARY_PROVIDER_INVALID") from error
+        lifecycle = composition.production_provider()
+    except Exception:
+        raise ValueError("LIFECYCLE_BLOCKED") from None
+    if not composition._valid_lifecycle(lifecycle):
+        raise ValueError("APPROVED_CONTEXT_UNAVAILABLE")
+    context = lifecycle.context
+    try:
+        records = lifecycle.records(context)
+    except Exception:
+        raise ValueError("CANARY_PROVIDER_INVALID") from None
     if type(records) is not tuple:
         raise ValueError("CANARY_PROVIDER_INVALID")
     if len(records) != approved_context.EXACT_SELECTION_COUNT:
@@ -47,6 +55,7 @@ def render(*, as_of: Any) -> CandidateResult:
             or record.selection_digest != approved_context._context_digest(context)
             or type(record.title) is not str
             or not record.title
+            or not approved_context._observation_bound(record.observation, context, lifecycle.provider)
         ):
             raise ValueError("CANARY_SELECTION_INVALID")
         seen.add(record.public_id)
@@ -57,6 +66,7 @@ def render(*, as_of: Any) -> CandidateResult:
         result = click._decide(
             version=click.VERSION, clicked_public_id=record.public_id, evaluated_at=as_of,
             context=context, observe=lambda _value, value=record.observation: value,
+            provider=lifecycle.provider,
         )
         title = escape(record.title)
         if result.status == click.ALLOWED:
@@ -64,4 +74,7 @@ def render(*, as_of: Any) -> CandidateResult:
         else:
             cards.append(f"<article><h2>{title}</h2></article>")
     html = "<main>" + "".join(cards) + "</main>"
-    return CandidateResult(html, len(records), sum('href="/go/' in card for card in cards))
+    result = CandidateResult(html, len(records), sum('href="/go/' in card for card in cards))
+    if not composition._valid_lifecycle(lifecycle):
+        raise ValueError("LIFECYCLE_BLOCKED")
+    return result
