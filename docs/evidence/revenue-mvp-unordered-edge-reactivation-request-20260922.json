@@ -1,0 +1,85 @@
+{
+  "evidence_type": "UNORDERED_REDUCED_SURFACE_EDGE_REACTIVATION_REQUEST",
+  "evidence_version": "0.1",
+  "decision": "APPROVE_FRESH_ONE_TIME_REACTIVATION_REQUEST",
+  "decision_boundary": "This approves presenting one fresh, exact reactivation request to the user. It does not change any Gate, route, artifact, deployment, CTA, affiliate eligibility, or database state.",
+  "prior_activation": {
+    "prior_one_time_approval_consumed": true,
+    "activation_commit": "26f1f32",
+    "rollback_commit": "b63fe1e",
+    "rollback_state": "CLOSED",
+    "rollback_reason": "EDGE_ARTIFACT_MISMATCH",
+    "prior_approval_reusable": false
+  },
+  "source": {
+    "origin_main_commit": "b09c76a5fd4cf3eef49e18c541f9b7f5f2af74b0",
+    "edge_control_pr": 273,
+    "renderer_version": "0.2-candidate",
+    "source_packet_sha256": "9d67bd58bcf3b2305be2e36bfb20d1ed6ef526973216ba80d1ff2536c23637fd",
+    "rendered_artifact_sha256": "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d",
+    "candidate_count": 100,
+    "target_route": "/items/",
+    "replacement_source": "items/index.html",
+    "replacement_source_sha256": "43a45dba4cd5c625559205a8a58dfa4fdd8201789e9beea726a484b35107b21f",
+    "replacement_source_hash_encoding": "UTF-8 bytes with LF line endings, matching the Git repository blob and deployment source",
+    "preflight_receipt_status": "READY_FOR_EXPLICIT_ACTIVATION_REVIEW"
+  },
+  "edge_control": {
+    "path_scope": "/items/*",
+    "required_cache_control_directive": "no-transform",
+    "official_basis": "Cloudflare documents that Cache-Control no-transform prevents supported body changes, including automatic Web Analytics beacon injection.",
+    "read_only_production_observation": {
+      "http_status": 200,
+      "cache_control_contains_no_transform": true,
+      "cloudflare_beacon_present": false,
+      "article_count": 0,
+      "preparing_present": true
+    }
+  },
+  "user_must_explicitly_approve": {
+    "exact_source_packet_sha256": "9d67bd58bcf3b2305be2e36bfb20d1ed6ef526973216ba80d1ff2536c23637fd",
+    "exact_rendered_artifact_sha256": "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d",
+    "exact_candidate_count": 100,
+    "target_route": "/items/",
+    "replacement_source_and_sha256": "items/index.html @ 43a45dba4cd5c625559205a8a58dfa4fdd8201789e9beea726a484b35107b21f",
+    "proposed_scoped_gate_transition": "CLOSED -> APPROVED_FOR_ONE_TIME_EDGE_VERIFIED_REACTIVATION",
+    "pre_execution_requirements": [
+      "regenerate packet freshness validation, renderer, and rendered-artifact preflight for these exact bindings immediately before execution",
+      "confirm the scoped Gate is CLOSED and the current replacement source hash still matches",
+      "confirm the route response still has Cache-Control no-transform and no Cloudflare beacon before replacement"
+    ],
+    "post_execution_requirements": [
+      "read the edge response and require HTTP 200, Cache-Control no-transform, no Cloudflare beacon, exactly 100 articles, and no preparing state",
+      "require the edge response SHA-256 to equal the exact rendered artifact SHA-256"
+    ],
+    "excluded_operations": [
+      "global Publication Gate change",
+      "CTA or affiliate eligibility enablement",
+      "D1 write or collector execution",
+      "scope expansion"
+    ]
+  },
+  "rollback": {
+    "trigger": "any pre-execution or post-execution requirement failure, including edge SHA mismatch",
+    "operation": "atomically restore items/index.html with the recorded replacement source hash and return the scoped Gate to CLOSED",
+    "global_publication_gate": "unchanged"
+  },
+  "expiry_conditions": [
+    "the prior approval is reused instead of a fresh explicit approval",
+    "any packet, artifact, count, route, replacement-source, renderer-version, header, or preflight binding differs",
+    "the source packet no longer passes freshness and exact-scope validation immediately before execution",
+    "the edge response permits transformation or contains a Cloudflare beacon",
+    "any CTA, affiliate value, identifier, product link, ordering claim, or unreviewed active markup is introduced"
+  ],
+  "activation": {
+    "publication_allowed": false,
+    "production_activation_allowed": false,
+    "affiliate_eligibility_allowed": false,
+    "gate_mutation_allowed": false,
+    "cta_allowed": false,
+    "public_data_deployment_allowed": false
+  },
+  "artifact_committed": false,
+  "packet_contents_committed": false,
+  "product_titles_committed": false
+}
