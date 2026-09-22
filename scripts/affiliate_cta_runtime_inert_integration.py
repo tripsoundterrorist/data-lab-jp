@@ -69,8 +69,6 @@ def assess(
     runtime_chain_connected: Any,
     rate_limit_allowed: Any,
     pr_disclosure_available: Any,
-    selection_bundle: Any,
-    trusted_resolver: Any,
     evaluated_at: Any,
 ) -> IntegrationReceipt:
     """Assess the existing route and click contracts without executing either."""
@@ -96,8 +94,6 @@ def assess(
         click_result = click.decide(
             version=click.VERSION,
             clicked_public_id=public_id,
-            selection_bundle=selection_bundle,
-            trusted_resolver=trusted_resolver,
             evaluated_at=evaluated_at,
         )
         if click_result.status != click.ALLOWED:
