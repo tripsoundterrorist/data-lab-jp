@@ -70,9 +70,12 @@ def _build_offline_composition_for_test(
     if not approved._context_valid(context) or not callable(transport):
         raise ValueError("OFFLINE_COMPOSITION_INPUT_INVALID")
 
-    chosen_executor = executor if executor is not None else bounded._FakeBoundedExecutorForTest(
-        monotonic_clock=monotonic_clock,
-    )
+    chosen_executor = executor if executor is not None else bounded._FakeBoundedExecutorForTest()
+    if (
+        not isinstance(chosen_executor, bounded._FakeBoundedExecutorForTest)
+        or not chosen_executor._bind_monotonic_clock_for_test(monotonic_clock)
+    ):
+        raise ValueError("OFFLINE_EXECUTOR_CLOCK_INVALID")
     provider_holder = {}
 
     def fetch(content_id: str) -> Any:
@@ -81,7 +84,7 @@ def _build_offline_composition_for_test(
             return None
         return bounded._send_for_test(
             executor=chosen_executor, request=_OpaqueProviderRequest(content_id), timeout_ms=timeout_ms,
-            valid=provider.valid, remaining_ms=provider.lease.remaining_ms,
+            valid=provider.valid, budget_snapshot=provider.lease.send_budget,
             revoke=provider.revoke, transport=transport,
         )
 

@@ -53,10 +53,10 @@ class RecordingExecutor(bounded._FakeBoundedExecutorForTest):
         self.budgets = []
         self.calls = 0
 
-    def execute(self, request, timeout_ms, cancelled, send):
+    def execute(self, request, timeout_ms, cancelled, send, pre_send):
         self.calls += 1
         self.budgets.append(timeout_ms)
-        return super().execute(request, timeout_ms, cancelled, send)
+        return super().execute(request, timeout_ms, cancelled, send, pre_send)
 
 
 def route_args():
@@ -113,6 +113,7 @@ class BoundedSendContractTests(unittest.TestCase):
             (1_000, 0, 1, 1_000),
             (5, 0, 10, 5),
             (bounded.MAX_TIMEOUT_MS, 9.9981, 10, 1),
+            (bounded.MAX_TIMEOUT_MS, 0, 0.009, 8),
         ):
             with self.subTest(timeout_ms=timeout_ms, now=now, deadline=deadline):
                 executor = RecordingExecutor()
@@ -149,8 +150,20 @@ class BoundedSendContractTests(unittest.TestCase):
     def test_elapsed_boundary_and_late_completion_are_terminal(self):
         for elapsed_ms, allowed in ((0.5, True), (1, False), (2, False)):
             with self.subTest(elapsed_ms=elapsed_ms):
+                time = [0]
+                def monotonic_clock():
+                    return time[0]
+                calls = []
+                def transport(request):
+                    calls.append(request)
+                    time[0] += elapsed_ms / 1_000
+                    return payload(request._content_id)
                 executor = RecordingExecutor(elapsed_ms=elapsed_ms)
-                lifecycle, calls = build(executor, timeout_ms=1)
+                lifecycle = composition._build_offline_composition_for_test(
+                    CONTEXT, {value: f"content-{index}" for index, value in enumerate(IDS)},
+                    transport, lambda: NOW, monotonic_clock=monotonic_clock,
+                    deadline=10, executor=executor, timeout_ms=1,
+                )
                 observation = lifecycle.observe(IDS[0])
                 self.assertEqual(observation is not None, allowed)
                 self.assertEqual(executor.calls, 1)
@@ -198,6 +211,71 @@ class BoundedSendContractTests(unittest.TestCase):
                         with self.assertRaises(ValueError):
                             render.render(as_of=NOW)
                 self.assertEqual(len(calls), 1)
+
+    def test_public_entries_reject_reported_elapsed_that_hides_trusted_elapsed(self):
+        for entry in ("click", "route", "render"):
+            with self.subTest(entry=entry):
+                time = [0]
+                calls = []
+                def monotonic_clock():
+                    return time[0]
+                def transport(request):
+                    calls.append(request)
+                    time[0] += 0.01
+                    return payload(request._content_id)
+                lifecycle = composition._build_offline_composition_for_test(
+                    CONTEXT, {value: f"content-{index}" for index, value in enumerate(IDS)}, transport,
+                    lambda: NOW, monotonic_clock=monotonic_clock, deadline=1,
+                    executor=RecordingExecutor(elapsed_ms=0), timeout_ms=1,
+                )
+                with mock.patch.object(composition, "production_provider", return_value=lifecycle):
+                    if entry == "click":
+                        self.assertEqual(click.decide(version=click.VERSION, clicked_public_id=IDS[0], evaluated_at=NOW).status, click.BLOCKED)
+                    elif entry == "route":
+                        self.assertEqual(route.assess(**route_args()).status, route.BLOCKED)
+                    else:
+                        with self.assertRaises(ValueError):
+                            render.render(as_of=NOW)
+                self.assertEqual(len(calls), 1)
+                self.assertFalse(lifecycle.valid())
+
+    def test_clock_callback_sub_millisecond_before_marker_starts_zero_sends(self):
+        class Clock:
+            calls = 0
+            def __call__(self):
+                self.calls += 1
+                return 0.9999 if self.calls >= 5 else 0
+        clock = Clock()
+        calls = []
+        lifecycle = composition._build_offline_composition_for_test(
+            CONTEXT, {value: f"content-{index}" for index, value in enumerate(IDS)},
+            lambda request: calls.append(request), lambda: NOW,
+            monotonic_clock=clock, deadline=1, timeout_ms=1_000,
+        )
+        self.assertIsNone(lifecycle.observe(IDS[0]))
+        self.assertEqual(calls, [])
+        self.assertFalse(lifecycle.valid())
+
+    def test_executor_clock_callback_revoke_before_marker_starts_zero_sends(self):
+        holder = {}
+        class Clock:
+            calls = 0
+            def __call__(self):
+                self.calls += 1
+                if self.calls == 6:
+                    holder["lifecycle"].revoke()
+                return 0
+        clock = Clock()
+        calls = []
+        lifecycle = composition._build_offline_composition_for_test(
+            CONTEXT, {value: f"content-{index}" for index, value in enumerate(IDS)},
+            lambda request: calls.append(request), lambda: NOW,
+            monotonic_clock=clock, deadline=1, timeout_ms=1_000,
+        )
+        holder["lifecycle"] = lifecycle
+        self.assertIsNone(lifecycle.observe(IDS[0]))
+        self.assertEqual(calls, [])
+        self.assertFalse(lifecycle.valid())
 
     def test_public_entries_cannot_inject_bounded_send_controls(self):
         forbidden = {"executor", "timeout", "cancel", "clock", "send", "transport"}
