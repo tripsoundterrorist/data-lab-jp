@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Any, Callable
 
 
@@ -11,10 +12,14 @@ ACTIVE = "ACTIVE"
 
 @dataclass
 class _TestKillToken:
-    _active: bool = True
+    _generation: object = None  # type: ignore[assignment]
+    _terminal_generation: object | None = None
+
+    def __post_init__(self) -> None:
+        self._generation = object()
 
     def revoke(self) -> None:
-        self._active = False
+        self._terminal_generation = self._generation
 
     def __repr__(self) -> str:
         return "<KillToken>"
@@ -25,19 +30,35 @@ def _new_test_token() -> _TestKillToken:
     return _TestKillToken()
 
 
+def _valid_for_test(token: Any, clock: Any, deadline: Any, last: Any = None) -> tuple[bool, float | None]:
+    if type(token) is not _TestKillToken or not callable(clock) or type(deadline) not in (int, float) or type(deadline) is bool or not math.isfinite(deadline):
+        return False, None
+    try:
+        now = clock()
+    except Exception:
+        return False, None
+    if type(now) not in (int, float) or type(now) is bool or not math.isfinite(now):
+        return False, None
+    if last is not None and now < last:
+        return False, None
+    return token._terminal_generation is not token._generation and now < deadline, now
+
+
 def _guarded_transport_for_test(
     token: Any, clock: Any, deadline: Any, transport: Any,
 ) -> Callable[[Any], Any]:
     """Bind one fake lifecycle to a token and trusted monotonic deadline."""
-    if type(token) is not _TestKillToken or not callable(clock) or not callable(transport) or type(deadline) not in (int, float):
+    if type(token) is not _TestKillToken or not callable(clock) or not callable(transport):
         raise ValueError("KILL_DEADLINE_INPUT_INVALID")
 
     def guarded(request: Any) -> Any:
         try:
-            if token._active is not True or clock() >= deadline:
+            valid, before = _valid_for_test(token, clock, deadline)
+            if not valid:
                 return None
             response = transport(request)
-            if token._active is not True or clock() >= deadline:
+            valid, _after = _valid_for_test(token, clock, deadline, before)
+            if not valid:
                 return None
             return response
         except Exception:
