@@ -7,9 +7,12 @@ isolation boundary. A transport that never returns is not interrupted here.
 from __future__ import annotations
 
 import math
+from decimal import Decimal, ROUND_FLOOR, localcontext
 from typing import Any
 
 BLOCKED = "BLOCKED"
+_MILLISECONDS_PER_SECOND = 1_000
+_MIN_SEND_BUDGET_MS = 1
 
 
 def _finite(value: Any) -> bool:
@@ -20,7 +23,7 @@ def _finite(value: Any) -> bool:
 
 
 class _LifecycleLease:
-    __slots__ = ("__check", "__revoke", "__bind", "__matches", "__generation")
+    __slots__ = ("__check", "__remaining_ms", "__send_budget", "__revoke", "__bind", "__matches", "__generation")
 
     def __new__(cls):
         raise TypeError("LEASE_INTERNAL_ISSUER_REQUIRED")
@@ -37,6 +40,14 @@ class _LifecycleLease:
 
     def valid(self) -> bool:
         return self.__check()
+
+    def remaining_ms(self) -> int | None:
+        """Internal send budget, rounded down so it never exceeds the lease."""
+        return self.__remaining_ms()
+
+    def send_budget(self) -> tuple[Any, int] | None:
+        """Internal trusted monotonic timestamp and whole-millisecond budget."""
+        return self.__send_budget()
 
     def revoke(self) -> None:
         self.__revoke()
@@ -61,24 +72,51 @@ def _issue_lease_for_test(monotonic_clock: Any, deadline: Any) -> _LifecycleLeas
         nonlocal terminal
         terminal = True
 
-    def check():
+    def sample():
         nonlocal terminal, last, checking
         if terminal or checking:
             revoke()
-            return False
+            return None
         checking = True
         try:
             now = monotonic_clock()
             if terminal or not _finite(now) or (last is not None and now < last) or now >= deadline:
                 revoke()
-                return False
+                return None
             last = now
-            return True
+            return now
         except Exception:
             revoke()
-            return False
+            return None
         finally:
             checking = False
+
+    def check():
+        return sample() is not None
+
+    def send_budget():
+        try:
+            now = sample()
+            if now is None:
+                return None
+            # The clock/deadline unit is seconds. Decimal.from_float preserves
+            # the actual binary-float value before floor conversion, so a budget
+            # never rounds above the represented lease duration.
+            with localcontext() as context:
+                context.prec = 1_000
+                left = _decimal_seconds(deadline) - _decimal_seconds(now)
+                value = int((left * _MILLISECONDS_PER_SECOND).to_integral_value(rounding=ROUND_FLOOR))
+            if value < _MIN_SEND_BUDGET_MS:
+                revoke()
+                return None
+            return now, value
+        except Exception:
+            revoke()
+            return None
+
+    def remaining_ms():
+        value = send_budget()
+        return None if value is None else value[1]
 
     def bind(context, provider):
         nonlocal bound
@@ -91,7 +129,7 @@ def _issue_lease_for_test(monotonic_clock: Any, deadline: Any) -> _LifecycleLeas
         return (bound is not None and context is bound[0] and provider is bound[1]
                 and candidate_generation is generation and check())
 
-    for name, value in (("check", check), ("revoke", revoke), ("bind", bind),
+    for name, value in (("check", check), ("remaining_ms", remaining_ms), ("send_budget", send_budget), ("revoke", revoke), ("bind", bind),
                         ("matches", matches), ("generation", generation)):
         object.__setattr__(lease, "_LifecycleLease__" + name, value)
     return lease
@@ -99,3 +137,11 @@ def _issue_lease_for_test(monotonic_clock: Any, deadline: Any) -> _LifecycleLeas
 
 def default_state() -> str:
     return BLOCKED
+
+
+def _decimal_seconds(value: Any) -> Decimal:
+    if type(value) is int:
+        return Decimal(value)
+    if type(value) is float:
+        return Decimal.from_float(value)
+    raise ValueError("LEASE_CLOCK_INVALID")

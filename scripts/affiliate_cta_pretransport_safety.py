@@ -111,6 +111,7 @@ def _build_fake_lifecycle_for_test(
     monotonic_clock: Any, deadline: Any,
     source_bytes: Any, artifact_bytes: Any,
     expected_source_sha256: Any, expected_artifact_sha256: Any,
+    executor: Any = None, timeout_ms: Any = 1000,
 ) -> Any:
     """Internal-only review builder; failure precedes any transport request."""
     verified = _verified_mapping_for_test(
@@ -123,6 +124,7 @@ def _build_fake_lifecycle_for_test(
         return composition._build_offline_composition_for_test(
             context, verified, transport, clock,
             monotonic_clock=monotonic_clock, deadline=deadline,
+            executor=executor, timeout_ms=timeout_ms,
         )
     except Exception:
         return None

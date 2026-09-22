@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 import affiliate_cta_approved_context as approved
+import affiliate_cta_bounded_send_contract as bounded
 import affiliate_cta_offline_provider_factory as factory
 
 
@@ -62,18 +63,32 @@ def production_provider() -> None:
 
 def _build_offline_composition_for_test(
     context: Any, mapping: Any, transport: Any, clock: Any,
-    *, monotonic_clock=lambda: 0, deadline=10,
+    *, monotonic_clock=lambda: 0, deadline=10, executor=None,
+    timeout_ms=bounded.DEFAULT_TIMEOUT_MS,
 ) -> _OfflineComposition:
     """Internal offline-review seam; it cannot enable production transport."""
     if not approved._context_valid(context) or not callable(transport):
         raise ValueError("OFFLINE_COMPOSITION_INPUT_INVALID")
 
+    chosen_executor = executor if executor is not None else bounded._FakeBoundedExecutorForTest()
+    if not isinstance(chosen_executor, bounded._FakeBoundedExecutorForTest):
+        raise ValueError("OFFLINE_EXECUTOR_CLOCK_INVALID")
+    provider_holder = {}
+
     def fetch(content_id: str) -> Any:
-        return transport(_OpaqueProviderRequest(content_id))
+        provider = provider_holder.get("provider")
+        if provider is None:
+            return None
+        return bounded._send_for_test(
+            executor=chosen_executor, request=_OpaqueProviderRequest(content_id), timeout_ms=timeout_ms,
+            valid=provider.valid, budget_snapshot=provider.lease.send_budget,
+            revoke=provider.revoke, transport=transport,
+        )
 
     provider = factory._build_offline_provider_for_test(
         context, mapping, fetch, clock, monotonic_clock=monotonic_clock, deadline=deadline,
     )
+    provider_holder["provider"] = provider
     return _OfflineComposition(provider, provider.context, provider.lease, provider.generation)
 
 
