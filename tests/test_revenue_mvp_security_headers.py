@@ -39,6 +39,12 @@ class RevenueMvpSecurityHeadersTests(unittest.TestCase):
         self.assertNotIn("script-src *", self.headers)
         self.assertNotIn("connect-src *", self.headers)
 
+    def test_items_route_disables_edge_payload_transformation(self):
+        self.assertIn(
+            "/items/*\n  Cache-Control: public, max-age=0, must-revalidate, no-transform",
+            self.headers.replace("\r\n", "\n"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
