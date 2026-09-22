@@ -1,0 +1,40 @@
+{
+  "version": "0.1",
+  "decision": "APPROVE_EXACT_CANARY_ACTIVATION_REQUEST_PRESENTATION",
+  "reviewed_main_commit": "ee69f8441ab7d8087af6c142000416501ec119cf",
+  "reviewed_preflight_pr": 280,
+  "reviewed_preflight_head": "12ac1d82d3914674d5973e782541bcd290d2aef5",
+  "scope": "INITIAL_TEN_ITEM_CTA_CANARY",
+  "selection_digest": "ba7cbba3e5831ed8a26f25653db0865672b236ed96b372ea93877bdcdf5aac0b",
+  "verified_count": 10,
+  "required_conditions": [
+    "EXACT_SELECTION_DIGEST_UNCHANGED",
+    "LIVE_SURFACE_ARTIFACT_HASH_UNCHANGED",
+    "FIXED_CTA_LABEL_AND_PROXIMATE_PR_DISCLOSURE",
+    "SAME_ORIGIN_OPAQUE_GO_ROUTE_ONLY",
+    "FRESH_API_REVALIDATION_BEFORE_RENDER_ELIGIBILITY",
+    "CLICK_TIME_EXACT_ITEM_AND_AFFILIATE_URL_REVALIDATION",
+    "STALE_MISSING_ERROR_OR_RATE_LIMIT_STATE_HIDES_CTA_AND_BLOCKS_REDIRECT",
+    "NO_ORDER_RANK_POPULARITY_SCARCITY_OR_URGENCY_CLAIM",
+    "SANITIZED_AUDIT_COUNTS_ONLY",
+    "EXPLICIT_USER_ACTIVATION_APPROVAL_REQUIRED"
+  ],
+  "approval_boundary": {
+    "activation_request_presentation_allowed": true,
+    "cta_activation_allowed": false,
+    "affiliate_eligibility_mutation_allowed": false,
+    "d1_write_allowed": false,
+    "deployment_allowed": false,
+    "production_write_allowed": false,
+    "paid_plan_change_allowed": false,
+    "scope_expansion_allowed": false
+  },
+  "invalidation_conditions": [
+    "SELECTION_OR_SOURCE_HASH_CHANGED",
+    "CTA_OR_DISCLOSURE_COPY_OR_PLACEMENT_CHANGED",
+    "REVALIDATION_OR_FAIL_CLOSED_BEHAVIOR_CHANGED",
+    "ANY_CANDIDATE_NO_LONGER_API_VISIBLE_WITH_AFFILIATE_URL",
+    "CI_OR_PREFLIGHT_FAILURE"
+  ],
+  "next_action": "PRESENT_EXACT_ONE_TIME_CANARY_ACTIVATION_REQUEST"
+}
