@@ -76,12 +76,16 @@ def production_context() -> _RuntimeApprovedContext | None:
 
 def production_observe(_public_id: str) -> None:
     """No resolver/fetch path is installed before official approval."""
-    return None
+    from affiliate_cta_production_composition import production_provider
+    provider = production_provider()
+    return None if provider is None else provider.observe(_public_id)
 
 
 def production_render_records(_context: _RuntimeApprovedContext) -> None:
     """No presentation provider is installed before official approval."""
-    return None
+    from affiliate_cta_production_composition import production_provider
+    provider = production_provider()
+    return None if provider is None else provider.records(_context)
 
 
 def _make_test_context(public_ids: Any, observe: Any) -> _TestOnlyApprovedContext:
