@@ -71,10 +71,7 @@ def _build_offline_composition_for_test(
         raise ValueError("OFFLINE_COMPOSITION_INPUT_INVALID")
 
     chosen_executor = executor if executor is not None else bounded._FakeBoundedExecutorForTest()
-    if (
-        not isinstance(chosen_executor, bounded._FakeBoundedExecutorForTest)
-        or not chosen_executor._bind_monotonic_clock_for_test(monotonic_clock)
-    ):
+    if not isinstance(chosen_executor, bounded._FakeBoundedExecutorForTest):
         raise ValueError("OFFLINE_EXECUTOR_CLOCK_INVALID")
     provider_holder = {}
 

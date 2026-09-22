@@ -53,10 +53,10 @@ class RecordingExecutor(bounded._FakeBoundedExecutorForTest):
         self.budgets = []
         self.calls = 0
 
-    def execute(self, request, timeout_ms, cancelled, send, pre_send):
+    def execute(self, request, timeout_ms, cancelled, send, pre_send, post_send):
         self.calls += 1
         self.budgets.append(timeout_ms)
-        return super().execute(request, timeout_ms, cancelled, send, pre_send)
+        return super().execute(request, timeout_ms, cancelled, send, pre_send, post_send)
 
 
 def route_args():
@@ -66,6 +66,28 @@ def route_args():
         runtime_chain_connected=True, rate_limit_allowed=True, pr_disclosure_available=True,
         evaluated_at=NOW,
     )
+
+
+def public_entry(entry, lifecycle):
+    with mock.patch.object(composition, "production_provider", return_value=lifecycle):
+        if entry == "click":
+            return click.decide(version=click.VERSION, clicked_public_id=IDS[0], evaluated_at=NOW)
+        if entry == "route":
+            return route.assess(**route_args())
+        return render.render(as_of=NOW)
+
+
+def public_lifecycle(clock, *, executor=None, timeout_ms=1_000, transport=None):
+    calls = []
+    def default_transport(request):
+        calls.append(request)
+        return payload(request._content_id)
+    lifecycle = composition._build_offline_composition_for_test(
+        CONTEXT, {value: f"content-{index}" for index, value in enumerate(IDS)},
+        transport or default_transport, lambda: NOW, monotonic_clock=clock,
+        deadline=1, executor=executor, timeout_ms=timeout_ms,
+    )
+    return lifecycle, calls
 
 
 class BoundedSendContractTests(unittest.TestCase):
@@ -276,6 +298,84 @@ class BoundedSendContractTests(unittest.TestCase):
         self.assertIsNone(lifecycle.observe(IDS[0]))
         self.assertEqual(calls, [])
         self.assertFalse(lifecycle.valid())
+
+    def test_single_abnormal_sample_is_terminal_at_every_public_clock_position(self):
+        class Clock:
+            def __init__(self, fail_at=None, value=None):
+                self.calls = 0
+                self.fail_at = fail_at
+                self.value = value
+            def __call__(self):
+                self.calls += 1
+                return self.value if self.calls == self.fail_at else 0
+
+        for entry in ("click", "route", "render"):
+            normal_clock = Clock()
+            normal, _calls = public_lifecycle(normal_clock)
+            if entry == "render":
+                self.assertEqual(public_entry(entry, normal).cta_count, 10)
+            else:
+                self.assertNotEqual(public_entry(entry, normal).status, "BLOCKED")
+            for abnormal in (1, float("nan"), float("inf")):
+                for fail_at in range(1, normal_clock.calls + 1):
+                    with self.subTest(entry=entry, abnormal=repr(abnormal), fail_at=fail_at):
+                        clock = Clock(fail_at, abnormal)
+                        if fail_at <= 2:
+                            with self.assertRaises(ValueError):
+                                public_lifecycle(clock)
+                            continue
+                        lifecycle, calls = public_lifecycle(clock)
+                        if entry == "render":
+                            with self.assertRaises(ValueError):
+                                public_entry(entry, lifecycle)
+                            before = len(calls)
+                            with self.assertRaises(ValueError):
+                                public_entry(entry, lifecycle)
+                        else:
+                            self.assertEqual(public_entry(entry, lifecycle).status, "BLOCKED")
+                            before = len(calls)
+                            self.assertEqual(public_entry(entry, lifecycle).status, "BLOCKED")
+                        self.assertFalse(lifecycle.valid())
+                        self.assertEqual(len(calls), before)
+
+    def test_post_send_sample_then_clock_regression_is_terminal(self):
+        class Clock:
+            def __init__(self):
+                self.calls = 0
+            def __call__(self):
+                self.calls += 1
+                # post_send snapshot gets a forward sample; the next acceptance
+                # sample returns to zero and must terminally reject the response.
+                return 0.0005 if self.calls == 13 else 0
+        clock = Clock()
+        lifecycle, calls = public_lifecycle(clock)
+        self.assertEqual(public_entry("click", lifecycle).status, "BLOCKED")
+        self.assertFalse(lifecycle.valid())
+        self.assertEqual(len(calls), 1)
+
+    def test_reported_timeout_boundary_is_rejected_without_tolerance(self):
+        for entry in ("click", "route", "render"):
+            with self.subTest(entry=entry):
+                time = [0]
+                calls = []
+                def clock():
+                    return time[0]
+                def transport(request):
+                    calls.append(request)
+                    time[0] += 0.0009999999995
+                    return payload(request._content_id)
+                lifecycle = composition._build_offline_composition_for_test(
+                    CONTEXT, {value: f"content-{index}" for index, value in enumerate(IDS)}, transport,
+                    lambda: NOW, monotonic_clock=clock, deadline=1,
+                    executor=RecordingExecutor(elapsed_ms=1), timeout_ms=1,
+                )
+                if entry == "render":
+                    with self.assertRaises(ValueError):
+                        public_entry(entry, lifecycle)
+                else:
+                    self.assertEqual(public_entry(entry, lifecycle).status, "BLOCKED")
+                self.assertFalse(lifecycle.valid())
+                self.assertEqual(len(calls), 1)
 
     def test_public_entries_cannot_inject_bounded_send_controls(self):
         forbidden = {"executor", "timeout", "cancel", "clock", "send", "transport"}

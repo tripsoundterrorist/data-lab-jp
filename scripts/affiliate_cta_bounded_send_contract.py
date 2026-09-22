@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+from decimal import Decimal, ROUND_CEILING, localcontext
 from typing import Any, Callable
 
 
@@ -71,34 +72,27 @@ class _SendOutcome:
 class _FakeBoundedExecutorForTest:
     """Deterministic no-thread/no-network executor used only by offline tests."""
 
-    __slots__ = ("_mode", "_elapsed_ms", "_monotonic_clock")
+    __slots__ = ("_mode", "_elapsed_ms")
 
-    def __init__(self, mode: str = _COMPLETED, *, elapsed_ms: Any = None,
-                 monotonic_clock: Any = None) -> None:
+    def __init__(self, mode: str = _COMPLETED, *, elapsed_ms: Any = None) -> None:
         if type(mode) is not str or mode not in _ALLOWED:
             raise ValueError("BOUNDED_EXECUTOR_MODE_INVALID")
         if elapsed_ms is not None and not _valid_elapsed_ms(elapsed_ms):
             raise ValueError("BOUNDED_EXECUTOR_ELAPSED_INVALID")
-        if monotonic_clock is not None and not callable(monotonic_clock):
-            raise ValueError("BOUNDED_EXECUTOR_CLOCK_INVALID")
         self._mode = mode
         self._elapsed_ms = elapsed_ms
-        self._monotonic_clock = monotonic_clock
 
     def execute(
         self, request: Any, timeout_ms: Any, cancelled: Callable[[], bool], send: Callable[[Any], Any],
-        pre_send: Callable[[], Any],
+        pre_send: Callable[[], Any], post_send: Callable[[], Any],
     ) -> _SendOutcome:
-        if not _valid_timeout_ms(timeout_ms) or not callable(cancelled) or not callable(send) or not callable(pre_send):
+        if not _valid_timeout_ms(timeout_ms) or not callable(cancelled) or not callable(send) or not callable(pre_send) or not callable(post_send):
             return _SendOutcome(_CANCELLED)
         try:
             if cancelled() or self._mode == _CANCELLED:
                 return _SendOutcome(_CANCELLED)
             if self._mode == _TIMEOUT:
                 return _SendOutcome(_TIMEOUT)
-            # This callback itself can revoke or advance the fake clock. The
-            # marker is therefore guarded again after it, not before it.
-            self._now_for_test()
             prepared = pre_send()
             if type(prepared) is not tuple or len(prepared) != 2:
                 return _SendOutcome(_CANCELLED)
@@ -107,31 +101,26 @@ class _FakeBoundedExecutorForTest:
             if type(budget_ms) is not int or budget_ms != timeout_ms:
                 return _SendOutcome(_CANCELLED)
             response = send(request)
-            finished = self._now_for_test()
+            finished = post_send()
+            if type(finished) is not tuple or len(finished) != 2:
+                return _SendOutcome(_CANCELLED)
             elapsed_ms = self._elapsed_for_test(started, finished)
             if cancelled():
                 return _SendOutcome(_CANCELLED)
             if self._mode == "LATE_RESULT":
                 return _SendOutcome(_TIMEOUT)
-            return _SendOutcome(_COMPLETED, response, elapsed_ms, started, finished, budget_ms)
+            return _SendOutcome(_COMPLETED, response, elapsed_ms, started, finished[0], budget_ms)
         except Exception:
             return _SendOutcome(_CANCELLED)
-
-    def _now_for_test(self) -> Any:
-        return None if self._monotonic_clock is None else self._monotonic_clock()
 
     def _elapsed_for_test(self, started: Any, finished: Any) -> Any:
         if self._elapsed_ms is not None:
             return self._elapsed_ms
+        if type(finished) is tuple:
+            finished = finished[0]
         if type(started) not in (int, float) or type(finished) not in (int, float):
             return None
         return (finished - started) * 1_000
-
-    def _bind_monotonic_clock_for_test(self, clock: Any) -> bool:
-        if not callable(clock) or (self._monotonic_clock is not None and self._monotonic_clock is not clock):
-            return False
-        self._monotonic_clock = clock
-        return True
 
     def __repr__(self) -> str:
         return "<FakeBoundedExecutorForTest>"
@@ -169,7 +158,12 @@ def _send_for_test(
                 return None
             return current, latest[0]
 
-        outcome = executor.execute(request, effective_timeout_ms, lambda: not valid(), transport, pre_send)
+        def post_send():
+            if not valid() or (latest := budget_snapshot()) is None:
+                return None
+            return latest
+
+        outcome = executor.execute(request, effective_timeout_ms, lambda: not valid(), transport, pre_send, post_send)
         if (
             type(outcome) is not _SendOutcome
             or outcome.status != _COMPLETED
@@ -213,7 +207,23 @@ def _trusted_elapsed_matches(outcome: _SendOutcome, budget_ms: int) -> bool:
     if type(outcome.trusted_started) not in (int, float) or type(outcome.trusted_finished) not in (int, float):
         return False
     trusted_elapsed = (outcome.trusted_finished - outcome.trusted_started) * 1_000
-    if not _valid_elapsed_ms(trusted_elapsed) or trusted_elapsed >= budget_ms:
+    trusted_us = _conservative_microseconds(trusted_elapsed)
+    reported_us = _conservative_microseconds(outcome.elapsed_ms)
+    budget_us = budget_ms * 1_000
+    if trusted_us is None or reported_us is None or trusted_us >= budget_us or reported_us >= budget_us:
         return False
-    # Deterministic test outcomes must agree with the same trusted clock source.
-    return math.isclose(outcome.elapsed_ms, trusted_elapsed, rel_tol=0.0, abs_tol=1e-9)
+    # The shared clock and reported outcome must normalize to the exact same
+    # conservative integer unit; there is no tolerance at the timeout boundary.
+    return reported_us == trusted_us
+
+
+def _conservative_microseconds(value_ms: Any) -> int | None:
+    if not _valid_elapsed_ms(value_ms):
+        return None
+    try:
+        with localcontext() as context:
+            context.prec = 1_000
+            value = Decimal(value_ms) if type(value_ms) is int else Decimal.from_float(value_ms)
+            return int((value * 1_000).to_integral_value(rounding=ROUND_CEILING))
+    except Exception:
+        return None

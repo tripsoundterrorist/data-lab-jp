@@ -7,7 +7,7 @@ isolation boundary. A transport that never returns is not interrupted here.
 from __future__ import annotations
 
 import math
-from decimal import Decimal, ROUND_FLOOR
+from decimal import Decimal, ROUND_FLOOR, localcontext
 from typing import Any
 
 BLOCKED = "BLOCKED"
@@ -72,26 +72,7 @@ def _issue_lease_for_test(monotonic_clock: Any, deadline: Any) -> _LifecycleLeas
         nonlocal terminal
         terminal = True
 
-    def check():
-        nonlocal terminal, last, checking
-        if terminal or checking:
-            revoke()
-            return False
-        checking = True
-        try:
-            now = monotonic_clock()
-            if terminal or not _finite(now) or (last is not None and now < last) or now >= deadline:
-                revoke()
-                return False
-            last = now
-            return True
-        except Exception:
-            revoke()
-            return False
-        finally:
-            checking = False
-
-    def send_budget():
+    def sample():
         nonlocal terminal, last, checking
         if terminal or checking:
             revoke()
@@ -101,22 +82,37 @@ def _issue_lease_for_test(monotonic_clock: Any, deadline: Any) -> _LifecycleLeas
             now = monotonic_clock()
             if terminal or not _finite(now) or (last is not None and now < last) or now >= deadline:
                 revoke()
+                return None
+            last = now
+            return now
+        except Exception:
+            revoke()
+            return None
+        finally:
+            checking = False
+
+    def check():
+        return sample() is not None
+
+    def send_budget():
+        try:
+            now = sample()
+            if now is None:
                 return None
             # The clock/deadline unit is seconds. Decimal.from_float preserves
             # the actual binary-float value before floor conversion, so a budget
             # never rounds above the represented lease duration.
-            left = _decimal_seconds(deadline) - _decimal_seconds(now)
-            value = int((left * _MILLISECONDS_PER_SECOND).to_integral_value(rounding=ROUND_FLOOR))
+            with localcontext() as context:
+                context.prec = 1_000
+                left = _decimal_seconds(deadline) - _decimal_seconds(now)
+                value = int((left * _MILLISECONDS_PER_SECOND).to_integral_value(rounding=ROUND_FLOOR))
             if value < _MIN_SEND_BUDGET_MS:
                 revoke()
                 return None
-            last = now
             return now, value
         except Exception:
             revoke()
             return None
-        finally:
-            checking = False
 
     def remaining_ms():
         value = send_budget()
