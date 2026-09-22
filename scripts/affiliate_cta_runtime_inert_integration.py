@@ -70,10 +70,8 @@ def assess(
     pr_disclosure_available: Any,
     selection_digest: Any,
     selected_public_ids: Any,
-    revalidation_status: Any,
-    checked_at: Any,
+    observation: Any,
     evaluated_at: Any,
-    affiliate_url: Any,
 ) -> IntegrationReceipt:
     """Assess the existing route and click contracts without executing either."""
 
@@ -100,10 +98,8 @@ def assess(
             selection_digest=selection_digest,
             selected_public_ids=selected_public_ids,
             clicked_public_id=public_id,
-            revalidation_status=revalidation_status,
-            checked_at=checked_at,
+            observation=observation,
             evaluated_at=evaluated_at,
-            affiliate_url=affiliate_url,
         )
         if click_result.status != click.ALLOWED:
             return _receipt(BLOCKED, tuple(click_result.reason_codes), click_assessed=True)
