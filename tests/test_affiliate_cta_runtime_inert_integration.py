@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
@@ -6,22 +7,33 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import affiliate_cta_canonical_selection_preflight as preflight
 import affiliate_cta_click_revalidation_candidate as click
-import affiliate_cta_exact_selection as exact_selection
 import affiliate_cta_runtime_inert_integration as integration
+import affiliate_cta_trusted_selection_bundle as trusted
 
 
 NOW = datetime(2026, 9, 22, 6, 0, tzinfo=timezone.utc)
 PUBLIC_ID = "itm_0123456789abcdef01234567"
 URL = "https://al.fanza.co.jp/?lurl=https%3A%2F%2Fwww.dmm.co.jp%2F"
 CONTENT_ID = "fixture-content-1"
-DIGEST = exact_selection.canonical_digest((PUBLIC_ID,))
+def bundle():
+    receipt = preflight.CanonicalSelectionReceipt(
+        preflight.VERSION, trusted.CANONICALIZATION_VERSION, preflight.READY,
+        trusted.SOURCE_DATABASE_SHA256, trusted.LIVE_ARTIFACT_SHA256,
+        trusted.SELECTION_DIGEST, 10, 10, 10,
+    )
+    value = trusted.from_canonical_preflight(receipt)
+    assert value is not None
+    return value
 
 
 def observation(**changes):
-    value = {"public_id":PUBLIC_ID,"checked_at":NOW,"status":"API_VISIBLE_AFFILIATE_PRESENT","response":{"result":{"status":200,"items":[{"content_id":CONTENT_ID,"affiliateURL":URL}]}}}
-    value.update(changes)
-    return value
+    value = trusted.TrustedResolverObservation(
+        PUBLIC_ID, trusted.SELECTION_DIGEST, NOW, "API_VISIBLE_AFFILIATE_PRESENT",
+        {"result":{"status":200,"items":[{"content_id":CONTENT_ID,"affiliateURL":URL}]}}, CONTENT_ID,
+    )
+    return replace(value, **changes)
 
 
 def assess(**changes):
@@ -35,10 +47,8 @@ def assess(**changes):
         "runtime_chain_connected": True,
         "rate_limit_allowed": True,
         "pr_disclosure_available": True,
-        "selection_digest": DIGEST,
-        "selected_public_ids": (PUBLIC_ID,),
-        "resolve_content_id": lambda value: CONTENT_ID if value == PUBLIC_ID else None,
-        "observation": observation(),
+        "selection_bundle": bundle(),
+        "trusted_resolver": lambda _public_id, _bundle: observation(),
         "evaluated_at": NOW,
     }
     values.update(changes)
@@ -77,11 +87,10 @@ class InertIntegrationTests(unittest.TestCase):
 
     def test_click_failures_never_produce_redirect_candidate(self):
         for change in (
-            {"selection_digest": "wrong"},
-            {"selected_public_ids": ("itm_abcdef0123456789abcdef01",)},
-            {"observation": observation(checked_at=NOW - timedelta(minutes=16))},
-            {"observation": observation(status="RATE_LIMITED")},
-            {"observation": observation(response={"result":{"status":200,"items":[{"content_id":CONTENT_ID,"affiliateURL":"https://evil.invalid/"}]}})},
+            {"selection_bundle": replace(bundle(), selection_digest="wrong")},
+            {"trusted_resolver": lambda _public_id, _bundle: observation(checked_at=NOW - timedelta(minutes=16))},
+            {"trusted_resolver": lambda _public_id, _bundle: observation(eligibility_status="RATE_LIMITED")},
+            {"trusted_resolver": lambda _public_id, _bundle: observation(response={"result":{"status":200,"items":[{"content_id":CONTENT_ID,"affiliateURL":"https://evil.invalid/"}]}})},
         ):
             with self.subTest(change=change):
                 result = assess(**change)
