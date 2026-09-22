@@ -7,6 +7,7 @@ import unittest
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/"scripts"))
 import affiliate_cta_approved_context as approved
 import affiliate_cta_pretransport_safety as subject
+import affiliate_cta_kill_deadline_contract as kill_deadline
 
 NOW=datetime(2026,9,22,4,0,tzinfo=timezone.utc)
 IDS=tuple(f"itm_{number:024x}" for number in range(10))
@@ -15,7 +16,7 @@ SOURCE="".join(f"{public_id}\tcontent-{index}\n" for index,public_id in enumerat
 ARTIFACT=b"artifact-fixture"
 
 def build(**changes):
- values={"context":CONTEXT,"transport":lambda request:{"result":{"status":200,"items":[{"content_id":request._content_id,"affiliateURL":"https://al.dmm.co.jp/?lurl=https%3A%2F%2Fexample.invalid%2F"}]}},"clock":lambda:NOW,"source_bytes":SOURCE,"artifact_bytes":ARTIFACT,"expected_source_sha256":hashlib.sha256(SOURCE).hexdigest(),"expected_artifact_sha256":hashlib.sha256(ARTIFACT).hexdigest()}
+ values={"context":CONTEXT,"transport":lambda request:{"result":{"status":200,"items":[{"content_id":request._content_id,"affiliateURL":"https://al.dmm.co.jp/?lurl=https%3A%2F%2Fexample.invalid%2F"}]}},"clock":lambda:NOW,"token":kill_deadline._new_test_token(),"monotonic_clock":lambda:0,"deadline":10,"source_bytes":SOURCE,"artifact_bytes":ARTIFACT,"expected_source_sha256":hashlib.sha256(SOURCE).hexdigest(),"expected_artifact_sha256":hashlib.sha256(ARTIFACT).hexdigest()}
  values.update(changes);return subject._build_fake_lifecycle_for_test(**values)
 
 class PretransportSafetyTests(unittest.TestCase):
@@ -46,6 +47,11 @@ class PretransportSafetyTests(unittest.TestCase):
   source=bytearray(SOURCE);lifecycle=build(source_bytes=source,expected_source_sha256=hashlib.sha256(SOURCE).hexdigest())
   source[0]=ord("x")
   self.assertEqual(len(lifecycle.records(CONTEXT)),10)
+ def test_built_lifecycle_stops_after_revoke_or_deadline(self):
+  token=kill_deadline._new_test_token();lifecycle=build(token=token)
+  token.revoke();self.assertIsNone(lifecycle.records(CONTEXT))
+  expired=build(monotonic_clock=lambda:10,deadline=10)
+  self.assertIsNone(expired.records(CONTEXT))
  def test_lifecycle_returns_one_shared_composition_and_timeout_stops(self):
   calls=[]
   def transport(request):
