@@ -11,11 +11,11 @@ import affiliate_cta_pretransport_safety as subject
 NOW=datetime(2026,9,22,4,0,tzinfo=timezone.utc)
 IDS=tuple(f"itm_{number:024x}" for number in range(10))
 CONTEXT=approved._make_test_context(IDS,lambda _value:None)
-SOURCE=b"source-fixture";ARTIFACT=b"artifact-fixture"
+SOURCE="".join(f"{public_id}\tcontent-{index}\n" for index,public_id in enumerate(IDS)).encode("ascii")
+ARTIFACT=b"artifact-fixture"
 
-def mapping():return {public_id:"content-"+str(index) for index,public_id in enumerate(IDS)}
 def build(**changes):
- values={"context":CONTEXT,"mapping":mapping(),"transport":lambda request:{"result":{"status":200,"items":[{"content_id":request._content_id,"affiliateURL":"https://al.dmm.co.jp/?lurl=https%3A%2F%2Fexample.invalid%2F"}]}},"clock":lambda:NOW,"source_bytes":SOURCE,"artifact_bytes":ARTIFACT,"expected_source_sha256":hashlib.sha256(SOURCE).hexdigest(),"expected_artifact_sha256":hashlib.sha256(ARTIFACT).hexdigest()}
+ values={"context":CONTEXT,"transport":lambda request:{"result":{"status":200,"items":[{"content_id":request._content_id,"affiliateURL":"https://al.dmm.co.jp/?lurl=https%3A%2F%2Fexample.invalid%2F"}]}},"clock":lambda:NOW,"source_bytes":SOURCE,"artifact_bytes":ARTIFACT,"expected_source_sha256":hashlib.sha256(SOURCE).hexdigest(),"expected_artifact_sha256":hashlib.sha256(ARTIFACT).hexdigest()}
  values.update(changes);return subject._build_fake_lifecycle_for_test(**values)
 
 class PretransportSafetyTests(unittest.TestCase):
@@ -26,10 +26,26 @@ class PretransportSafetyTests(unittest.TestCase):
   self.assertEqual(subject.kill_switch_state(False).status,subject.BLOCKED)
  def test_hash_mapping_context_failures_precede_transport(self):
   calls=[]
-  cases=({"expected_source_sha256":"wrong"},{"expected_artifact_sha256":"wrong"},{"mapping":{}},{"context":None})
+  cases=({"expected_source_sha256":"wrong"},{"expected_artifact_sha256":"wrong"},{"source_bytes":b"bad"},{"context":None})
   for changes in cases:
    with self.subTest(changes=changes):self.assertIsNone(build(transport=lambda request:calls.append(request),**changes))
   self.assertEqual(calls,[])
+ def test_source_derives_mapping_and_external_mapping_is_not_an_api(self):
+  lifecycle=build();self.assertEqual(len(lifecycle.records(CONTEXT)),10)
+  with self.assertRaises(TypeError):build(mapping={})
+ def test_malformed_duplicate_trailing_and_mutation_fail_before_transport(self):
+  calls=[]
+  cases=(SOURCE[:-1],SOURCE+ b"x",SOURCE.replace(b"content-1",b"content-0"))
+  for source in cases:
+   with self.subTest(source=type(source)):
+    expected=hashlib.sha256(bytes(source)).hexdigest()
+    value=build(source_bytes=source,expected_source_sha256=expected,transport=lambda request:calls.append(request))
+    self.assertIsNone(value)
+  self.assertEqual(calls,[])
+ def test_mutable_source_is_owned_before_later_mutation(self):
+  source=bytearray(SOURCE);lifecycle=build(source_bytes=source,expected_source_sha256=hashlib.sha256(SOURCE).hexdigest())
+  source[0]=ord("x")
+  self.assertEqual(len(lifecycle.records(CONTEXT)),10)
  def test_lifecycle_returns_one_shared_composition_and_timeout_stops(self):
   calls=[]
   def transport(request):

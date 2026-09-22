@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import re
+from types import MappingProxyType
 from typing import Any, Mapping
 
 import affiliate_cta_approved_context as approved
@@ -16,6 +18,7 @@ REQUIRED_SETTING_NAMES = frozenset({
 })
 DISABLED = "DISABLED"
 BLOCKED = "BLOCKED"
+_LINE = re.compile(r"(itm_[0-9a-f]{24})\t([A-Za-z0-9][A-Za-z0-9_-]{0,127})\n\Z")
 
 
 @dataclass(frozen=True)
@@ -54,35 +57,63 @@ def kill_switch_state(value: Any) -> SafetyReceipt:
     return SafetyReceipt(BLOCKED, ("KILL_SWITCH_MISSING_OR_INVALID",))
 
 
+def _owned_bytes(value: Any) -> bytes | None:
+    if type(value) not in (bytes, bytearray):
+        return None
+    return bytes(value)
+
+
+def _derive_mapping(source: bytes, context: Any) -> Mapping[str, str] | None:
+    try:
+        text = source.decode("ascii")
+    except UnicodeDecodeError:
+        return None
+    lines = text.splitlines(keepends=True)
+    if len(lines) != approved.EXACT_SELECTION_COUNT:
+        return None
+    pairs = [_LINE.fullmatch(line) for line in lines]
+    if any(pair is None for pair in pairs):
+        return None
+    mapping = {pair.group(1): pair.group(2) for pair in pairs if pair is not None}
+    if (
+        len(mapping) != approved.EXACT_SELECTION_COUNT
+        or tuple(mapping) != tuple(sorted(mapping))
+        or set(mapping) != context.public_ids
+        or len(set(mapping.values())) != approved.EXACT_SELECTION_COUNT
+    ):
+        return None
+    return MappingProxyType(mapping)
+
+
 def _verified_mapping_for_test(
-    context: Any, mapping: Any, source_bytes: Any, artifact_bytes: Any,
+    context: Any, source_bytes: Any, artifact_bytes: Any,
     expected_source_sha256: Any, expected_artifact_sha256: Any,
 ) -> Mapping[str, str] | None:
     """Fake-byte hash contract; production never reads files through this seam."""
     if (
         not approved._context_valid(context)
-        or type(source_bytes) is not bytes
-        or type(artifact_bytes) is not bytes
         or type(expected_source_sha256) is not str
         or type(expected_artifact_sha256) is not str
-        or hashlib.sha256(source_bytes).hexdigest() != expected_source_sha256
-        or hashlib.sha256(artifact_bytes).hexdigest() != expected_artifact_sha256
-        or type(mapping) is not dict
-        or set(mapping) != context.public_ids
-        or len(set(mapping.values())) != approved.EXACT_SELECTION_COUNT
     ):
         return None
-    return dict(mapping)
+    source, artifact = _owned_bytes(source_bytes), _owned_bytes(artifact_bytes)
+    if (
+        source is None or artifact is None
+        or hashlib.sha256(source).hexdigest() != expected_source_sha256
+        or hashlib.sha256(artifact).hexdigest() != expected_artifact_sha256
+    ):
+        return None
+    return _derive_mapping(source, context)
 
 
 def _build_fake_lifecycle_for_test(
-    *, context: Any, mapping: Any, transport: Any, clock: Any,
+    *, context: Any, transport: Any, clock: Any,
     source_bytes: Any, artifact_bytes: Any,
     expected_source_sha256: Any, expected_artifact_sha256: Any,
 ) -> Any:
     """Internal-only review builder; failure precedes any transport request."""
     verified = _verified_mapping_for_test(
-        context, mapping, source_bytes, artifact_bytes,
+        context, source_bytes, artifact_bytes,
         expected_source_sha256, expected_artifact_sha256,
     )
     if verified is None or not callable(transport):
