@@ -7,12 +7,21 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import affiliate_cta_click_revalidation_candidate as click
+import affiliate_cta_exact_selection as exact_selection
 import affiliate_cta_runtime_inert_integration as integration
 
 
 NOW = datetime(2026, 9, 22, 6, 0, tzinfo=timezone.utc)
 PUBLIC_ID = "itm_0123456789abcdef01234567"
 URL = "https://al.fanza.co.jp/?lurl=https%3A%2F%2Fwww.dmm.co.jp%2F"
+CONTENT_ID = "fixture-content-1"
+DIGEST = exact_selection.canonical_digest((PUBLIC_ID,))
+
+
+def observation(**changes):
+    value = {"public_id":PUBLIC_ID,"resolved_content_id":CONTENT_ID,"checked_at":NOW,"status":"API_VISIBLE_AFFILIATE_PRESENT","response":{"result":{"status":200,"items":[{"content_id":CONTENT_ID,"affiliateURL":URL}]}}}
+    value.update(changes)
+    return value
 
 
 def assess(**changes):
@@ -26,12 +35,10 @@ def assess(**changes):
         "runtime_chain_connected": True,
         "rate_limit_allowed": True,
         "pr_disclosure_available": True,
-        "selection_digest": click.SELECTION_DIGEST,
+        "selection_digest": DIGEST,
         "selected_public_ids": (PUBLIC_ID,),
-        "revalidation_status": "API_VISIBLE_AFFILIATE_PRESENT",
-        "checked_at": NOW,
+        "observation": observation(),
         "evaluated_at": NOW,
-        "affiliate_url": URL,
     }
     values.update(changes)
     return integration.assess(**values)
@@ -71,9 +78,9 @@ class InertIntegrationTests(unittest.TestCase):
         for change in (
             {"selection_digest": "wrong"},
             {"selected_public_ids": ("itm_abcdef0123456789abcdef01",)},
-            {"checked_at": NOW - timedelta(minutes=16)},
-            {"revalidation_status": "RATE_LIMITED"},
-            {"affiliate_url": "https://evil.invalid/"},
+            {"observation": observation(checked_at=NOW - timedelta(minutes=16))},
+            {"observation": observation(status="RATE_LIMITED")},
+            {"observation": observation(response={"result":{"status":200,"items":[{"content_id":CONTENT_ID,"affiliateURL":"https://evil.invalid/"}]}})},
         ):
             with self.subTest(change=change):
                 result = assess(**change)

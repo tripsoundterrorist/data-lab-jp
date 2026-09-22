@@ -7,23 +7,36 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import affiliate_cta_click_revalidation_candidate as candidate
+import affiliate_cta_exact_selection as exact_selection
 
 
 NOW = datetime(2026, 9, 22, 5, 0, tzinfo=timezone.utc)
 PUBLIC_ID = "itm_0123456789abcdef01234567"
 AFFILIATE_URL = "https://al.dmm.co.jp/?lurl=https%3A%2F%2Fexample.dmm.co.jp%2F"
+CONTENT_ID = "fixture-content-1"
+DIGEST = exact_selection.canonical_digest((PUBLIC_ID,))
+
+
+def observation(**changes):
+    value = {
+        "public_id": PUBLIC_ID,
+        "resolved_content_id": CONTENT_ID,
+        "checked_at": NOW,
+        "status": "API_VISIBLE_AFFILIATE_PRESENT",
+        "response": {"result": {"status": 200, "items": [{"content_id": CONTENT_ID, "affiliateURL": AFFILIATE_URL}]}},
+    }
+    value.update(changes)
+    return value
 
 
 def decide(**changes):
     values = {
         "version": candidate.VERSION,
-        "selection_digest": candidate.SELECTION_DIGEST,
+        "selection_digest": DIGEST,
         "selected_public_ids": (PUBLIC_ID,),
         "clicked_public_id": PUBLIC_ID,
-        "revalidation_status": "API_VISIBLE_AFFILIATE_PRESENT",
-        "checked_at": NOW,
+        "observation": observation(),
         "evaluated_at": NOW,
-        "affiliate_url": AFFILIATE_URL,
     }
     values.update(changes)
     return candidate.decide(**values)
@@ -59,11 +72,11 @@ class ClickRevalidationCandidateTests(unittest.TestCase):
 
     def test_stale_future_error_rate_limit_and_missing_link_block(self):
         cases = (
-            {"checked_at": NOW - timedelta(minutes=16)},
-            {"checked_at": NOW + timedelta(seconds=1)},
-            {"revalidation_status": "API_ERROR"},
-            {"revalidation_status": "RATE_LIMITED"},
-            {"revalidation_status": "API_VISIBLE_AFFILIATE_ABSENT", "affiliate_url": None},
+            {"observation": observation(checked_at=NOW - timedelta(minutes=16))},
+            {"observation": observation(checked_at=NOW + timedelta(seconds=1))},
+            {"observation": observation(status="API_ERROR")},
+            {"observation": observation(status="RATE_LIMITED")},
+            {"observation": observation(status="API_VISIBLE_AFFILIATE_ABSENT")},
         )
         for values in cases:
             with self.subTest(values=values):
@@ -81,9 +94,20 @@ class ClickRevalidationCandidateTests(unittest.TestCase):
         )
         for value in values:
             with self.subTest(value=value):
-                result = decide(affiliate_url=value)
+                result = decide(observation=observation(response={"result":{"status":200,"items":[{"content_id":CONTENT_ID,"affiliateURL":value}]}}))
                 self.assertEqual(result.status, candidate.BLOCKED)
                 self.assertNotIn(value, str(result.to_dict()))
+
+    def test_observation_must_bind_clicked_id_resolved_item_and_url(self):
+        other = "itm_abcdef0123456789abcdef01"
+        cases = (
+            observation(public_id=other),
+            observation(response={"result":{"status":200,"items":[{"content_id":"other","affiliateURL":AFFILIATE_URL}]}}),
+            observation(response={"result":{"status":200,"items":[{"content_id":CONTENT_ID,"affiliateURL":AFFILIATE_URL},{"content_id":CONTENT_ID,"affiliateURL":AFFILIATE_URL}]}}),
+        )
+        for value in cases:
+            with self.subTest(value=value):
+                self.assertEqual(decide(observation=value).status, candidate.BLOCKED)
 
 
 if __name__ == "__main__":
