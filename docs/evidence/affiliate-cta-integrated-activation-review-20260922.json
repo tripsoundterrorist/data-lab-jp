@@ -1,0 +1,66 @@
+{
+  "version": "0.1",
+  "decision": "BLOCK_ACTIVATION_REQUEST_PRESENTATION",
+  "reviewed_main_commit": "ef4d8d06fc296142263dec19c92d83c28976a465",
+  "scope": "USER_ACTIVATION_REQUEST_PRESENTATION_ONLY",
+  "live_permission_granted": false,
+  "reviewed_prs": {
+    "281": {
+      "merge_commit": "cf355d3330944f62d4f98434a1996494a67a0e02",
+      "required_conditions_reviewed": true
+    },
+    "282": {
+      "merge_commit": "9c24d38d204c864f59ef46d79d7281f902c1f019"
+    },
+    "283": {
+      "merge_commit": "635f0b5071dd34970b36bbf0f948edbad6218f91"
+    },
+    "284": {
+      "merge_commit": "ef4d8d06fc296142263dec19c92d83c28976a465"
+    }
+  },
+  "reviewed_controls": {
+    "fixed_cta_label": "公式商品ページを見る（外部サイト）",
+    "proximate_pr_disclosure_required": true,
+    "selection_digest": "ba7cbba3e5831ed8a26f25653db0865672b236ed96b372ea93877bdcdf5aac0b",
+    "render_revalidation_required": true,
+    "click_revalidation_required": true,
+    "fail_closed_required": true,
+    "affiliate_url_exposed_in_evidence": false,
+    "activation_flags": {
+      "activation_request_presentation_allowed": false,
+      "cta_activation_allowed": false,
+      "redirect_activation_allowed": false,
+      "publication_allowed": false,
+      "affiliate_eligibility_mutation_allowed": false,
+      "gate_mutation_allowed": false,
+      "d1_write_allowed": false,
+      "deployment_allowed": false,
+      "production_write_allowed": false,
+      "live_permission_granted": false
+    }
+  },
+  "blockers": [
+    {
+      "code": "EXACT_SELECTION_NOT_CRYPTOGRAPHICALLY_BOUND",
+      "finding": "The fixed selection digest is compared as a constant but is not derived from or verified against the render records or click selection. Render input also permits duplicate public identifiers.",
+      "violates_pr_281_condition": "EXACT_SELECTION_DIGEST_UNCHANGED"
+    },
+    {
+      "code": "CLICK_REVALIDATION_NOT_BOUND_TO_CLICKED_ITEM",
+      "finding": "The click candidate accepts caller-supplied selection, status, timestamp, and transient URL independently. It does not establish that a fresh official observation and the transient affiliate URL belong to the clicked opaque identifier.",
+      "violates_pr_281_condition": "CLICK_TIME_EXACT_ITEM_AND_AFFILIATE_URL_REVALIDATION"
+    },
+    {
+      "code": "REQUIRED_LINK_REL_TOKENS_MISSING",
+      "finding": "The offline renderer emits the opaque /go link without the required noopener, noreferrer, and sponsored rel tokens.",
+      "violates_pr_281_condition": "FIXED_CTA_LABEL_AND_PROXIMATE_PR_DISCLOSURE"
+    }
+  ],
+  "minimum_remediation": [
+    "Derive and verify a canonical digest from the exact unique selected identifiers before render and at click evaluation.",
+    "Bind a fresh click-time official response, its resolved item identity, and its transient affiliate URL to the clicked opaque identifier; fail closed on every mismatch or unavailable state.",
+    "Render the required noopener, noreferrer, and sponsored rel tokens with the fixed CTA and proximate PR disclosure, then add regression coverage."
+  ],
+  "next_action": "DO_NOT_PRESENT_ACTIVATION_REQUEST_UNTIL_BLOCKERS_ARE_REMEDIATED_AND_REVIEWED"
+}
