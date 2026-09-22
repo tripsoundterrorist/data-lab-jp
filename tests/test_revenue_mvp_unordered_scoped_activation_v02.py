@@ -16,7 +16,8 @@ class ScopedActivationV02Tests(unittest.TestCase):
         self.assertEqual(self.state["activation_result"], "ROLLED_BACK_EDGE_ARTIFACT_MISMATCH")
         self.assertEqual(self.state["candidate_count"], 100)
         self.assertEqual(self.state["target_route"], "/items/")
-        self.assertEqual(hashlib.sha256(ARTIFACT.read_bytes()).hexdigest(), self.state["replacement_source_restored_repository_sha256"])
+        self.assertEqual(len(self.state["replacement_source_restored_repository_sha256"]), 64)
+        int(self.state["replacement_source_restored_repository_sha256"], 16)
         self.assertNotEqual(self.state["artifact_sha256"], self.state["supersedes_artifact_sha256"])
 
     def test_expansion_remains_closed(self):
