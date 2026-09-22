@@ -85,7 +85,7 @@ def _build_offline_provider_for_test(
     """Internal test seam; production providers remain the inert defaults."""
     if (
         not approved._context_valid(context)
-        or type(mapping) is not dict
+        or not isinstance(mapping, Mapping)
         or set(mapping) != context.public_ids
         or not callable(fetcher)
         or not callable(clock)
