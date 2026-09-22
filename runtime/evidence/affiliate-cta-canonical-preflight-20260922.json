@@ -1,0 +1,20 @@
+{
+  "version": "0.1-candidate",
+  "status": "CANONICAL_SELECTION_READY_FOR_EXACT_REVIEW",
+  "scope": "NEW_EXACT_TEN_ITEM_CTA_CANARY",
+  "canonicalization_version": "data-lab-affiliate-cta-selection-v1",
+  "source_database_sha256": "9d2d0c0d0dc1ad74cadfb1d60374ccd12add8fe51a7dfc381eac8b735b5764f9",
+  "live_artifact_sha256": "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d",
+  "selection_digest": "06c64c9dcc53e51f7767e86bfee39ae5e623bd0c66feebc840b940800c719fe3",
+  "submitted_count": 10,
+  "api_request_attempt_count": 10,
+  "selected_count": 10,
+  "identifiers_exposed": false,
+  "affiliate_urls_exposed": false,
+  "secret_values_exposed": false,
+  "production_write_performed": false,
+  "cta_activation_allowed": false,
+  "d1_write_allowed": false,
+  "deployment_allowed": false,
+  "next_action": "COMPLIANCE_REVIEW_EXACT_CANONICAL_SELECTION"
+}
