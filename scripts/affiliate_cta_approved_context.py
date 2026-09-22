@@ -79,7 +79,7 @@ def production_observe(_public_id: str) -> None:
     return None
 
 
-def production_render_records() -> None:
+def production_render_records(_context: _RuntimeApprovedContext) -> None:
     """No presentation provider is installed before official approval."""
     return None
 
@@ -113,6 +113,19 @@ def _context_digest(context: Any) -> str | None:
     if type(context) is _TestOnlyApprovedContext:
         return context.selection_digest
     return None
+
+
+def _context_valid(context: Any) -> bool:
+    digest = _context_digest(context)
+    try:
+        return (
+            digest is not None
+            and type(context) in (_TestOnlyApprovedContext, _RuntimeApprovedContext)
+            and len(context.public_ids) == EXACT_SELECTION_COUNT
+            and exact.canonical_digest(tuple(context.public_ids)) == digest
+        )
+    except (TypeError, ValueError):
+        return False
 
 
 __all__ = [
