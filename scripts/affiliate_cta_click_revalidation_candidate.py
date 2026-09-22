@@ -90,26 +90,23 @@ def _decide(
             observation = observe(clicked_public_id)
         except Exception:
             return _blocked("TRUSTED_RESOLVER_FAILED")
-        if type(observation) is not dict or set(observation) != {
-            "public_id", "checked_at", "eligibility_status", "response", "resolved_content_id"
-        }:
+        if type(observation) is not approved_context._InternalObservation:
             return _blocked("TRUSTED_RESOLVER_OBSERVATION_INVALID")
         if (
-            observation["public_id"] != clicked_public_id
+            observation.public_id != clicked_public_id
+            or observation.selection_digest != approved_context._context_digest(context)
         ):
             return _blocked("OBSERVATION_PUBLIC_ID_MISMATCH")
-        content_id = observation["resolved_content_id"]
+        content_id = observation.resolved_content_id
         if type(content_id) is not str or not content_id or len(content_id) > 128:
             return _blocked("RESOLVED_CONTENT_ID_INVALID")
-        checked_at = observation["checked_at"]
+        checked_at = observation.checked_at
         if not isinstance(checked_at, datetime) or checked_at.tzinfo is None:
             return _blocked("CHECKED_AT_INVALID")
         age = evaluated_at - checked_at
         if age < timedelta(0) or age > MAX_AGE:
             return _blocked("REVALIDATION_STALE_OR_FUTURE")
-        if observation["eligibility_status"] != "API_VISIBLE_AFFILIATE_PRESENT":
-            return _blocked("REVALIDATION_NOT_ELIGIBLE")
-        response = observation["response"]
+        response = observation.response
         if not isinstance(response, Mapping):
             return _blocked("API_RESPONSE_INVALID")
         result = response.get("result")
