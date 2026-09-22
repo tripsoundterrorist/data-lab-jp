@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any, Callable, Mapping
 
 import affiliate_cta_exact_selection as exact
+from affiliate_cta_kill_deadline_contract import _LifecycleLease
 
 
 CANONICALIZATION_VERSION = "data-lab-affiliate-cta-selection-v1"
@@ -22,19 +23,29 @@ SOURCE_DATABASE_SHA256 = "9d2d0c0d0dc1ad74cadfb1d60374ccd12add8fe51a7dfc381eac8b
 LIVE_ARTIFACT_SHA256 = "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class _TestOnlyApprovedContext:
     public_ids: frozenset[str]
     selection_digest: str
     observe: Callable[[str], Any]
+    lease: Any = None
+    generation: Any = None
+
+    def __repr__(self):
+        return "<ApprovedContext>"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class _RuntimeApprovedContext:
     public_ids: frozenset[str]
+    lease: Any = None
+    generation: Any = None
+
+    def __repr__(self):
+        return "<ApprovedContext>"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class _InternalObservation:
     """Atomic provider result: resolution, response, and observation time."""
 
@@ -43,14 +54,24 @@ class _InternalObservation:
     checked_at: datetime
     resolved_content_id: str
     response: Mapping[str, Any]
+    lease: Any = None
+    generation: Any = None
+    context: Any = None
+    provider: Any = None
+
+    def __repr__(self):
+        return "<InternalObservation>"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class _InternalPresentationRecord:
     public_id: str
     selection_digest: str
     title: str
     observation: _InternalObservation
+
+    def __repr__(self):
+        return "<InternalPresentationRecord>"
 
 
 def production_context() -> _RuntimeApprovedContext | None:
@@ -130,6 +151,33 @@ def _context_valid(context: Any) -> bool:
         )
     except (TypeError, ValueError):
         return False
+
+
+def _lease_valid(context: Any, provider: Any) -> bool:
+    """Bind exact objects, not equal values or a caller's generation claim."""
+    try:
+        lease = context.lease
+        return (
+            _context_valid(context)
+            and type(lease) is _LifecycleLease
+            and provider.context is context
+            and provider.lease is lease
+            and provider.generation is context.generation
+            and lease.matches(context, provider, context.generation)
+        )
+    except Exception:
+        return False
+
+
+def _observation_bound(observation: Any, context: Any, provider: Any) -> bool:
+    return (
+        type(observation) is _InternalObservation
+        and observation.context is context
+        and observation.provider is provider
+        and observation.lease is context.lease
+        and observation.generation is context.generation
+        and _lease_valid(context, provider)
+    )
 
 
 __all__ = [

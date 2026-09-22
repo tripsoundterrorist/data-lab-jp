@@ -14,6 +14,7 @@ from typing import Any, Mapping
 import affiliate_link_adapter
 import affiliate_cta_exact_selection as exact_selection
 import affiliate_cta_approved_context as approved_context
+import affiliate_cta_production_composition as composition
 from affiliate_link_policy import (
     CONDITIONALLY_APPROVED,
     LIFECYCLE_RESOLVED,
@@ -59,22 +60,30 @@ def decide(
     evaluated_at: Any,
 ) -> ClickDecision:
     """Production-facing inert entry point with no caller injection surface."""
-    return _decide(
+    try:
+        lifecycle = composition.production_provider()
+    except Exception:
+        return _blocked("LIFECYCLE_BLOCKED")
+    if not composition._valid_lifecycle(lifecycle):
+        return _blocked("LIFECYCLE_BLOCKED")
+    result = _decide(
         version=version, clicked_public_id=clicked_public_id, evaluated_at=evaluated_at,
-        context=approved_context.production_context(),
-        observe=approved_context.production_observe,
+        context=lifecycle.context, observe=lifecycle.observe, provider=lifecycle.provider,
     )
+    return result if composition._valid_lifecycle(lifecycle) else _blocked("LIFECYCLE_BLOCKED")
 
 
 def _decide(
     *, version: Any, clicked_public_id: Any, evaluated_at: Any,
-    context: Any, observe: Any,
+    context: Any, observe: Any, provider: Any = None,
 ) -> ClickDecision:
     """Shared logic; injectable state is reachable only from test-only helpers."""
 
     try:
         if version != VERSION:
             return _blocked("UNSUPPORTED_VERSION")
+        if not approved_context._lease_valid(context, provider):
+            return _blocked("LIFECYCLE_BLOCKED")
         if type(clicked_public_id) is not str or exact_selection.PUBLIC_ID.fullmatch(clicked_public_id) is None:
             return _blocked("PUBLIC_ID_INVALID")
         if not isinstance(evaluated_at, datetime) or evaluated_at.tzinfo is None:
@@ -91,6 +100,8 @@ def _decide(
             return _blocked("TRUSTED_RESOLVER_FAILED")
         if type(observation) is not approved_context._InternalObservation:
             return _blocked("TRUSTED_RESOLVER_OBSERVATION_INVALID")
+        if not approved_context._observation_bound(observation, context, provider):
+            return _blocked("OBSERVATION_LIFECYCLE_MISMATCH")
         if (
             observation.public_id != clicked_public_id
             or observation.selection_digest != approved_context._context_digest(context)
@@ -137,12 +148,13 @@ def _decide(
         )
         if link.validation_status != affiliate_link_adapter.VALID or link.production_render_allowed is not True:
             return _blocked("AFFILIATE_URL_INVALID")
-        return ClickDecision(
+        decision = ClickDecision(
             VERSION,
             ALLOWED,
             ("EXACT_SELECTION_CONFIRMED", "FRESH_API_REVALIDATION_CONFIRMED", "TRANSIENT_URL_VALIDATED"),
             303,
         )
+        return decision if approved_context._observation_bound(observation, context, provider) else _blocked("LIFECYCLE_BLOCKED")
     except Exception:
         return _blocked("CLICK_REVALIDATION_INTERNAL_ERROR")
 

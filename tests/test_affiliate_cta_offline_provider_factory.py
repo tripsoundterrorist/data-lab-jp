@@ -9,6 +9,7 @@ import affiliate_cta_approved_context as approved
 import affiliate_cta_canary_offline_candidate as render
 import affiliate_cta_click_revalidation_candidate as click
 import affiliate_cta_offline_provider_factory as factory
+import affiliate_cta_production_composition as composition
 
 NOW=datetime(2026,9,22,4,0,tzinfo=timezone.utc)
 IDS=tuple(f"itm_{number:024x}" for number in range(10))
@@ -26,9 +27,10 @@ class OfflineProviderFactoryTests(unittest.TestCase):
   calls=[]
   def fetch(content):calls.append(content);return payload(content)
   provider=build(fetch)
-  records=provider.records(CONTEXT)
+  records=provider.records(provider.context)
   self.assertEqual(len(records),10);self.assertEqual(len(calls),10);self.assertEqual(len(set(calls)),10)
-  with mock.patch.object(approved,"production_context",return_value=CONTEXT),mock.patch.object(approved,"production_observe",provider.observe),mock.patch.object(approved,"production_render_records",provider.records):
+  lifecycle=composition._OfflineComposition(provider,provider.context,provider.lease,provider.generation)
+  with mock.patch.object(composition,"production_provider",return_value=lifecycle):
    self.assertEqual(click.decide(version=click.VERSION,clicked_public_id=IDS[0],evaluated_at=NOW).status,click.ALLOWED)
    self.assertEqual(render.render(as_of=NOW).cta_count,10)
   self.assertEqual(len(calls),21)
@@ -57,7 +59,7 @@ class OfflineProviderFactoryTests(unittest.TestCase):
      calls.append(content)
      target="https://evil.invalid/x" if len(calls)-1==stop_at else "https://al.dmm.co.jp/?lurl=https%3A%2F%2Fexample.invalid%2F"
      return payload(content,target)
-    self.assertIsNone(build(fetch).records(CONTEXT))
+    provider=build(fetch);self.assertIsNone(provider.records(provider.context))
     self.assertEqual(len(calls),stop_at+1)
  def test_snapshot_is_owned_and_fetcher_time_is_ignored(self):
   raw=payload(mapping()[IDS[0]]);raw["checked_at"]="caller"

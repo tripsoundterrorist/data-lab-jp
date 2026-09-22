@@ -3,11 +3,12 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import Any, Callable, Mapping
 import affiliate_cta_approved_context as approved
 import affiliate_link_adapter
+from affiliate_cta_kill_deadline_contract import _issue_lease_for_test
 
 _HOSTS = frozenset({"al.dmm.co.jp", "al.fanza.co.jp"})
 
@@ -39,48 +40,83 @@ def _safe_match(response: Any, content_id: str) -> bool:
     )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class _OfflineProvider:
     context: Any
     mapping: Mapping[str, str]
     fetcher: Callable[[str], Any]
     clock: Callable[[], Any]
+    lease: Any
+    generation: Any
+
+    def __repr__(self):
+        return "<OfflineProvider>"
+
+    def valid(self):
+        return approved._lease_valid(self.context, self)
+
+    def revoke(self):
+        self.lease.revoke()
 
     def observe(self, public_id: str) -> approved._InternalObservation | None:
-        if not approved._context_member(self.context, public_id):
+        if not self.valid() or not approved._context_member(self.context, public_id):
             return None
         content_id = self.mapping.get(public_id)
         if type(content_id) is not str:
             return None
         try:
-            snapshot = _freeze(deepcopy(self.fetcher(content_id)))
+            if not self.valid():
+                return None
+            response = self.fetcher(content_id)
+            if not self.valid():
+                return None
+            snapshot = _freeze(deepcopy(response))
+            # Snapshot completion and entry to the provider clock are separate
+            # trust boundaries, both sharing the same terminal lease state.
+            if not self.valid():
+                return None
+            if not self.valid():
+                return None
             checked_at = self.clock()
+            if not self.valid():
+                return None
         except Exception:
+            self.revoke()
             return None
         if not isinstance(checked_at, datetime) or checked_at.tzinfo is None:
+            self.revoke()
             return None
         if not _safe_match(snapshot, content_id):
+            self.revoke()
             return None
-        return approved._InternalObservation(
+        if not self.valid():
+            return None
+        observation = approved._InternalObservation(
             public_id, approved._context_digest(self.context), checked_at, content_id, snapshot,
+            self.lease, self.generation, self.context, self,
         )
+        return observation if approved._observation_bound(observation, self.context, self) else None
 
     def records(self, context: Any) -> tuple[approved._InternalPresentationRecord, ...] | None:
-        if context is not self.context or not approved._context_valid(context):
+        if context is not self.context or not self.valid():
             return None
         values = []
         for public_id in sorted(context.public_ids):
+            if not self.valid():
+                return None
             observation = self.observe(public_id)
-            if observation is None:
+            if observation is None or not approved._observation_bound(observation, context, self):
                 return None
             values.append(approved._InternalPresentationRecord(
                 public_id, approved._context_digest(context), "Verified item", observation,
             ))
-        return tuple(values)
+        result = tuple(values)
+        return result if self.valid() else None
 
 
 def _build_offline_provider_for_test(
     context: Any, mapping: Any, fetcher: Any, clock: Any,
+    *, monotonic_clock=lambda: 0, deadline=10,
 ) -> _OfflineProvider:
     """Internal test seam; production providers remain the inert defaults."""
     if (
@@ -93,4 +129,11 @@ def _build_offline_provider_for_test(
         or len(set(mapping.values())) != approved.EXACT_SELECTION_COUNT
     ):
         raise ValueError("OFFLINE_PROVIDER_INPUT_INVALID")
-    return _OfflineProvider(context, MappingProxyType(dict(mapping)), fetcher, clock)
+    # Each offline builder owns a fresh lease and a fresh context identity.
+    lease = _issue_lease_for_test(monotonic_clock, deadline)
+    bound_context = replace(context, lease=lease, generation=lease.generation)
+    provider = _OfflineProvider(bound_context, MappingProxyType(dict(mapping)), fetcher,
+                                clock, lease, lease.generation)
+    if not lease.bind(bound_context, provider) or not provider.valid():
+        raise ValueError("LIFECYCLE_BLOCKED")
+    return provider
