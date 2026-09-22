@@ -4,3 +4,6 @@
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+
+/items/*
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
