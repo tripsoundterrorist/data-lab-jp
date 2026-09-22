@@ -18,8 +18,12 @@ CONTENT = "fixture-content_01"
 TARGET = "https://al.fanza.co.jp/?lurl=https%3A%2F%2Fexample.invalid%2F"
 
 
-def fixture(content_id=CONTENT, affiliate_url=TARGET):
-    return {"result": {"status": 200, "items": [{"content_id": content_id, "affiliateURL": affiliate_url}]}}
+def fixture(content_id=CONTENT, affiliate_url=TARGET, *, result_count=1, total_count=1, first_position=1):
+    return {"result": {
+        "status": 200, "result_count": result_count, "total_count": total_count,
+        "first_position": first_position,
+        "items": [{"content_id": content_id, "affiliateURL": affiliate_url}],
+    }}
 
 
 class NetworkDisabledWireAdapterTests(unittest.TestCase):
@@ -63,10 +67,42 @@ class NetworkDisabledWireAdapterTests(unittest.TestCase):
             {}, {"result": {"status": "200", "items": []}},
             {"result": {"status": 200, "items": []}},
             fixture(content_id="other"),
-            {"result": {"status": 200, "items": [fixture()["result"]["items"][0], fixture()["result"]["items"][0]]}},
-            {"result": {"status": 200, "items": [{"content_id": CONTENT, "affiliateURL": 1}]}},
-            {"result": {"status": 200, "items": [{"content_id": CONTENT, "affiliateURL": TARGET, "unknown": {}}]}},
             {"result": {"status": 429, "items": []}}, {"error": "unknown"},
+        )
+        for value in cases:
+            with self.subTest(value_type=type(value)):
+                self.assertIsNone(subject._parse_fixture_for_test(value, CONTENT))
+
+    def test_fixture_parser_requires_exact_single_item_and_exact_metadata(self):
+        normal = fixture()
+        extra = {"content_id": "other", "affiliateURL": "https://evil.invalid/"}
+        with_extra_first = fixture()
+        with_extra_first["result"]["items"] = [extra, normal["result"]["items"][0]]
+        with_extra_last = fixture()
+        with_extra_last["result"]["items"].append(extra)
+        class DictSubclass(dict):
+            pass
+        class ListSubclass(list):
+            pass
+        class StringSubclass(str):
+            pass
+        cases = (
+            with_extra_first, with_extra_last,
+            {"result": {**normal["result"], "status": True}},
+            {"result": {**normal["result"], "status": 200.0}},
+            {"result": {**normal["result"], "status": "200"}},
+            fixture(result_count=0), fixture(result_count=True), fixture(result_count=1.0), fixture(result_count="1"),
+            fixture(first_position=0), fixture(first_position=True), fixture(first_position=1.0), fixture(first_position="1"),
+            fixture(total_count=0), fixture(total_count=-1), fixture(total_count=True), fixture(total_count=1.0),
+            fixture(total_count="1"), fixture(total_count=subject.MAX_SYNTHETIC_TOTAL_COUNT + 1),
+            {"result": {**normal["result"], "unknown": 1}},
+            {"result": normal["result"], "request": {"opaque": "forbidden"}},
+            {"result": DictSubclass(normal["result"])},
+            DictSubclass(normal),
+            {"result": {**normal["result"], "items": ListSubclass(normal["result"]["items"])}},
+            {"result": {**normal["result"], "items": [DictSubclass(normal["result"]["items"][0])]}},
+            {"result": {**normal["result"], "items": [{"content_id": StringSubclass(CONTENT), "affiliateURL": TARGET}] }},
+            {"result": {**normal["result"], "items": [{"content_id": CONTENT, "affiliateURL": StringSubclass(TARGET)}] }},
         )
         for value in cases:
             with self.subTest(value_type=type(value)):

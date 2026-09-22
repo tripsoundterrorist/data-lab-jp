@@ -28,9 +28,11 @@ _CONTENT_ID = re.compile(r"[A-Za-z0-9._-]{1,128}\Z")
 _PARAMETER_NAMES = (
     "api_id", "affiliate_id", "site", "service", "floor", "cid", "hits", "offset", "output",
 )
-_ALLOWED_RESPONSE_ROOT = frozenset({"result", "request"})
+_ALLOWED_RESPONSE_ROOT = frozenset({"result"})
 _ALLOWED_RESULT = frozenset({"status", "result_count", "total_count", "first_position", "items"})
 _ALLOWED_ITEM = frozenset({"content_id", "affiliateURL"})
+# Local fixture bound only; it makes no claim about provider limits.
+MAX_SYNTHETIC_TOTAL_COUNT = 100_000
 _CTA_HOSTS = frozenset({"al.dmm.co.jp", "al.fanza.co.jp"})
 EVIDENCE_PATH = "runtime/private/official-wire-contract-review.txt"
 EVIDENCE_SHA256 = "72e3486589983e13389e8f3abd94c51ed7379bc89c9043e93cca17d14313ff19"
@@ -155,30 +157,38 @@ def _parse_fixture_for_test(payload: Any, requested_content_id: Any) -> _Fixture
     try:
         if not _content_id_valid(requested_content_id) or type(payload) is not dict:
             return None
-        if not _keys_allowed(payload, _ALLOWED_RESPONSE_ROOT) or "result" not in payload:
+        # Request echoes may contain credentials, so they are intentionally
+        # forbidden. Extra keys at every reviewed level fail closed.
+        if not _keys_exact(payload, _ALLOWED_RESPONSE_ROOT):
             return None
-        result = payload.get("result")
-        if type(result) is not dict or not _keys_allowed(result, _ALLOWED_RESULT):
+        result = payload["result"]
+        if type(result) is not dict or not _keys_exact(result, _ALLOWED_RESULT):
             return None
-        status, items = result.get("status"), result.get("items")
-        if type(status) is not int or status != 200 or type(items) is not list:
+        status = result["status"]
+        result_count = result["result_count"]
+        total_count = result["total_count"]
+        first_position = result["first_position"]
+        items = result["items"]
+        if (
+            type(status) is not int or status != 200
+            or type(result_count) is not int or result_count != 1
+            or type(first_position) is not int or first_position != 1
+            or type(total_count) is not int or not 1 <= total_count <= MAX_SYNTHETIC_TOTAL_COUNT
+            or type(items) is not list or len(items) != 1
+        ):
             return None
-        matches: list[dict[str, Any]] = []
-        for item in items:
-            if type(item) is not dict or not _keys_allowed(item, _ALLOWED_ITEM):
-                return None
-            content_id, affiliate_url = item.get("content_id"), item.get("affiliateURL")
-            if type(content_id) is not str or type(affiliate_url) is not str:
-                return None
-            if content_id == requested_content_id:
-                matches.append(item)
-        if len(matches) != 1:
+        item = items[0]
+        if type(item) is not dict or not _keys_exact(item, _ALLOWED_ITEM):
             return None
-        observed = matches[0]
-        affiliate_url = observed["affiliateURL"]
-        if not affiliate_url or not affiliate_link_adapter.validate_affiliate_target(affiliate_url, allowed_hosts=_CTA_HOSTS):
+        content_id = item["content_id"]
+        affiliate_url = item["affiliateURL"]
+        if type(content_id) is not str or content_id != requested_content_id:
             return None
-        return _FixtureObservation(requested_content_id, affiliate_url)
+        if type(affiliate_url) is not str or not affiliate_url:
+            return None
+        if not affiliate_link_adapter.validate_affiliate_target(affiliate_url, allowed_hosts=_CTA_HOSTS):
+            return None
+        return _FixtureObservation(content_id, affiliate_url)
     except Exception:
         return None
 
@@ -195,7 +205,9 @@ def _secret_handles_valid(api_handle: Any, affiliate_handle: Any) -> bool:
     )
 
 
-def _keys_allowed(value: dict[Any, Any], allowed: frozenset[str]) -> bool:
+def _keys_exact(value: dict[Any, Any], allowed: frozenset[str]) -> bool:
+    if len(value) != len(allowed):
+        return False
     for key in value:
         if type(key) is not str or key not in allowed:
             return False
