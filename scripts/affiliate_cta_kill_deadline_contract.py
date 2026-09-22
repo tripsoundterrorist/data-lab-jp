@@ -10,6 +10,8 @@ import math
 from typing import Any
 
 BLOCKED = "BLOCKED"
+_MILLISECONDS_PER_SECOND = 1_000
+_MIN_SEND_BUDGET_MS = 1
 
 
 def _finite(value: Any) -> bool:
@@ -20,7 +22,7 @@ def _finite(value: Any) -> bool:
 
 
 class _LifecycleLease:
-    __slots__ = ("__check", "__revoke", "__bind", "__matches", "__generation")
+    __slots__ = ("__check", "__remaining_ms", "__revoke", "__bind", "__matches", "__generation")
 
     def __new__(cls):
         raise TypeError("LEASE_INTERNAL_ISSUER_REQUIRED")
@@ -37,6 +39,10 @@ class _LifecycleLease:
 
     def valid(self) -> bool:
         return self.__check()
+
+    def remaining_ms(self) -> int | None:
+        """Internal send budget, rounded down so it never exceeds the lease."""
+        return self.__remaining_ms()
 
     def revoke(self) -> None:
         self.__revoke()
@@ -80,6 +86,31 @@ def _issue_lease_for_test(monotonic_clock: Any, deadline: Any) -> _LifecycleLeas
         finally:
             checking = False
 
+    def remaining_ms():
+        nonlocal terminal, last, checking
+        if terminal or checking:
+            revoke()
+            return None
+        checking = True
+        try:
+            now = monotonic_clock()
+            if terminal or not _finite(now) or (last is not None and now < last) or now >= deadline:
+                revoke()
+                return None
+            # The monotonic clock/deadline unit is seconds. Floor conversion to
+            # milliseconds prevents the advertised send budget exceeding lease time.
+            value = math.floor((deadline - now) * _MILLISECONDS_PER_SECOND)
+            if value < _MIN_SEND_BUDGET_MS:
+                revoke()
+                return None
+            last = now
+            return value
+        except Exception:
+            revoke()
+            return None
+        finally:
+            checking = False
+
     def bind(context, provider):
         nonlocal bound
         if bound is not None or not check():
@@ -91,7 +122,7 @@ def _issue_lease_for_test(monotonic_clock: Any, deadline: Any) -> _LifecycleLeas
         return (bound is not None and context is bound[0] and provider is bound[1]
                 and candidate_generation is generation and check())
 
-    for name, value in (("check", check), ("revoke", revoke), ("bind", bind),
+    for name, value in (("check", check), ("remaining_ms", remaining_ms), ("revoke", revoke), ("bind", bind),
                         ("matches", matches), ("generation", generation)):
         object.__setattr__(lease, "_LifecycleLease__" + name, value)
     return lease

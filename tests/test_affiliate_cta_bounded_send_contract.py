@@ -3,6 +3,7 @@ import inspect
 from pathlib import Path
 import sys
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -44,6 +45,29 @@ def build(executor=None, **changes):
     return lifecycle, calls
 
 
+class RecordingExecutor(bounded._FakeBoundedExecutorForTest):
+    __slots__ = ("budgets", "calls")
+
+    def __init__(self, **changes):
+        super().__init__(**changes)
+        self.budgets = []
+        self.calls = 0
+
+    def execute(self, request, timeout_ms, cancelled, send):
+        self.calls += 1
+        self.budgets.append(timeout_ms)
+        return super().execute(request, timeout_ms, cancelled, send)
+
+
+def route_args():
+    return dict(
+        version=route.VERSION, method="GET", path="/go/" + IDS[0], request_body_present=False,
+        official_answer_candidate=True, publication_gate_overall_eligible=True,
+        runtime_chain_connected=True, rate_limit_allowed=True, pr_disclosure_available=True,
+        evaluated_at=NOW,
+    )
+
+
 class BoundedSendContractTests(unittest.TestCase):
     def test_production_adapters_are_declared_but_disabled(self):
         self.assertIsNone(bounded.production_monotonic_clock())
@@ -76,11 +100,104 @@ class BoundedSendContractTests(unittest.TestCase):
         self.assertEqual(revoked_calls, [])
 
     def test_invalid_timeout_is_fail_closed_without_transport(self):
-        for value in (True, False, 0, -1, float("inf"), bounded.MAX_TIMEOUT_MS + 1):
+        for value in (True, False, 0, -1, float("nan"), float("inf"), float("-inf"), bounded.MAX_TIMEOUT_MS + 1):
             with self.subTest(value=value):
                 lifecycle, calls = build(timeout_ms=value)
                 self.assertIsNone(lifecycle.observe(IDS[0]))
                 self.assertEqual(calls, [])
+
+    def test_remaining_budget_caps_configured_timeout_before_send(self):
+        for timeout_ms, now, deadline, expected in (
+            (bounded.MAX_TIMEOUT_MS, 0, 10, bounded.MAX_TIMEOUT_MS),
+            (bounded.MAX_TIMEOUT_MS, 0, 1, 1_000),
+            (1_000, 0, 1, 1_000),
+            (5, 0, 10, 5),
+            (bounded.MAX_TIMEOUT_MS, 9.9981, 10, 1),
+        ):
+            with self.subTest(timeout_ms=timeout_ms, now=now, deadline=deadline):
+                executor = RecordingExecutor()
+                lifecycle, calls = build(executor, timeout_ms=timeout_ms,
+                                         monotonic_clock=lambda: now, deadline=deadline)
+                self.assertIsNotNone(lifecycle.observe(IDS[0]))
+                self.assertEqual(executor.budgets, [expected])
+                self.assertEqual(len(calls), 1)
+
+    def test_sub_millisecond_or_expired_remaining_budget_starts_zero_sends(self):
+        for now, deadline in ((9.9999, 10), (10, 10), (11, 10)):
+            with self.subTest(now=now, deadline=deadline):
+                executor = RecordingExecutor()
+                if now >= deadline:
+                    with self.assertRaises(ValueError):
+                        build(executor, timeout_ms=bounded.MAX_TIMEOUT_MS,
+                              monotonic_clock=lambda: now, deadline=deadline)
+                    calls = []
+                else:
+                    lifecycle, calls = build(executor, timeout_ms=bounded.MAX_TIMEOUT_MS,
+                                             monotonic_clock=lambda: now, deadline=deadline)
+                    self.assertIsNone(lifecycle.observe(IDS[0]))
+                self.assertEqual(executor.calls, 0)
+                self.assertEqual(calls, [])
+
+    def test_invalid_monotonic_values_are_terminal_before_send(self):
+        for now in (float("nan"), float("inf"), float("-inf"), True, False):
+            with self.subTest(now=now):
+                executor = RecordingExecutor()
+                with self.assertRaises(ValueError):
+                    build(executor, monotonic_clock=lambda: now)
+                self.assertEqual(executor.calls, 0)
+
+    def test_elapsed_boundary_and_late_completion_are_terminal(self):
+        for elapsed_ms, allowed in ((0.5, True), (1, False), (2, False)):
+            with self.subTest(elapsed_ms=elapsed_ms):
+                executor = RecordingExecutor(elapsed_ms=elapsed_ms)
+                lifecycle, calls = build(executor, timeout_ms=1)
+                observation = lifecycle.observe(IDS[0])
+                self.assertEqual(observation is not None, allowed)
+                self.assertEqual(executor.calls, 1)
+                self.assertEqual(len(calls), 1)
+                if not allowed:
+                    self.assertFalse(lifecycle.valid())
+                    self.assertIsNone(lifecycle.observe(IDS[1]))
+                    self.assertEqual(executor.calls, 1)
+
+    def test_trusted_clock_after_return_rejects_completion_past_deadline(self):
+        time = [0.99]
+        executor = RecordingExecutor(elapsed_ms=0)
+        calls = []
+        def transport(request):
+            calls.append(request)
+            time[0] = 1
+            return payload(request._content_id)
+        lifecycle = composition._build_offline_composition_for_test(
+            CONTEXT, {value: f"content-{index}" for index, value in enumerate(IDS)}, transport,
+            lambda: NOW, monotonic_clock=lambda: time[0], deadline=1, executor=executor, timeout_ms=1,
+        )
+        self.assertIsNone(lifecycle.observe(IDS[0]))
+        self.assertEqual(executor.calls, 1)
+        self.assertEqual(len(calls), 1)
+
+    def test_public_click_route_render_reject_elapsed_timeout_and_stop_after_one_send(self):
+        for entry in ("click", "route", "render"):
+            with self.subTest(entry=entry):
+                time = [0]
+                calls = []
+                def transport(request):
+                    calls.append(request)
+                    time[0] += 0.01
+                    return payload(request._content_id)
+                lifecycle = composition._build_offline_composition_for_test(
+                    CONTEXT, {value: f"content-{index}" for index, value in enumerate(IDS)}, transport,
+                    lambda: NOW, monotonic_clock=lambda: time[0], deadline=1, timeout_ms=1,
+                )
+                with mock.patch.object(composition, "production_provider", return_value=lifecycle):
+                    if entry == "click":
+                        self.assertEqual(click.decide(version=click.VERSION, clicked_public_id=IDS[0], evaluated_at=NOW).status, click.BLOCKED)
+                    elif entry == "route":
+                        self.assertEqual(route.assess(**route_args()).status, route.BLOCKED)
+                    else:
+                        with self.assertRaises(ValueError):
+                            render.render(as_of=NOW)
+                self.assertEqual(len(calls), 1)
 
     def test_public_entries_cannot_inject_bounded_send_controls(self):
         forbidden = {"executor", "timeout", "cancel", "clock", "send", "transport"}
