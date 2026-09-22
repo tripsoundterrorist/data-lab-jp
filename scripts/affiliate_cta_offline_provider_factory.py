@@ -6,9 +6,8 @@ from datetime import datetime
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Callable, Mapping
-from urllib.parse import urlsplit
-
 import affiliate_cta_approved_context as approved
+import affiliate_link_adapter
 
 _HOSTS = frozenset({"al.dmm.co.jp", "al.fanza.co.jp"})
 
@@ -35,11 +34,9 @@ def _safe_match(response: Any, content_id: str) -> bool:
     matches = [item for item in items if isinstance(item, Mapping) and item.get("content_id") == content_id]
     if len(matches) != 1 or type(matches[0].get("affiliateURL")) is not str:
         return False
-    try:
-        parsed = urlsplit(matches[0]["affiliateURL"])
-        return (parsed.hostname or "").casefold().rstrip(".") in _HOSTS and parsed.port is None
-    except ValueError:
-        return False
+    return affiliate_link_adapter.validate_affiliate_target(
+        matches[0]["affiliateURL"], allowed_hosts=_HOSTS,
+    )
 
 
 @dataclass(frozen=True)

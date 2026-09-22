@@ -100,6 +100,19 @@ def _validate_url(value: Any) -> tuple[bool, tuple[str, ...]]:
     return True, ("LINK_VALUE_VALIDATED",)
 
 
+def validate_affiliate_target(value: Any, *, allowed_hosts: frozenset[str]) -> bool:
+    """Pure CTA target validator; returns no URL or parse detail."""
+    valid, _reasons = _validate_url(value)
+    if not valid or type(value) is not str or type(allowed_hosts) is not frozenset:
+        return False
+    try:
+        parsed = urlsplit(value)
+        hostname = (parsed.hostname or "").casefold().rstrip(".")
+        return hostname in allowed_hosts and parsed.port is None
+    except (TypeError, ValueError):
+        return False
+
+
 def _adapt(
     *,
     adapter_version: Any,
@@ -156,5 +169,5 @@ def adapt_affiliate_link(**kwargs: Any) -> AffiliateLinkAdapterResult:
 
 __all__ = [
     "ADAPTER_VERSION", "AffiliateLinkAdapterResult", "INVALID", "VALID",
-    "adapt_affiliate_link",
+    "adapt_affiliate_link", "validate_affiliate_target",
 ]

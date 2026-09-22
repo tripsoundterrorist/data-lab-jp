@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Any, Mapping
-from urllib.parse import urlsplit
 
 import affiliate_link_adapter
 import affiliate_cta_exact_selection as exact_selection
@@ -121,12 +120,9 @@ def _decide(
         affiliate_url = matches[0].get("affiliateURL")
         if type(affiliate_url) is not str:
             return _blocked("AFFILIATE_URL_INVALID")
-        try:
-            parsed_url = urlsplit(affiliate_url)
-            affiliate_host = (parsed_url.hostname or "").casefold().rstrip(".")
-        except (TypeError, ValueError):
-            return _blocked("AFFILIATE_URL_INVALID")
-        if affiliate_host not in ALLOWED_AFFILIATE_HOSTS or parsed_url.port is not None:
+        if not affiliate_link_adapter.validate_affiliate_target(
+            affiliate_url, allowed_hosts=ALLOWED_AFFILIATE_HOSTS,
+        ):
             return _blocked("AFFILIATE_URL_INVALID")
 
         link = affiliate_link_adapter.adapt_affiliate_link(

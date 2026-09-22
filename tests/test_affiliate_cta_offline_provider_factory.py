@@ -42,6 +42,23 @@ class OfflineProviderFactoryTests(unittest.TestCase):
   for fetcher in cases:
    with self.subTest(fetcher=fetcher):self.assertIsNone(build(fetcher).observe(IDS[0]))
   self.assertIsNone(build(clock=lambda:None).observe(IDS[0]))
+ def test_unsafe_targets_never_create_observation(self):
+  unsafe=("http://al.dmm.co.jp/x","//al.dmm.co.jp/x","https://user:pass@al.dmm.co.jp/x","https://al.dmm.co.jp/x\r\nLocation:https://evil.invalid/","https://al.dmm.co.jp/a b","/local/path","https://evil.invalid/x","https://al.dmm.co.jp:443/x")
+  for target in unsafe:
+   with self.subTest(target=target):self.assertIsNone(build(lambda content:payload(content,target)).observe(IDS[0]))
+ def test_allowed_dmm_and_fanza_targets_create_observations(self):
+  for target in ("https://al.dmm.co.jp/?lurl=https%3A%2F%2Fexample.invalid%2F","https://al.fanza.co.jp/?lurl=https%3A%2F%2Fexample.invalid%2F"):
+   with self.subTest(target=target):self.assertIsNotNone(build(lambda content:payload(content,target)).observe(IDS[0]))
+ def test_batch_stops_on_first_unsafe_target_without_later_fetches(self):
+  for stop_at in (0,3):
+   with self.subTest(stop_at=stop_at):
+    calls=[]
+    def fetch(content):
+     calls.append(content)
+     target="https://evil.invalid/x" if len(calls)-1==stop_at else "https://al.dmm.co.jp/?lurl=https%3A%2F%2Fexample.invalid%2F"
+     return payload(content,target)
+    self.assertIsNone(build(fetch).records(CONTEXT))
+    self.assertEqual(len(calls),stop_at+1)
  def test_snapshot_is_owned_and_fetcher_time_is_ignored(self):
   raw=payload(mapping()[IDS[0]]);raw["checked_at"]="caller"
   provider=build(lambda _content:raw)
