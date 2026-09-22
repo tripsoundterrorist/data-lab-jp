@@ -1,0 +1,110 @@
+{
+  "version": "0.1",
+  "reviewed_at_utc": "2026-09-22T05:52:26Z",
+  "decision": "BLOCK_ACTIVATION_REQUEST_PRESENTATION",
+  "scope": "USER_ACTIVATION_REQUEST_PRESENTATION_ONLY",
+  "method": "STATIC_SOURCE_REVIEW_AND_OFFLINE_SYNTHETIC_CHECKS",
+  "reviewed_main_commit": "0381d7ec193394c83670950052b957f60780f82d",
+  "reviewed_pr": 286,
+  "prior_review": "docs/evidence/affiliate-cta-integrated-activation-review-20260922.json",
+  "prior_review_merge_commit": "2becd82fea01864259f4d376c725caf302381daf",
+  "required_conditions_source": "docs/evidence/affiliate-cta-canary-compliance-review-20260922.json",
+  "required_conditions_merge_commit": "cf355d3330944f62d4f98434a1996494a67a0e02",
+  "approved_selection_reference_digest": "ba7cbba3e5831ed8a26f25653db0865672b236ed96b372ea93877bdcdf5aac0b",
+  "classification_note": "CONFIRMED describes repository behavior at the reviewed commit, not a new official permission or live verification.",
+  "prior_blocker_assessments": [
+    {
+      "code": "EXACT_SELECTION_NOT_CRYPTOGRAPHICALLY_BOUND",
+      "resolution": "PARTIAL",
+      "confirmed": "Canonical SHA-256 uses a domain prefix and sorted unique opaque identifiers. Both render and click recompute the digest; duplicate identifiers and mismatched digests are rejected.",
+      "remaining": "The expected digest remains caller supplied. Neither entry point nor inert integration binds it to the PR #280/#281 reviewed ten-item selection. No evidence connects the new canonical encoding to that selection reference.",
+      "source_paths": [
+        "scripts/affiliate_cta_exact_selection.py",
+        "scripts/affiliate_cta_canary_offline_candidate.py",
+        "scripts/affiliate_cta_click_revalidation_candidate.py",
+        "scripts/affiliate_cta_runtime_inert_integration.py"
+      ]
+    },
+    {
+      "code": "CLICK_REVALIDATION_NOT_BOUND_TO_CLICKED_ITEM",
+      "resolution": "PARTIAL",
+      "confirmed": "One observation dictionary carries the clicked opaque identifier, resolved content identifier, timestamp, status and response. The click identifier must match; exactly one matching response item is required and the transient affiliateURL is extracted only from that item.",
+      "remaining": "The dictionary supplies its own resolved identity and timestamp. The integration does not obtain or verify the opaque-to-content mapping from the trusted resolver or establish that the response was obtained for this click. Consistently relabelling the supplied resolved identity and response still succeeds.",
+      "source_paths": [
+        "scripts/affiliate_cta_click_revalidation_candidate.py",
+        "scripts/affiliate_cta_runtime_inert_integration.py"
+      ]
+    },
+    {
+      "code": "REQUIRED_LINK_REL_TOKENS_MISSING",
+      "resolution": "RESOLVED",
+      "confirmed": "The offline renderer emits rel=\"noopener noreferrer sponsored\" on the same-origin opaque CTA link.",
+      "source_paths": ["scripts/affiliate_cta_canary_offline_candidate.py"]
+    }
+  ],
+  "controls": {
+    "fixed_cta": {
+      "status": "CONFIRMED",
+      "value": "公式商品ページを見る（外部サイト）"
+    },
+    "proximate_pr_disclosure": {
+      "status": "CONFIRMED",
+      "value": "PR：このリンクはアフィリエイトリンクです。リンク先で購入された場合、DATA LABが報酬を受け取ることがあります。",
+      "placement": "Immediately preceding the CTA in the same article; both absent for ineligible render records."
+    },
+    "render_and_click_freshness": {
+      "status": "CONFIRMED",
+      "maximum_age_seconds": 900,
+      "detail": "Nonnegative age up to and including 15 minutes is accepted. Future or older observations fail closed. This internal bound does not prove a new API request occurred at click time."
+    },
+    "fail_closed": {
+      "status": "CONFIRMED",
+      "scope": "Checked input conditions only; unresolved selection and observation provenance are excluded.",
+      "detail": "Invalid or duplicate selection, digest mismatch, stale/future observation, error/rate-limit status, absent/multiple exact matches and missing/unsafe affiliate URL block the applicable candidate. Invalid render contracts raise without returning HTML; stale/error render records omit the CTA."
+    },
+    "exact_single_item_semantics": {
+      "status": "CONFIRMED",
+      "detail": "Exactly one matching item is enforced, not a response containing exactly one total item. Additional unmatched items are accepted; this is recorded as a contract distinction, not an independent blocker."
+    },
+    "url_nonexposure": {
+      "status": "CONFIRMED",
+      "detail": "Offline HTML contains only the opaque same-origin route. Click and integration receipts expose no identifiers, affiliate URL or Location. No actual redirect is emitted."
+    },
+    "fresh_api_before_render": {
+      "status": "UNCONFIRMED",
+      "detail": "Render evaluates caller-supplied freshness and status; the reviewed integration does not establish observation provenance."
+    },
+    "production_and_official_status": {
+      "status": "UNCONFIRMED",
+      "detail": "No production endpoint, D1, DMM/FANZA API or official permission was rechecked. Repository comparison shows no public HTML or deployment configuration changes from the prior reviewed main."
+    }
+  },
+  "offline_validation": {
+    "existing_targeted_tests_passed": 13,
+    "synthetic_observations": [
+      {"case": "REPLACE_SELECTION_AND_RECOMPUTE_CALLER_DIGEST", "integration_status": "READY_FOR_ACTIVATION_REVIEW", "render_cta_count": 1},
+      {"case": "RELABEL_RESOLVED_IDENTITY_AND_MATCHING_RESPONSE_TOGETHER", "integration_status": "READY_FOR_ACTIVATION_REVIEW"},
+      {"case": "ADD_UNMATCHED_RESPONSE_ITEM", "integration_status": "READY_FOR_ACTIVATION_REVIEW"}
+    ],
+    "real_identifiers_or_affiliate_urls_recorded": false,
+    "live_api_requests_performed": false
+  },
+  "approval_boundary": {
+    "activation_request_presentation_allowed": false,
+    "cta_activation_allowed": false,
+    "redirect_activation_allowed": false,
+    "publication_allowed": false,
+    "affiliate_eligibility_mutation_allowed": false,
+    "d1_write_allowed": false,
+    "deployment_allowed": false,
+    "gate_mutation_allowed": false,
+    "production_write_allowed": false,
+    "live_permission_granted": false
+  },
+  "next_action": "BIND_REVIEWED_SELECTION_AND_TRUSTED_OBSERVATION_PROVENANCE_THEN_REREVIEW",
+  "minimum_follow_up": [
+    "Connect the canonical digest to the reviewed exact ten-item selection through a trusted approval context. Record the canonicalization version and sanitized migration evidence if the reference digest encoding changes; reject replacement of both set and digest outside that context.",
+    "At the integration boundary, obtain the opaque-to-content mapping and click observation through the trusted resolver/fetch chain, binding the returned item and transient URL to that result. Verify the chain offline with injected fakes; do not activate a live connector during remediation review.",
+    "Retain the fixed CTA, adjacent disclosure, rel tokens, internal freshness bound, fail-closed outputs and false activation flags."
+  ]
+}
