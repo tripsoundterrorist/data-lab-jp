@@ -1,14 +1,15 @@
-"""Pure offline presentation only; no click-time check, redirect, or LIVE use."""
+"""Inert presentation from fixed internal provider records only."""
 from __future__ import annotations
+
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from html import escape
 from typing import Any
 
-import affiliate_cta_presentation as presentation
 import affiliate_cta_approved_context as approved_context
+import affiliate_cta_click_revalidation_candidate as click
+import affiliate_cta_presentation as presentation
 
-MAX_AGE = timedelta(minutes=15)
 
 @dataclass(frozen=True)
 class CandidateResult:
@@ -20,30 +21,47 @@ class CandidateResult:
     gate_mutation_allowed: bool = False
     cta_activation_allowed: bool = False
 
-def render(records: Any, *, as_of: Any) -> CandidateResult:
-    """Render fixtures only; redirect authorization requires a separate contract."""
-    if (not isinstance(as_of, datetime) or as_of.tzinfo is None or type(records) is not tuple
-            or not 1 <= len(records) <= 10):
+
+def render(*, as_of: Any) -> CandidateResult:
+    """Render exactly one provider-owned approved selection, or fail closed."""
+    if not isinstance(as_of, datetime) or as_of.tzinfo is None:
         raise ValueError("CANARY_INPUT_INVALID")
     context = approved_context.production_context()
-    if context is None:
+    if not approved_context._context_valid(context):
         raise ValueError("APPROVED_CONTEXT_UNAVAILABLE")
-    cards=[]
+    try:
+        records = approved_context.production_render_records(context)
+    except Exception as error:
+        raise ValueError("CANARY_PROVIDER_INVALID") from error
+    if type(records) is not tuple:
+        raise ValueError("CANARY_PROVIDER_INVALID")
+    if len(records) != approved_context.EXACT_SELECTION_COUNT:
+        raise ValueError("CANARY_SELECTION_INVALID")
+    seen: set[str] = set()
     for record in records:
-        if (type(record) is not dict or set(record) != {"public_id", "title", "observed_at", "fresh", "revalidation_status"}
-                or not approved_context._context_member(context, record["public_id"])
-                or type(record["title"]) is not str or not record["title"]
-                or type(record["fresh"]) is not bool or type(record["revalidation_status"]) is not str
-                or not isinstance(record["observed_at"], datetime) or record["observed_at"].tzinfo is None):
+        if type(record) is not approved_context._InternalPresentationRecord:
             raise ValueError("CANARY_RECORD_INVALID")
-        observed=record["observed_at"]
-        eligible=(record["fresh"] and record["revalidation_status"] == "API_VISIBLE_AFFILIATE_PRESENT"
-                  and isinstance(observed, datetime) and observed.tzinfo is not None
-                  and timedelta(0) <= as_of-observed <= MAX_AGE)
-        title=escape(record["title"])
-        if eligible:
-            cards.append(f'<article><h2>{title}</h2><p>{presentation.DISCLOSURE_TEXT}</p><a href="/go/{record["public_id"]}" rel="noopener noreferrer sponsored">{presentation.CTA_LABEL}</a></article>')
+        if (
+            record.public_id in seen
+            or not approved_context._context_member(context, record.public_id)
+            or record.selection_digest != approved_context._context_digest(context)
+            or type(record.title) is not str
+            or not record.title
+        ):
+            raise ValueError("CANARY_SELECTION_INVALID")
+        seen.add(record.public_id)
+    if seen != context.public_ids:
+        raise ValueError("CANARY_SELECTION_INVALID")
+    cards: list[str] = []
+    for record in records:
+        result = click._decide(
+            version=click.VERSION, clicked_public_id=record.public_id, evaluated_at=as_of,
+            context=context, observe=lambda _value, value=record.observation: value,
+        )
+        title = escape(record.title)
+        if result.status == click.ALLOWED:
+            cards.append(f'<article><h2>{title}</h2><p>{presentation.DISCLOSURE_TEXT}</p><a href="/go/{record.public_id}" rel="noopener noreferrer sponsored">{presentation.CTA_LABEL}</a></article>')
         else:
-            cards.append(f'<article><h2>{title}</h2></article>')
-    html="<main>"+"".join(cards)+"</main>"
+            cards.append(f"<article><h2>{title}</h2></article>")
+    html = "<main>" + "".join(cards) + "</main>"
     return CandidateResult(html, len(records), sum('href="/go/' in card for card in cards))

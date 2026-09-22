@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
-from typing import Any, Callable
+from datetime import datetime
+from typing import Any, Callable, Mapping
 
 import affiliate_cta_exact_selection as exact
 
@@ -31,6 +32,25 @@ class _TestOnlyApprovedContext:
 @dataclass(frozen=True)
 class _RuntimeApprovedContext:
     public_ids: frozenset[str]
+
+
+@dataclass(frozen=True)
+class _InternalObservation:
+    """Atomic provider result: resolution, response, and observation time."""
+
+    public_id: str
+    selection_digest: str
+    checked_at: datetime
+    resolved_content_id: str
+    response: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class _InternalPresentationRecord:
+    public_id: str
+    selection_digest: str
+    title: str
+    observation: _InternalObservation
 
 
 def production_context() -> _RuntimeApprovedContext | None:
@@ -59,6 +79,11 @@ def production_observe(_public_id: str) -> None:
     return None
 
 
+def production_render_records(_context: _RuntimeApprovedContext) -> None:
+    """No presentation provider is installed before official approval."""
+    return None
+
+
 def _make_test_context(public_ids: Any, observe: Any) -> _TestOnlyApprovedContext:
     """Internal test boundary; this is not called by production entry points."""
     if not callable(observe):
@@ -82,8 +107,29 @@ def _context_member(context: Any, public_id: Any) -> bool:
     )
 
 
+def _context_digest(context: Any) -> str | None:
+    if type(context) is _RuntimeApprovedContext:
+        return SELECTION_DIGEST
+    if type(context) is _TestOnlyApprovedContext:
+        return context.selection_digest
+    return None
+
+
+def _context_valid(context: Any) -> bool:
+    digest = _context_digest(context)
+    try:
+        return (
+            digest is not None
+            and type(context) in (_TestOnlyApprovedContext, _RuntimeApprovedContext)
+            and len(context.public_ids) == EXACT_SELECTION_COUNT
+            and exact.canonical_digest(tuple(context.public_ids)) == digest
+        )
+    except (TypeError, ValueError):
+        return False
+
+
 __all__ = [
     "CANONICALIZATION_VERSION", "EXACT_SELECTION_COUNT", "LIVE_ARTIFACT_SHA256",
     "SELECTION_DIGEST", "SOURCE_DATABASE_SHA256", "production_context",
-    "production_observe",
+    "production_observe", "production_render_records",
 ]
