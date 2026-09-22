@@ -1,8 +1,9 @@
 """Inert route-to-click-decision composition for activation review only.
 
 No callback, HTTP client, database, redirect emitter, CLI, or deployment entry
-point exists here.  Inputs may include a transient identifier and URL, but the
-safe receipt exposes neither and every activation capability remains false.
+point exists here.  Only a trusted resolver may hold a transient identifier or
+URL, the safe receipt exposes neither, and every activation capability remains
+false.
 """
 
 from __future__ import annotations
@@ -68,10 +69,6 @@ def assess(
     runtime_chain_connected: Any,
     rate_limit_allowed: Any,
     pr_disclosure_available: Any,
-    selection_digest: Any,
-    selected_public_ids: Any,
-    resolve_content_id: Any,
-    observation: Any,
     evaluated_at: Any,
 ) -> IntegrationReceipt:
     """Assess the existing route and click contracts without executing either."""
@@ -96,11 +93,7 @@ def assess(
         public_id = path.removeprefix("/go/") if type(path) is str else None
         click_result = click.decide(
             version=click.VERSION,
-            selection_digest=selection_digest,
-            selected_public_ids=selected_public_ids,
             clicked_public_id=public_id,
-            resolve_content_id=resolve_content_id,
-            observation=observation,
             evaluated_at=evaluated_at,
         )
         if click_result.status != click.ALLOWED:
