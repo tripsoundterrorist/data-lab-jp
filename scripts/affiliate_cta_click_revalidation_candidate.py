@@ -113,7 +113,7 @@ def _decide(
         if not isinstance(result, Mapping) or str(result.get("status")) != "200":
             return _blocked("API_STATUS_INVALID")
         items = result.get("items")
-        if not isinstance(items, list):
+        if type(items) not in (list, tuple):
             return _blocked("API_ITEMS_INVALID")
         matches = [item for item in items if isinstance(item, Mapping) and item.get("content_id") == content_id]
         if len(matches) != 1:
