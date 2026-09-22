@@ -1,0 +1,20 @@
+{
+  "version": "0.1",
+  "scope": "UNORDERED_REDUCED_SURFACE",
+  "state": "EDGE_VERIFIED_LIVE",
+  "observed_at_utc": "2026-09-22T01:14:13Z",
+  "target_route": "/items/",
+  "http_status": 200,
+  "artifact_sha256": "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d",
+  "article_count": 100,
+  "cache_control": "no-transform, public, must-revalidate, max-age=0",
+  "cloudflare_beacon_present": false,
+  "items_javascript_present": false,
+  "affiliate_reference_present": false,
+  "activation_merge_commit": "206aca51664be8525f658ce2502a267c0bbdd71a",
+  "global_publication_gate": "unchanged",
+  "cta_allowed": false,
+  "affiliate_eligibility_allowed": false,
+  "d1_write_allowed": false,
+  "scope_expansion_allowed": false
+}
