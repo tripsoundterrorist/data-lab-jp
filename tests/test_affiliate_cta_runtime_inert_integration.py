@@ -19,7 +19,7 @@ DIGEST = exact_selection.canonical_digest((PUBLIC_ID,))
 
 
 def observation(**changes):
-    value = {"public_id":PUBLIC_ID,"resolved_content_id":CONTENT_ID,"checked_at":NOW,"status":"API_VISIBLE_AFFILIATE_PRESENT","response":{"result":{"status":200,"items":[{"content_id":CONTENT_ID,"affiliateURL":URL}]}}}
+    value = {"public_id":PUBLIC_ID,"checked_at":NOW,"status":"API_VISIBLE_AFFILIATE_PRESENT","response":{"result":{"status":200,"items":[{"content_id":CONTENT_ID,"affiliateURL":URL}]}}}
     value.update(changes)
     return value
 
@@ -37,6 +37,7 @@ def assess(**changes):
         "pr_disclosure_available": True,
         "selection_digest": DIGEST,
         "selected_public_ids": (PUBLIC_ID,),
+        "resolve_content_id": lambda value: CONTENT_ID if value == PUBLIC_ID else None,
         "observation": observation(),
         "evaluated_at": NOW,
     }

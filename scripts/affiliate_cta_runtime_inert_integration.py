@@ -70,6 +70,7 @@ def assess(
     pr_disclosure_available: Any,
     selection_digest: Any,
     selected_public_ids: Any,
+    resolve_content_id: Any,
     observation: Any,
     evaluated_at: Any,
 ) -> IntegrationReceipt:
@@ -98,6 +99,7 @@ def assess(
             selection_digest=selection_digest,
             selected_public_ids=selected_public_ids,
             clicked_public_id=public_id,
+            resolve_content_id=resolve_content_id,
             observation=observation,
             evaluated_at=evaluated_at,
         )
