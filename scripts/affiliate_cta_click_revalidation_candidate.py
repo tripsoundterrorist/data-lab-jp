@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 from urllib.parse import urlsplit
 
 import affiliate_link_adapter
@@ -58,6 +58,7 @@ def decide(
     selection_digest: Any,
     selected_public_ids: Any,
     clicked_public_id: Any,
+    resolve_content_id: Any,
     observation: Any,
     evaluated_at: Any,
 ) -> ClickDecision:
@@ -77,15 +78,20 @@ def decide(
             return _blocked("PUBLIC_ID_NOT_IN_EXACT_SELECTION")
         if not isinstance(evaluated_at, datetime) or evaluated_at.tzinfo is None:
             return _blocked("EVALUATED_AT_INVALID")
+        if not callable(resolve_content_id):
+            return _blocked("CONTENT_RESOLVER_INVALID")
+        try:
+            content_id = resolve_content_id(clicked_public_id)
+        except Exception:
+            return _blocked("CONTENT_RESOLUTION_FAILED")
+        if type(content_id) is not str or not content_id or len(content_id) > 128:
+            return _blocked("RESOLVED_CONTENT_ID_INVALID")
         if type(observation) is not dict or set(observation) != {
-            "public_id", "resolved_content_id", "checked_at", "status", "response"
+            "public_id", "checked_at", "status", "response"
         }:
             return _blocked("OBSERVATION_INVALID")
         if observation["public_id"] != clicked_public_id:
             return _blocked("OBSERVATION_PUBLIC_ID_MISMATCH")
-        content_id = observation["resolved_content_id"]
-        if type(content_id) is not str or not content_id or len(content_id) > 128:
-            return _blocked("RESOLVED_CONTENT_ID_INVALID")
         checked_at = observation["checked_at"]
         if not isinstance(checked_at, datetime) or checked_at.tzinfo is None:
             return _blocked("CHECKED_AT_INVALID")

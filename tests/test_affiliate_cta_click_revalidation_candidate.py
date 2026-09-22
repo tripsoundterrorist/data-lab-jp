@@ -20,7 +20,6 @@ DIGEST = exact_selection.canonical_digest((PUBLIC_ID,))
 def observation(**changes):
     value = {
         "public_id": PUBLIC_ID,
-        "resolved_content_id": CONTENT_ID,
         "checked_at": NOW,
         "status": "API_VISIBLE_AFFILIATE_PRESENT",
         "response": {"result": {"status": 200, "items": [{"content_id": CONTENT_ID, "affiliateURL": AFFILIATE_URL}]}},
@@ -35,6 +34,7 @@ def decide(**changes):
         "selection_digest": DIGEST,
         "selected_public_ids": (PUBLIC_ID,),
         "clicked_public_id": PUBLIC_ID,
+        "resolve_content_id": lambda value: CONTENT_ID if value == PUBLIC_ID else None,
         "observation": observation(),
         "evaluated_at": NOW,
     }
@@ -108,6 +108,13 @@ class ClickRevalidationCandidateTests(unittest.TestCase):
         for value in cases:
             with self.subTest(value=value):
                 self.assertEqual(decide(observation=value).status, candidate.BLOCKED)
+
+    def test_resolver_failure_or_mismatch_blocks(self):
+        def failing(_value):
+            raise RuntimeError("blocked")
+        for resolver in (None, failing, lambda _value: "other-content"):
+            with self.subTest(resolver=resolver):
+                self.assertEqual(decide(resolve_content_id=resolver).status, candidate.BLOCKED)
 
 
 if __name__ == "__main__":
