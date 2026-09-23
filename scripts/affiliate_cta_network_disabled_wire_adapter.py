@@ -95,13 +95,25 @@ class CanonicalRequestPlan:
         return "<CanonicalRequestPlan>"
 
 
-@dataclass(frozen=True, repr=False)
-class _FixtureObservation:
-    content_id: str
-    affiliate_url: str
+class ValidatedSyntheticFixtureObservation:
+    """Opaque, memory-only result of one strict synthetic-fixture validation."""
+
+    __slots__ = ("__content_id", "__affiliate_url")
+
+    def __new__(cls, _content_id: Any, _affiliate_url: Any):
+        raise TypeError("SYNTHETIC_OBSERVATION_FACTORY_REQUIRED")
 
     def __repr__(self) -> str:
         return "<FixtureObservation>"
+
+
+def _validated_synthetic_observation(
+    content_id: str, affiliate_url: str,
+) -> ValidatedSyntheticFixtureObservation:
+    observation = object.__new__(ValidatedSyntheticFixtureObservation)
+    object.__setattr__(observation, "_ValidatedSyntheticFixtureObservation__content_id", content_id)
+    object.__setattr__(observation, "_ValidatedSyntheticFixtureObservation__affiliate_url", affiliate_url)
+    return observation
 
 
 def production_adapter() -> None:
@@ -152,7 +164,16 @@ def _escape_utf8_component_for_test(value: Any) -> str | None:
         return None
 
 
-def _parse_fixture_for_test(payload: Any, requested_content_id: Any) -> _FixtureObservation | None:
+def validate_synthetic_fixture_for_offline_harness(
+    payload: Any, requested_content_id: Any,
+) -> ValidatedSyntheticFixtureObservation | None:
+    """Validate one synthetic fixture for an offline-only opaque handoff."""
+    return _parse_fixture_for_test(payload, requested_content_id)
+
+
+def _parse_fixture_for_test(
+    payload: Any, requested_content_id: Any,
+) -> ValidatedSyntheticFixtureObservation | None:
     """Strict synthetic JSON-shaped response parser with no persistence or logging."""
     try:
         if not _content_id_valid(requested_content_id) or type(payload) is not dict:
@@ -188,7 +209,7 @@ def _parse_fixture_for_test(payload: Any, requested_content_id: Any) -> _Fixture
             return None
         if not affiliate_link_adapter.validate_affiliate_target(affiliate_url, allowed_hosts=_CTA_HOSTS):
             return None
-        return _FixtureObservation(content_id, affiliate_url)
+        return _validated_synthetic_observation(content_id, affiliate_url)
     except Exception:
         return None
 
@@ -216,7 +237,8 @@ def _keys_exact(value: dict[Any, Any], allowed: frozenset[str]) -> bool:
 
 __all__ = [
     "CanonicalRequestPlan", "CreditDisclosureMetadata", "EVIDENCE_PATH", "EVIDENCE_REVISION",
-    "METHOD", "OFFICIAL_WIRE_CONTRACT_VERSION", "credit_disclosure_metadata", "production_adapter",
+    "METHOD", "OFFICIAL_WIRE_CONTRACT_VERSION", "ValidatedSyntheticFixtureObservation",
+    "credit_disclosure_metadata", "production_adapter", "validate_synthetic_fixture_for_offline_harness",
 ]
 
 # This candidate deliberately does not alter the unresolved production marker.
