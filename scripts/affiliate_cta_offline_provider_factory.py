@@ -191,6 +191,15 @@ def _synthetic_owner_ready_for_test(provider: Any, public_id: Any) -> bool:
         return False
 
 
+def _stop_synthetic_owner_for_test(provider: Any) -> None:
+    """Terminal stop for this exact offline provider and its bound generation."""
+    if type(provider) is _OfflineProvider:
+        try:
+            provider.revoke()
+        except Exception:
+            pass
+
+
 def _build_offline_provider_for_test(
     context: Any, mapping: Any, fetcher: Any, clock: Any,
     *, monotonic_clock=lambda: 0, deadline=10,

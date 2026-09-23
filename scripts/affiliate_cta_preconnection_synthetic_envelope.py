@@ -14,11 +14,15 @@ import affiliate_cta_transport_capability_manifest as capability
 
 
 POLICY_VERSION = "synthetic-envelope-v0.1"
+PROJECT_CONTROL_VERSION = "preconnection-synthetic-envelope-v0.1"
+PROJECT_CONTROL_SOURCE_DIGEST = "bd62fd2d844be9be0b3e7835a69d896be89eff266492a4293c91b070cfeea425"
 MAX_BODY_BYTES = 1_048_576
 MAX_URL_UTF8_BYTES = 8_192
 MAX_JSON_DEPTH = 32
 MAX_JSON_NODES = 4_096
-MAX_NUMBER_TOKEN_BYTES = 65_536
+MAX_STRING_TOKEN_BYTES = 65_536  # raw UTF-8 bytes, including escapes; keys included
+MAX_NUMBER_TOKEN_CHARS = 64  # numeric grammar characters before conversion
+MAX_MEDIA_TYPE_CHARS = 128
 RETRY_COUNT = 0
 REDIRECT_COUNT = 0
 REAL_IO_COUNT = 0
@@ -33,8 +37,8 @@ _TOPIC_A = "OFFICIAL_MINIMUM_WIRE_EVIDENCE"
 _TOPIC_B = "SYNTHETIC_ENVELOPE_CONTROL"
 _TOPIC_C = "LIVE_RESPONSE_CONTRACT_UNCONFIRMED"
 _EXPECTED = {
-    _TOPIC_A: (CONFIRMED, "official-wire-contract-review", "72e3486589983e13389e8f3abd94c51ed7379bc89c9043e93cca17d14313ff19", "2026-09-23", "offline-minimum-wire"),
-    _TOPIC_B: (PROJECT_CONTROL, "preconnection-transport-operational-evidence-review", "preconnection-synthetic-envelope-v0.1", "2026-09-23", "synthetic-fixture-only"),
+    _TOPIC_A: (CONFIRMED, "official-wire-contract-review", "72e3486589983e13389e8f3abd94c51ed7379bc89c9043e93cca17d14313ff19", "2026-09-23", "offline-minimum-wire", ""),
+    _TOPIC_B: (PROJECT_CONTROL, "preconnection-transport-operational-evidence-review", PROJECT_CONTROL_SOURCE_DIGEST, "2026-09-23", "synthetic-fixture-only", PROJECT_CONTROL_VERSION),
 }
 _KNOWN_TOPICS = frozenset((*_EXPECTED, _TOPIC_C))
 
@@ -48,6 +52,7 @@ class EvidenceRequirement:
     source_checked_at: str
     scope: str
     superseded: bool = False
+    project_control_version: str = ""
 
     def __repr__(self) -> str:
         return "<EvidenceRequirement>"
@@ -71,13 +76,16 @@ class SyntheticEnvelopeReceipt:
 
 
 class SyntheticEnvelope:
-    __slots__ = ("status", "media_type", "body", "elapsed_ms", "budget_ms", "kill_before", "kill_after", "revoked", "__weakref__")
+    __slots__ = ("__weakref__",)
 
     def __new__(cls, *_args: Any, **_kwargs: Any):
         raise TypeError("SYNTHETIC_ENVELOPE_FACTORY_REQUIRED")
 
     def __repr__(self) -> str:
         return "<SyntheticEnvelope>"
+
+    def __setattr__(self, _name: str, _value: Any) -> None:
+        raise AttributeError("SYNTHETIC_ENVELOPE_IMMUTABLE")
 
     def _export_forbidden(self, *_args: Any, **_kwargs: Any) -> None:
         raise TypeError("SYNTHETIC_ENVELOPE_EXPORT_FORBIDDEN")
@@ -86,9 +94,23 @@ class SyntheticEnvelope:
     __reduce_ex__ = _export_forbidden
     __getstate__ = _export_forbidden
     __setstate__ = _export_forbidden
+    __copy__ = _export_forbidden
+    __deepcopy__ = _export_forbidden
 
 
-_ATTEMPTS: WeakKeyDictionary[SyntheticEnvelope, bool] = WeakKeyDictionary()
+@dataclass(frozen=True, repr=False)
+class _IssuedEnvelope:
+    status: int
+    media_type: str
+    body: bytes
+    elapsed_ms: int
+    budget_ms: int
+    kill_before: bool
+    kill_after: bool
+    revoked: bool
+
+
+_ATTEMPTS: WeakKeyDictionary[SyntheticEnvelope, tuple[_IssuedEnvelope, bool]] = WeakKeyDictionary()
 
 
 def _synthetic_envelope_for_test(*, status: Any, media_type: Any, body: Any, elapsed_ms: Any,
@@ -101,15 +123,13 @@ def _synthetic_envelope_for_test(*, status: Any, media_type: Any, body: Any, ela
     if type(kill_before) is not bool or type(kill_after) is not bool or type(revoked) is not bool:
         return None
     value = object.__new__(SyntheticEnvelope)
-    for name, item in (("status", status), ("media_type", media_type), ("body", body), ("elapsed_ms", elapsed_ms),
-                       ("budget_ms", budget_ms), ("kill_before", kill_before), ("kill_after", kill_after), ("revoked", revoked)):
-        object.__setattr__(value, name, item)
-    _ATTEMPTS[value] = False
+    _ATTEMPTS[value] = (_IssuedEnvelope(status, media_type, body, elapsed_ms, budget_ms,
+                                        kill_before, kill_after, revoked), False)
     return value
 
 
 def fixed_evidence_for_test() -> tuple[EvidenceRequirement, ...]:
-    return tuple(EvidenceRequirement(topic, *values, False) for topic, values in _EXPECTED.items())
+    return tuple(EvidenceRequirement(topic, *values[:5], False, values[5]) for topic, values in _EXPECTED.items())
 
 
 def production_policy() -> None:
@@ -121,23 +141,30 @@ def _receipt(status: str, reason: str, adapter_ok: bool = False, owner_ok: bool 
 
 
 def _evidence_valid(value: Any) -> bool:
+    """This A/B offline subset never resolves the omitted C live topic."""
     if type(value) is not tuple or len(value) != len(_EXPECTED):
         return False
     seen = set()
     for item in value:
-        if type(item) is not EvidenceRequirement or item.topic_id in seen or item.topic_id not in _KNOWN_TOPICS:
+        if type(item) is not EvidenceRequirement:
+            return False
+        fields = (item.topic_id, item.classification, item.source_reference,
+                  item.source_digest, item.source_checked_at, item.scope, item.project_control_version)
+        if any(type(field) is not str for field in fields) or type(item.superseded) is not bool:
+            return False
+        if item.superseded is not False or item.topic_id in seen or item.topic_id not in _KNOWN_TOPICS:
             return False
         seen.add(item.topic_id)
-        if item.superseded is True or item.topic_id == _TOPIC_C:
+        if item.topic_id == _TOPIC_C:
             return False
         expected = _EXPECTED.get(item.topic_id)
-        if expected is None or (item.classification, item.source_reference, item.source_digest, item.source_checked_at, item.scope) != expected:
+        if expected is None or fields[1:] != expected:
             return False
     return seen == set(_EXPECTED)
 
 
 def _media_valid(value: Any) -> bool:
-    if type(value) is not str:
+    if type(value) is not str or len(value) > MAX_MEDIA_TYPE_CHARS:
         return False
     parts = [part.strip() for part in value.split(";")]
     if not parts or parts[0].lower() != "application/json":
@@ -158,7 +185,7 @@ def _decode_json(body: bytes) -> dict[str, Any] | None:
         return None
     try:
         text = body.decode("utf-8", "strict")
-        if text.startswith("\ufeff") or len(text.encode("utf-8")) > MAX_BODY_BYTES:
+        if text.startswith("\ufeff") or not _scan_json_bounds(text):
             return None
         def duplicate_free(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             result: dict[str, Any] = {}
@@ -167,57 +194,166 @@ def _decode_json(body: bytes) -> dict[str, Any] | None:
                     raise ValueError("DUPLICATE_JSON_KEY")
                 result[key] = value
             return result
-        def number(value: str) -> int:
-            if len(value.encode("utf-8")) > MAX_NUMBER_TOKEN_BYTES:
-                raise ValueError("JSON_NUMBER_TOO_LARGE")
-            return int(value)
         def decimal(value: str) -> float:
-            if len(value.encode("utf-8")) > MAX_NUMBER_TOKEN_BYTES:
-                raise ValueError("JSON_NUMBER_TOO_LARGE")
             result = float(value)
             if not math.isfinite(result):
                 raise ValueError("JSON_NUMBER_INVALID")
             return result
-        parsed = json.loads(text, object_pairs_hook=duplicate_free, parse_int=number, parse_float=decimal,
+        parsed = json.loads(text, object_pairs_hook=duplicate_free, parse_float=decimal,
                             parse_constant=lambda _value: (_ for _ in ()).throw(ValueError("JSON_CONSTANT_INVALID")))
-        if type(parsed) is not dict:
-            return None
-        nodes = _json_structure_valid(parsed, 1)
-        return parsed if nodes is not None else None
+        return parsed if type(parsed) is dict else None
     except Exception:
         return None
 
 
-def _json_structure_valid(value: Any, depth: int) -> int | None:
-    if depth > MAX_JSON_DEPTH:
-        return None
-    if type(value) is dict:
-        total = 1
-        for key, item in value.items():
-            if type(key) is not str:
-                return None
-            child = _json_structure_valid(item, depth + 1)
-            if child is None:
-                return None
-            total += child
-            if total > MAX_JSON_NODES:
-                return None
-        return total
-    if type(value) is list:
-        total = 1
-        for item in value:
-            child = _json_structure_valid(item, depth + 1)
-            if child is None:
-                return None
-            total += child
-            if total > MAX_JSON_NODES:
-                return None
-        return total
-    if type(value) is str:
-        if len(value.encode("utf-8")) > MAX_URL_UTF8_BYTES:
-            return None
-        return 1
-    return 1 if type(value) in (int, float, bool, type(None)) else None
+def _scan_json_bounds(text: str) -> bool:
+    """Bound grammar before tree allocation. Root/container/scalar values are nodes; keys are not.
+
+    Every string token (key or value) has a 64 KiB raw UTF-8 cap. The
+    affiliateURL value also has an 8192 byte decoded UTF-8 cap. These are
+    synthetic project controls, not provider limits or product validation.
+    """
+    length = len(text)
+    position = 0
+    nodes = 0
+
+    def whitespace() -> None:
+        nonlocal position
+        while position < length and text[position] in " \t\r\n":
+            position += 1
+
+    def string(*, url_value: bool = False) -> str:
+        nonlocal position
+        if position >= length or text[position] != '"':
+            raise ValueError("STRING_EXPECTED")
+        start = position
+        raw_bytes = 1
+        position += 1
+        while position < length:
+            char = text[position]
+            if char == '"':
+                position += 1
+                raw_bytes += 1
+                if raw_bytes > MAX_STRING_TOKEN_BYTES:
+                    raise ValueError("STRING_TOKEN_LIMIT")
+                token = text[start:position]
+                decoded = json.loads(token)
+                if url_value and len(decoded.encode("utf-8")) > MAX_URL_UTF8_BYTES:
+                    raise ValueError("URL_BYTE_LIMIT")
+                return decoded
+            if char == "\\":
+                raw_bytes += 1
+                position += 1
+                if position >= length:
+                    raise ValueError("ESCAPE_INVALID")
+                escape = text[position]
+                if escape == "u":
+                    if position + 4 >= length or any(digit not in "0123456789abcdefABCDEF" for digit in text[position + 1:position + 5]):
+                        raise ValueError("UNICODE_ESCAPE_INVALID")
+                    position += 4
+                    raw_bytes += 5
+                elif escape not in '"\\/bfnrt':
+                    raise ValueError("ESCAPE_INVALID")
+                else:
+                    raw_bytes += 1
+            elif ord(char) < 0x20:
+                raise ValueError("CONTROL_INVALID")
+            else:
+                raw_bytes += len(char.encode("utf-8"))
+            position += 1
+            if raw_bytes > MAX_STRING_TOKEN_BYTES:
+                raise ValueError("STRING_TOKEN_LIMIT")
+        raise ValueError("STRING_UNCLOSED")
+
+    def value(depth: int, *, url_value: bool = False) -> None:
+        nonlocal position, nodes
+        nodes += 1
+        if depth > MAX_JSON_DEPTH or nodes > MAX_JSON_NODES or position >= length:
+            raise ValueError("STRUCTURE_LIMIT")
+        char = text[position]
+        if char == "{":
+            position += 1
+            whitespace()
+            if position < length and text[position] == "}":
+                position += 1
+                return
+            while True:
+                key = string()
+                whitespace()
+                if position >= length or text[position] != ":":
+                    raise ValueError("COLON_EXPECTED")
+                position += 1
+                whitespace()
+                value(depth + 1, url_value=key == "affiliateURL")
+                whitespace()
+                if position < length and text[position] == "}":
+                    position += 1
+                    return
+                if position >= length or text[position] != ",":
+                    raise ValueError("OBJECT_DELIMITER")
+                position += 1
+                whitespace()
+        elif char == "[":
+            position += 1
+            whitespace()
+            if position < length and text[position] == "]":
+                position += 1
+                return
+            while True:
+                value(depth + 1)
+                whitespace()
+                if position < length and text[position] == "]":
+                    position += 1
+                    return
+                if position >= length or text[position] != ",":
+                    raise ValueError("ARRAY_DELIMITER")
+                position += 1
+                whitespace()
+        elif char == '"':
+            string(url_value=url_value)
+        elif char in "-0123456789":
+            start = position
+            if char == "-":
+                position += 1
+            if position >= length:
+                raise ValueError("NUMBER_INVALID")
+            if text[position] == "0":
+                position += 1
+            elif text[position] in "123456789":
+                while position < length and text[position] in "0123456789":
+                    position += 1
+            else:
+                raise ValueError("NUMBER_INVALID")
+            if position < length and text[position] == ".":
+                position += 1
+                if position >= length or text[position] not in "0123456789":
+                    raise ValueError("NUMBER_INVALID")
+                while position < length and text[position] in "0123456789":
+                    position += 1
+            if position < length and text[position] in "eE":
+                position += 1
+                if position < length and text[position] in "+-":
+                    position += 1
+                if position >= length or text[position] not in "0123456789":
+                    raise ValueError("NUMBER_INVALID")
+                while position < length and text[position] in "0123456789":
+                    position += 1
+            if position - start > MAX_NUMBER_TOKEN_CHARS:
+                raise ValueError("NUMBER_TOKEN_LIMIT")
+        else:
+            for literal in ("true", "false", "null"):
+                if text.startswith(literal, position):
+                    position += len(literal)
+                    return
+            raise ValueError("VALUE_INVALID")
+
+    try:
+        whitespace()
+        value(1)
+        whitespace()
+        return position == length
+    except (RecursionError, ValueError, UnicodeError):
+        return False
 
 
 def _run_preconnection_synthetic_envelope_for_test(*, evidence: Any, envelope: Any, requested_content_id: Any,
@@ -225,36 +361,61 @@ def _run_preconnection_synthetic_envelope_for_test(*, evidence: Any, envelope: A
     """One consumed synthetic attempt; it never constructs or invokes transport."""
     if type(envelope) is not SyntheticEnvelope:
         return _receipt(BLOCKED, "ENVELOPE_INVALID")
+    owner_checked = False
+
+    def terminal(status: str, reason: str, adapter_ok: bool = False, owner_ok: bool = False) -> SyntheticEnvelopeReceipt:
+        if owner_checked:
+            factory._stop_synthetic_owner_for_test(provider)
+        return _receipt(status, reason, adapter_ok, owner_ok)
+
     try:
-        if _ATTEMPTS.get(envelope) is not False:
+        entry = _ATTEMPTS.get(envelope)
+        if type(entry) is not tuple or len(entry) != 2 or entry[1] is not False:
+            factory._stop_synthetic_owner_for_test(provider)
             return _receipt(BLOCKED, "ATTEMPT_ALREADY_CONSUMED")
-        _ATTEMPTS[envelope] = True
+        snapshot = entry[0]
+        _ATTEMPTS[envelope] = (snapshot, True)
         if not _evidence_valid(evidence):
+            factory._stop_synthetic_owner_for_test(provider)
             return _receipt(BLOCKED, "EVIDENCE_BLOCKED")
         if not factory._synthetic_owner_ready_for_test(provider, public_id):
             return _receipt(BLOCKED, "OWNER_BLOCKED")
-        if envelope.kill_before or envelope.revoked:
-            return _receipt(BLOCKED, "TERMINAL_KILL_OR_REVOKE")
-        if envelope.budget_ms < 1 or envelope.elapsed_ms < 0 or envelope.elapsed_ms >= envelope.budget_ms:
-            return _receipt(BLOCKED, "FAKE_DEADLINE_BLOCKED")
-        if envelope.status != 200:
-            return _receipt(BLOCKED, "HTTP_STATUS_BLOCKED")
-        if not _media_valid(envelope.media_type):
-            return _receipt(BLOCKED, "MEDIA_BLOCKED")
-        payload = _decode_json(envelope.body)
+        owner_checked = True
+        if type(snapshot) is not _IssuedEnvelope or any((
+            type(snapshot.status) is not int,
+            type(snapshot.elapsed_ms) is not int,
+            type(snapshot.budget_ms) is not int,
+            type(snapshot.kill_before) is not bool,
+            type(snapshot.kill_after) is not bool,
+            type(snapshot.revoked) is not bool,
+        )):
+            return terminal(FAIL_CLOSED, "ENVELOPE_STATE_INVALID")
+        if snapshot.kill_before or snapshot.revoked:
+            return terminal(BLOCKED, "TERMINAL_KILL_OR_REVOKE")
+        if snapshot.budget_ms < 1 or snapshot.elapsed_ms < 0 or snapshot.elapsed_ms >= snapshot.budget_ms:
+            return terminal(BLOCKED, "FAKE_DEADLINE_BLOCKED")
+        if snapshot.status != 200:
+            return terminal(BLOCKED, "HTTP_STATUS_BLOCKED")
+        if type(snapshot.media_type) is not str:
+            return terminal(FAIL_CLOSED, "ENVELOPE_STATE_INVALID")
+        if not _media_valid(snapshot.media_type):
+            return terminal(BLOCKED, "MEDIA_BLOCKED")
+        if type(snapshot.body) is not bytes:
+            return terminal(FAIL_CLOSED, "ENVELOPE_STATE_INVALID")
+        payload = _decode_json(snapshot.body)
         if payload is None:
-            return _receipt(BLOCKED, "DECODE_BLOCKED")
+            return terminal(BLOCKED, "DECODE_BLOCKED")
         observation = adapter.validate_synthetic_fixture_for_offline_harness(payload, requested_content_id)
         if type(observation) is not adapter.ValidatedSyntheticFixtureObservation:
-            return _receipt(BLOCKED, "SEMANTIC_VALIDATION_BLOCKED")
+            return terminal(BLOCKED, "SEMANTIC_VALIDATION_BLOCKED")
         consumed = factory._consume_validated_synthetic_for_test(provider, public_id, observation)
         if type(consumed) is not approved._InternalObservation:
-            return _receipt(FAIL_CLOSED, "OWNER_CONSUMPTION_BLOCKED", True)
-        if envelope.kill_after or envelope.revoked or not factory._synthetic_owner_ready_for_test(provider, public_id):
-            return _receipt(BLOCKED, "FINAL_LEASE_BLOCKED", True, True)
+            return terminal(FAIL_CLOSED, "OWNER_CONSUMPTION_BLOCKED", True)
+        if snapshot.kill_after or snapshot.revoked or not factory._synthetic_owner_ready_for_test(provider, public_id):
+            return terminal(BLOCKED, "FINAL_LEASE_BLOCKED", True, True)
         return _receipt(ACCEPTED, "SYNTHETIC_ONLY", True, True)
     except Exception:
-        return _receipt(FAIL_CLOSED, "INTERNAL_FAILURE")
+        return terminal(FAIL_CLOSED, "INTERNAL_FAILURE")
 
 
 OFFICIAL_WIRE_CONTRACT_VERSION = capability.OFFICIAL_WIRE_CONTRACT_VERSION
