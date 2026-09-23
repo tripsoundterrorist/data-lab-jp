@@ -11,6 +11,7 @@ from typing import Any
 import affiliate_cta_approved_context as approved
 import affiliate_cta_network_disabled_wire_adapter as adapter
 import affiliate_cta_offline_provider_factory as factory
+import affiliate_cta_preconnection_synthetic_envelope as syntax
 import affiliate_cta_transport_capability_manifest as capability
 
 
@@ -122,16 +123,22 @@ def _dispositions_valid(value: Any) -> bool:
 
 
 def _exact_keys(value: Any, expected: frozenset[str]) -> bool:
-    return type(value) is dict and len(value) == len(expected) and all(
-        type(key) is str and key in expected for key in value
-    )
+    if type(value) is not dict or len(value) != len(expected):
+        return False
+    keys = tuple(value)
+    if any(type(key) is not str for key in keys):
+        return False
+    return all(key in expected for key in keys)
 
 
 def _project_minimum_subset(payload: Any) -> tuple[dict[str, Any] | None, str, bool]:
     """Copy only documented KEEP fields. This performs no product semantics."""
     if type(payload) is not dict:
         return None, "PAYLOAD_TYPE_BLOCKED", False
-    # Inspecting only exact built-in keys is safe; request's value is never read.
+    # Validate every key before membership or lookup can invoke hostile equality.
+    if any(type(key) is not str for key in payload):
+        return None, "ROOT_FIELD_BLOCKED", False
+    # An exact request key yields a fixed decision without indexing its value.
     if "request" in payload:
         return None, "REQUEST_ECHO_DROPPED", True
     if not _exact_keys(payload, _ROOT_KEYS):
@@ -154,10 +161,10 @@ def _project_minimum_subset(payload: Any) -> tuple[dict[str, Any] | None, str, b
     return projected, "KEEP_SUBSET", False
 
 
-def _run_offline_projection_for_test(*, dispositions: Any, payload: Any,
-                                     requested_content_id: Any, provider: Any,
-                                     public_id: Any) -> ProjectionReceipt:
-    """Post-syntax synthetic projection, then one adapter and owner handoff."""
+def _process_syntax_validated_payload_for_test(*, dispositions: Any, payload: Any,
+                                               requested_content_id: Any, provider: Any,
+                                               public_id: Any) -> ProjectionReceipt:
+    """Fixed downstream stage called only by the syntax handoff owner."""
     try:
         if not _dispositions_valid(dispositions):
             return _receipt(BLOCKED, "DISPOSITION_EVIDENCE_BLOCKED")
@@ -177,11 +184,37 @@ def _run_offline_projection_for_test(*, dispositions: Any, payload: Any,
         return _receipt(FAIL_CLOSED, "INTERNAL_FAILURE")
 
 
+def _run_offline_projection_for_test(*, dispositions: Any, handoff: Any,
+                                     requested_content_id: Any, provider: Any,
+                                     public_id: Any) -> ProjectionReceipt:
+    """Consume one exact, owner-issued bounded-syntax handoff."""
+    result = syntax.consume_syntax_handoff_for_projection_for_test(
+        handoff=handoff, provider=provider, public_id=public_id,
+        dispositions=dispositions, requested_content_id=requested_content_id,
+    )
+    return result if type(result) is ProjectionReceipt else _receipt(BLOCKED, "SYNTAX_HANDOFF_BLOCKED")
+
+
+def run_composed_synthetic_projection_for_test(*, evidence: Any, envelope: Any,
+                                               dispositions: Any, requested_content_id: Any,
+                                               provider: Any, public_id: Any) -> ProjectionReceipt:
+    """Bounded syntax -> disposition -> adapter once -> owner once, offline only."""
+    handoff = syntax.issue_syntax_handoff_for_test(
+        evidence=evidence, envelope=envelope, provider=provider, public_id=public_id,
+    )
+    if type(handoff) is not syntax.ValidatedSyntaxHandoff:
+        return _receipt(BLOCKED, "SYNTAX_GATE_BLOCKED")
+    return _run_offline_projection_for_test(
+        dispositions=dispositions, handoff=handoff,
+        requested_content_id=requested_content_id, provider=provider, public_id=public_id,
+    )
+
+
 OFFICIAL_WIRE_CONTRACT_VERSION = capability.OFFICIAL_WIRE_CONTRACT_VERSION
 
 __all__ = [
     "ACCEPTED", "BLOCKED", "DROP_SENSITIVE", "FAIL_CLOSED", "FieldDisposition",
     "KEEP", "OFFICIAL_WIRE_CONTRACT_VERSION", "ProjectionReceipt", "PROJECT_CONTROL",
     "PROJECTION_CONTROL_VERSION", "REJECT_UNKNOWN", "UNCONFIRMED", "fixed_field_dispositions_for_test",
-    "production_projection",
+    "production_projection", "run_composed_synthetic_projection_for_test",
 ]

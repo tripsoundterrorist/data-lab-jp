@@ -11,10 +11,15 @@ production activation.
 | REJECT_UNKNOWN | Any unknown root, result, or item key | Project control. Unknown data is blocked rather than silently removed. |
 | UNCONFIRMED | Additional result or item fields outside the strict subset | Their type, optionality, and meaning remain unconfirmed. This policy does not retain or interpret them. |
 
-The contract checks field disposition evidence before projection, accepts only
-exact built-in synthetic mappings, then calls the existing adapter once and the
-existing owner handoff once. It does not copy or relax parser semantics, rebuild
-links, or add a production projector.
+The composed test-only path first runs the pre-connection gate against raw
+synthetic bytes (including body, JSON depth/node/token, and URL-byte limits).
+Only that gate can issue the opaque, one-use, owner-bound syntax handoff consumed
+by this projection. A raw mapping, flag, replayed handoff, or wrong owner cannot
+enter through the public test path. Field disposition evidence is checked next;
+only exact built-in synthetic mappings are projected. The existing adapter and
+owner handoff are then each called once, followed by the final owner lease check.
+Any rejected stage leaves the owner terminal. This does not copy or relax parser
+semantics, rebuild links, or add a production projector.
 
 The disposition evidence contains an official sample reference and digest, a
 project-control reference and digest, source check date, scope, reason, and
