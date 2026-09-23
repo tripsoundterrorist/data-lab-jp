@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 from typing import Any
+from weakref import WeakKeyDictionary
 
 import affiliate_cta_presentation as presentation
 import affiliate_cta_transport_capability_manifest as capability
@@ -95,13 +96,66 @@ class CanonicalRequestPlan:
         return "<CanonicalRequestPlan>"
 
 
-@dataclass(frozen=True, repr=False)
-class _FixtureObservation:
-    content_id: str
-    affiliate_url: str
+class ValidatedSyntheticFixtureObservation:
+    """Opaque, memory-only result of one strict synthetic-fixture validation."""
+
+    __slots__ = ("__content_id", "__affiliate_url", "__weakref__")
+
+    def __new__(cls, _content_id: Any, _affiliate_url: Any):
+        raise TypeError("SYNTHETIC_OBSERVATION_FACTORY_REQUIRED")
 
     def __repr__(self) -> str:
         return "<FixtureObservation>"
+
+    def _export_forbidden(self, *_args: Any, **_kwargs: Any) -> None:
+        raise TypeError("SYNTHETIC_OBSERVATION_EXPORT_FORBIDDEN")
+
+    __reduce__ = _export_forbidden
+    __reduce_ex__ = _export_forbidden
+    __getstate__ = _export_forbidden
+    __setstate__ = _export_forbidden
+    __copy__ = _export_forbidden
+    __deepcopy__ = _export_forbidden
+
+
+@dataclass
+class _IssuedSyntheticObservation:
+    content_id: str
+    affiliate_url: str
+    consumed: bool = False
+
+
+_ISSUED_SYNTHETIC_OBSERVATIONS: WeakKeyDictionary[ValidatedSyntheticFixtureObservation, _IssuedSyntheticObservation] = WeakKeyDictionary()
+
+
+def _validated_synthetic_observation(
+    content_id: str, affiliate_url: str,
+) -> ValidatedSyntheticFixtureObservation:
+    observation = object.__new__(ValidatedSyntheticFixtureObservation)
+    object.__setattr__(observation, "_ValidatedSyntheticFixtureObservation__content_id", content_id)
+    object.__setattr__(observation, "_ValidatedSyntheticFixtureObservation__affiliate_url", affiliate_url)
+    _ISSUED_SYNTHETIC_OBSERVATIONS[observation] = _IssuedSyntheticObservation(content_id, affiliate_url)
+    return observation
+
+
+def consume_validated_synthetic_observation_for_offline_consumer(
+    observation: Any, expected_content_id: Any,
+) -> bool:
+    """One-shot owner-controlled handoff; it exports neither identifier nor URL."""
+    try:
+        if type(observation) is not ValidatedSyntheticFixtureObservation or type(expected_content_id) is not str:
+            return False
+        issued = _ISSUED_SYNTHETIC_OBSERVATIONS.get(observation)
+        if (
+            type(issued) is not _IssuedSyntheticObservation
+            or issued.consumed is True
+            or issued.content_id != expected_content_id
+        ):
+            return False
+        issued.consumed = True
+        return True
+    except Exception:
+        return False
 
 
 def production_adapter() -> None:
@@ -152,7 +206,16 @@ def _escape_utf8_component_for_test(value: Any) -> str | None:
         return None
 
 
-def _parse_fixture_for_test(payload: Any, requested_content_id: Any) -> _FixtureObservation | None:
+def validate_synthetic_fixture_for_offline_harness(
+    payload: Any, requested_content_id: Any,
+) -> ValidatedSyntheticFixtureObservation | None:
+    """Validate one synthetic fixture for an offline-only opaque handoff."""
+    return _parse_fixture_for_test(payload, requested_content_id)
+
+
+def _parse_fixture_for_test(
+    payload: Any, requested_content_id: Any,
+) -> ValidatedSyntheticFixtureObservation | None:
     """Strict synthetic JSON-shaped response parser with no persistence or logging."""
     try:
         if not _content_id_valid(requested_content_id) or type(payload) is not dict:
@@ -188,7 +251,7 @@ def _parse_fixture_for_test(payload: Any, requested_content_id: Any) -> _Fixture
             return None
         if not affiliate_link_adapter.validate_affiliate_target(affiliate_url, allowed_hosts=_CTA_HOSTS):
             return None
-        return _FixtureObservation(content_id, affiliate_url)
+        return _validated_synthetic_observation(content_id, affiliate_url)
     except Exception:
         return None
 
@@ -216,7 +279,9 @@ def _keys_exact(value: dict[Any, Any], allowed: frozenset[str]) -> bool:
 
 __all__ = [
     "CanonicalRequestPlan", "CreditDisclosureMetadata", "EVIDENCE_PATH", "EVIDENCE_REVISION",
-    "METHOD", "OFFICIAL_WIRE_CONTRACT_VERSION", "credit_disclosure_metadata", "production_adapter",
+    "METHOD", "OFFICIAL_WIRE_CONTRACT_VERSION", "ValidatedSyntheticFixtureObservation",
+    "consume_validated_synthetic_observation_for_offline_consumer", "credit_disclosure_metadata",
+    "production_adapter", "validate_synthetic_fixture_for_offline_harness",
 ]
 
 # This candidate deliberately does not alter the unresolved production marker.
