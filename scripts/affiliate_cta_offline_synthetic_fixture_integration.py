@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import affiliate_cta_network_disabled_wire_adapter as adapter
+import affiliate_cta_approved_context as approved
+import affiliate_cta_offline_provider_factory as factory
 
 
 ACCEPTED = "SYNTHETIC_OBSERVATION_ACCEPTED"
@@ -48,8 +50,8 @@ def _run_synthetic_fixture_integration_for_test(
     if type(observation) is not adapter.ValidatedSyntheticFixtureObservation:
         return OfflineSyntheticIntegrationReceipt(REJECTED, False, False)
     try:
-        consumed = provider._consume_validated_synthetic_observation_for_test(public_id, observation)
-        if consumed is None:
+        consumed = factory._consume_validated_synthetic_for_test(provider, public_id, observation)
+        if type(consumed) is not approved._InternalObservation:
             return OfflineSyntheticIntegrationReceipt(FAIL_CLOSED, True, False)
         return OfflineSyntheticIntegrationReceipt(ACCEPTED, True, True)
     except Exception:

@@ -87,12 +87,81 @@ class OfflineSyntheticFixtureIntegrationTests(unittest.TestCase):
             factory._OfflineProvider, "_consume_validated_synthetic_observation_for_test",
             wraps=offline_provider._consume_validated_synthetic_observation_for_test,
         ) as consumed:
-            first = offline_provider._consume_validated_synthetic_observation_for_test(PUBLIC_IDS[0], observation)
+            first = factory._consume_validated_synthetic_for_test(offline_provider, PUBLIC_IDS[0], observation)
         self.assertIsNotNone(first)
+        self.assertIs(first.response, observation)
         self.assertIs(consumed.call_args.args[1], observation)
-        self.assertIsNone(offline_provider._consume_validated_synthetic_observation_for_test(PUBLIC_IDS[0], observation))
+        self.assertIsNone(factory._consume_validated_synthetic_for_test(offline_provider, PUBLIC_IDS[0], observation))
         forged = object.__new__(adapter.ValidatedSyntheticFixtureObservation)
-        self.assertIsNone(offline_provider._consume_validated_synthetic_observation_for_test(PUBLIC_IDS[0], forged))
+        self.assertIsNone(factory._consume_validated_synthetic_for_test(offline_provider, PUBLIC_IDS[0], forged))
+
+    def test_wrong_provider_types_are_rejected_without_evaluating_hooks(self):
+        events = []
+        calls = []
+        class Fake:
+            def _consume_validated_synthetic_observation_for_test(self, *_args):
+                calls.append("called")
+                return False
+        class Hostile:
+            def __getattribute__(self, _name):
+                events.append("attribute")
+                raise RuntimeError("marker")
+            def __repr__(self):
+                events.append("repr")
+                return "marker"
+        class ProviderSubclass(factory._OfflineProvider):
+            def __getattribute__(self, _name):
+                events.append("subclass-attribute")
+                raise RuntimeError("marker")
+        for candidate in (Fake(), Hostile(), object.__new__(ProviderSubclass)):
+            with self.subTest(candidate_type=type(candidate)):
+                receipt = subject._run_synthetic_fixture_integration_for_test(
+                    payload=fixture(), requested_content_id=CONTENT, provider=candidate, public_id=PUBLIC_IDS[0],
+                )
+                self.assertEqual((receipt.status, receipt.adapter_validated, receipt.harness_accepted), (
+                    subject.FAIL_CLOSED, True, False,
+                ))
+        self.assertEqual(events, [])
+        self.assertEqual(calls, [])
+
+    def test_owner_boundary_rejects_malformed_or_misbinding_consumer_results(self):
+        offline_provider = provider()
+        observation = adapter.validate_synthetic_fixture_for_offline_harness(fixture(), CONTENT)
+        class ObservationSubclass(approved._InternalObservation):
+            pass
+        alternate = provider()
+        wrong_response = approved._InternalObservation(
+            PUBLIC_IDS[0], approved._context_digest(offline_provider.context), NOW, CONTENT, object(),
+            offline_provider.lease, offline_provider.generation, offline_provider.context, offline_provider,
+        )
+        wrong_public = approved._InternalObservation(
+            PUBLIC_IDS[1], approved._context_digest(offline_provider.context), NOW, CONTENT, observation,
+            offline_provider.lease, offline_provider.generation, offline_provider.context, offline_provider,
+        )
+        wrong_context = approved._InternalObservation(
+            PUBLIC_IDS[0], approved._context_digest(alternate.context), NOW, CONTENT, observation,
+            alternate.lease, alternate.generation, alternate.context, alternate,
+        )
+        wrong_lease = approved._InternalObservation(
+            PUBLIC_IDS[0], approved._context_digest(offline_provider.context), NOW, CONTENT, observation,
+            object(), offline_provider.generation, offline_provider.context, offline_provider,
+        )
+        malformed = (False, 0, {}, object(), object.__new__(approved._InternalObservation),
+                     ObservationSubclass(PUBLIC_IDS[0], approved._context_digest(offline_provider.context), NOW, CONTENT, observation,
+                                          offline_provider.lease, offline_provider.generation, offline_provider.context, offline_provider),
+                     wrong_response, wrong_public, wrong_context, wrong_lease)
+        for result in malformed:
+            with self.subTest(result_type=type(result)):
+                fresh = adapter.validate_synthetic_fixture_for_offline_harness(fixture(), CONTENT)
+                with mock.patch.object(
+                    factory._OfflineProvider, "_consume_validated_synthetic_observation_for_test", return_value=result,
+                ):
+                    receipt = subject._run_synthetic_fixture_integration_for_test(
+                        payload=fixture(), requested_content_id=CONTENT, provider=offline_provider, public_id=PUBLIC_IDS[0],
+                    )
+                self.assertEqual((receipt.status, receipt.adapter_validated, receipt.harness_accepted), (
+                    subject.FAIL_CLOSED, True, False,
+                ))
 
     def test_end_to_end_invokes_adapter_once_and_passes_its_exact_object(self):
         offline_provider = provider()

@@ -146,6 +146,41 @@ class _OfflineProvider:
         return result if self.valid() else None
 
 
+def _consume_validated_synthetic_for_test(
+    provider: Any, public_id: Any, observation: Any,
+) -> approved._InternalObservation | None:
+    """Owner-controlled validation and consumption boundary for synthetic tests."""
+    # Exact type is intentionally checked before any caller-owned attribute access.
+    if type(provider) is not _OfflineProvider:
+        return None
+    try:
+        context = provider.context
+        if (
+            not approved._lease_valid(context, provider)
+            or not approved._context_member(context, public_id)
+        ):
+            return None
+        result = provider._consume_validated_synthetic_observation_for_test(public_id, observation)
+        if type(result) is not approved._InternalObservation:
+            return None
+        expected_content_id = provider.mapping.get(public_id)
+        if (
+            type(expected_content_id) is not str
+            or result.public_id != public_id
+            or result.resolved_content_id != expected_content_id
+            or result.response is not observation
+            or result.context is not context
+            or result.provider is not provider
+            or result.lease is not provider.lease
+            or result.generation is not provider.generation
+            or not approved._observation_bound(result, context, provider)
+        ):
+            return None
+        return result
+    except Exception:
+        return None
+
+
 def _build_offline_provider_for_test(
     context: Any, mapping: Any, fetcher: Any, clock: Any,
     *, monotonic_clock=lambda: 0, deadline=10,
