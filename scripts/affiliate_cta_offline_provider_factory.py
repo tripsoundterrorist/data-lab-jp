@@ -181,6 +181,25 @@ def _consume_validated_synthetic_for_test(
         return None
 
 
+def _synthetic_owner_ready_for_test(provider: Any, public_id: Any) -> bool:
+    """Narrow owner check used before a synthetic envelope reaches semantics."""
+    if type(provider) is not _OfflineProvider:
+        return False
+    try:
+        return approved._lease_valid(provider.context, provider) and approved._context_member(provider.context, public_id)
+    except Exception:
+        return False
+
+
+def _stop_synthetic_owner_for_test(provider: Any) -> None:
+    """Terminal stop for this exact offline provider and its bound generation."""
+    if type(provider) is _OfflineProvider:
+        try:
+            provider.revoke()
+        except Exception:
+            pass
+
+
 def _build_offline_provider_for_test(
     context: Any, mapping: Any, fetcher: Any, clock: Any,
     *, monotonic_clock=lambda: 0, deadline=10,
