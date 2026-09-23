@@ -236,6 +236,51 @@ class TestOfflineWireProjectionRedaction(unittest.TestCase):
         )
         self.assertEqual(replay.reason_code, "SYNTAX_HANDOFF_BLOCKED")
 
+    def test_matching_handoff_replay_stops_only_that_owner_generation(self):
+        owner = provider()
+        other = provider()
+        raw = json.dumps(payload(), separators=(",", ":")).encode()
+        envelope = preconnection._synthetic_envelope_for_test(
+            status=200, media_type="application/json", body=raw, elapsed_ms=1, budget_ms=2,
+        )
+        handoff = preconnection.issue_syntax_handoff_for_test(
+            evidence=preconnection.fixed_evidence_for_test(), envelope=envelope,
+            provider=owner, public_id=PUBLIC_IDS[0],
+        )
+        self.assertIs(type(handoff), preconnection.ValidatedSyntaxHandoff)
+        unissued = object.__new__(preconnection.ValidatedSyntaxHandoff)
+        for candidate in (unissued, handoff):
+            blocked = subject._run_offline_projection_for_test(
+                dispositions=subject.fixed_field_dispositions_for_test(), handoff=candidate,
+                requested_content_id=CONTENT, provider=other, public_id=PUBLIC_IDS[0],
+            )
+            self.assertEqual(blocked.reason_code, "SYNTAX_HANDOFF_BLOCKED")
+        with mock.patch.object(adapter, "validate_synthetic_fixture_for_offline_harness",
+                               wraps=adapter.validate_synthetic_fixture_for_offline_harness) as semantic, \
+             mock.patch.object(factory, "_consume_validated_synthetic_for_test",
+                               wraps=factory._consume_validated_synthetic_for_test) as consumer:
+            independent = self.assess(payload(), offline_provider=other)
+        self.assertEqual(independent.status, subject.ACCEPTED)
+        self.assertEqual((semantic.call_count, consumer.call_count), (1, 1))
+
+        first = subject._run_offline_projection_for_test(
+            dispositions=subject.fixed_field_dispositions_for_test(), handoff=handoff,
+            requested_content_id=CONTENT, provider=owner, public_id=PUBLIC_IDS[0],
+        )
+        self.assertEqual(first.status, subject.ACCEPTED)
+        replay = subject._run_offline_projection_for_test(
+            dispositions=subject.fixed_field_dispositions_for_test(), handoff=handoff,
+            requested_content_id=CONTENT, provider=owner, public_id=PUBLIC_IDS[0],
+        )
+        self.assertEqual(replay.reason_code, "SYNTAX_HANDOFF_BLOCKED")
+        for attempt in range(2):
+            with self.subTest(fresh_attempt=attempt):
+                with mock.patch.object(adapter, "validate_synthetic_fixture_for_offline_harness") as semantic, \
+                     mock.patch.object(factory, "_consume_validated_synthetic_for_test") as consumer:
+                    later = self.assess(payload(), offline_provider=owner)
+                self.assertEqual(later.reason_code, "SYNTAX_GATE_BLOCKED")
+                self.assertEqual((semantic.call_count, consumer.call_count), (0, 0))
+
     def test_composed_syntax_rejects_malformed_bytes_before_semantics(self):
         invalid = (
             b"\xef\xbb\xbf{}", b"\xff", b'{"result":{},"result":{}}',

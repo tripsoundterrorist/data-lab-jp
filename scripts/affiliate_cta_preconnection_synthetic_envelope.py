@@ -478,12 +478,20 @@ def consume_syntax_handoff_for_projection_for_test(*, handoff: Any, provider: An
 
     if type(handoff) is not ValidatedSyntaxHandoff:
         return None
+    trusted_lifecycle = False
     try:
         state = _SYNTAX_HANDOFFS.get(handoff)
-        if (type(state) is not _SyntaxState or state.consumed is True
-                or type(public_id) is not str
-                or state.provider is not provider or state.public_id != public_id
-                or not factory._synthetic_owner_ready_for_test(provider, public_id)):
+        if (type(state) is not _SyntaxState or type(state.public_id) is not str
+                or type(state.consumed) is not bool or type(public_id) is not str):
+            return None
+        if state.provider is not provider or state.public_id != public_id:
+            return None
+        # Only a proven matching issued lifecycle may terminally stop this owner.
+        trusted_lifecycle = True
+        if state.consumed is True:
+            factory._stop_synthetic_owner_for_test(provider)
+            return None
+        if not factory._synthetic_owner_ready_for_test(provider, public_id):
             return None
         state.consumed = True
         receipt = projection._process_syntax_validated_payload_for_test(
@@ -501,7 +509,8 @@ def consume_syntax_handoff_for_projection_for_test(*, handoff: Any, provider: An
                                        adapter_ok=True, owner_ok=True)
         return receipt
     except Exception:
-        factory._stop_synthetic_owner_for_test(provider)
+        if trusted_lifecycle:
+            factory._stop_synthetic_owner_for_test(provider)
         return None
 
 
