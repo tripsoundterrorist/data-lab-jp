@@ -1,7 +1,8 @@
-"""Offline-only handoff from a strict synthetic fixture to an opaque harness.
+"""Offline-only handoff from a strict synthetic fixture to the test provider.
 
 This module is deliberately not a provider, route, transport, or serializer.
-It accepts only the adapter's already-validated opaque observation and exposes
+It accepts only the adapter's already-validated opaque observation and passes
+it to the existing offline provider's owner-controlled test seam. It exposes
 only fixed status facts for regression tests.
 """
 from __future__ import annotations
@@ -29,38 +30,30 @@ class OfflineSyntheticIntegrationReceipt:
         return "<OfflineSyntheticIntegrationReceipt>"
 
 
-class _ValidatedObservationHarness:
-    """Existing-value-free endpoint for one adapter-owned opaque observation."""
-
-    __slots__ = ()
-
-    def accept(self, observation: Any) -> bool:
-        return type(observation) is adapter.ValidatedSyntheticFixtureObservation
-
-
-_HARNESS = _ValidatedObservationHarness()
-
-
 def production_integration() -> None:
     """Production activation is intentionally unavailable."""
     return None
 
 
 def _run_synthetic_fixture_integration_for_test(
-    *, payload: Any, requested_content_id: Any,
+    *, payload: Any, requested_content_id: Any, provider: Any, public_id: Any,
 ) -> OfflineSyntheticIntegrationReceipt:
-    """Run exactly one validation and opaque handoff, entirely in memory."""
+    """Run exactly one validation and one provider-owned opaque consumption."""
     try:
         observation = adapter.validate_synthetic_fixture_for_offline_harness(
             payload, requested_content_id,
         )
-        if type(observation) is not adapter.ValidatedSyntheticFixtureObservation:
-            return OfflineSyntheticIntegrationReceipt(REJECTED, False, False)
-        if _HARNESS.accept(observation) is not True:
+    except Exception:
+        return OfflineSyntheticIntegrationReceipt(FAIL_CLOSED, False, False)
+    if type(observation) is not adapter.ValidatedSyntheticFixtureObservation:
+        return OfflineSyntheticIntegrationReceipt(REJECTED, False, False)
+    try:
+        consumed = provider._consume_validated_synthetic_observation_for_test(public_id, observation)
+        if consumed is None:
             return OfflineSyntheticIntegrationReceipt(FAIL_CLOSED, True, False)
         return OfflineSyntheticIntegrationReceipt(ACCEPTED, True, True)
     except Exception:
-        return OfflineSyntheticIntegrationReceipt(FAIL_CLOSED, False, False)
+        return OfflineSyntheticIntegrationReceipt(FAIL_CLOSED, True, False)
 
 
 __all__ = [
