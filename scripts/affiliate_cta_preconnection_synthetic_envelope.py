@@ -113,6 +113,43 @@ class _IssuedEnvelope:
 _ATTEMPTS: WeakKeyDictionary[SyntheticEnvelope, tuple[_IssuedEnvelope, bool]] = WeakKeyDictionary()
 
 
+class ValidatedSyntaxHandoff:
+    """Opaque one-use proof issued only after this module's bounded syntax gate."""
+
+    __slots__ = ("__weakref__",)
+
+    def __new__(cls, *_args: Any, **_kwargs: Any):
+        raise TypeError("SYNTAX_HANDOFF_ISSUER_REQUIRED")
+
+    def __setattr__(self, _name: str, _value: Any) -> None:
+        raise AttributeError("SYNTAX_HANDOFF_IMMUTABLE")
+
+    def __repr__(self) -> str:
+        return "<ValidatedSyntaxHandoff>"
+
+    def _export_forbidden(self, *_args: Any, **_kwargs: Any) -> None:
+        raise TypeError("SYNTAX_HANDOFF_EXPORT_FORBIDDEN")
+
+    __reduce__ = _export_forbidden
+    __reduce_ex__ = _export_forbidden
+    __getstate__ = _export_forbidden
+    __setstate__ = _export_forbidden
+    __copy__ = _export_forbidden
+    __deepcopy__ = _export_forbidden
+
+
+@dataclass(repr=False)
+class _SyntaxState:
+    payload: dict[str, Any]
+    provider: Any
+    public_id: str
+    snapshot: _IssuedEnvelope
+    consumed: bool = False
+
+
+_SYNTAX_HANDOFFS: WeakKeyDictionary[ValidatedSyntaxHandoff, _SyntaxState] = WeakKeyDictionary()
+
+
 def _synthetic_envelope_for_test(*, status: Any, media_type: Any, body: Any, elapsed_ms: Any,
                                  budget_ms: Any, kill_before: Any = False, kill_after: Any = False,
                                  revoked: Any = False) -> SyntheticEnvelope | None:
@@ -357,7 +394,8 @@ def _scan_json_bounds(text: str) -> bool:
 
 
 def _run_preconnection_synthetic_envelope_for_test(*, evidence: Any, envelope: Any, requested_content_id: Any,
-                                                    provider: Any, public_id: Any) -> SyntheticEnvelopeReceipt:
+                                                    provider: Any, public_id: Any,
+                                                    _syntax_only: bool = False) -> SyntheticEnvelopeReceipt | ValidatedSyntaxHandoff:
     """One consumed synthetic attempt; it never constructs or invokes transport."""
     if type(envelope) is not SyntheticEnvelope:
         return _receipt(BLOCKED, "ENVELOPE_INVALID")
@@ -405,6 +443,10 @@ def _run_preconnection_synthetic_envelope_for_test(*, evidence: Any, envelope: A
         payload = _decode_json(snapshot.body)
         if payload is None:
             return terminal(BLOCKED, "DECODE_BLOCKED")
+        if _syntax_only is True:
+            handoff = object.__new__(ValidatedSyntaxHandoff)
+            _SYNTAX_HANDOFFS[handoff] = _SyntaxState(payload, provider, public_id, snapshot)
+            return handoff
         observation = adapter.validate_synthetic_fixture_for_offline_harness(payload, requested_content_id)
         if type(observation) is not adapter.ValidatedSyntheticFixtureObservation:
             return terminal(BLOCKED, "SEMANTIC_VALIDATION_BLOCKED")
@@ -416,6 +458,60 @@ def _run_preconnection_synthetic_envelope_for_test(*, evidence: Any, envelope: A
         return _receipt(ACCEPTED, "SYNTHETIC_ONLY", True, True)
     except Exception:
         return terminal(FAIL_CLOSED, "INTERNAL_FAILURE")
+
+
+def issue_syntax_handoff_for_test(*, evidence: Any, envelope: Any, provider: Any,
+                                  public_id: Any) -> ValidatedSyntaxHandoff | None:
+    """Issue only after the same fake owner, deadline, media and bounded syntax gates."""
+    result = _run_preconnection_synthetic_envelope_for_test(
+        evidence=evidence, envelope=envelope, requested_content_id=None,
+        provider=provider, public_id=public_id, _syntax_only=True,
+    )
+    return result if type(result) is ValidatedSyntaxHandoff else None
+
+
+def consume_syntax_handoff_for_projection_for_test(*, handoff: Any, provider: Any,
+                                                    public_id: Any, dispositions: Any,
+                                                    requested_content_id: Any) -> Any:
+    """Pass one owner-held mapping to the fixed projection stage; never export it."""
+    import affiliate_cta_offline_wire_projection_redaction as projection
+
+    if type(handoff) is not ValidatedSyntaxHandoff:
+        return None
+    trusted_lifecycle = False
+    try:
+        state = _SYNTAX_HANDOFFS.get(handoff)
+        if (type(state) is not _SyntaxState or type(state.public_id) is not str
+                or type(state.consumed) is not bool or type(public_id) is not str):
+            return None
+        if state.provider is not provider or state.public_id != public_id:
+            return None
+        # Only a proven matching issued lifecycle may terminally stop this owner.
+        trusted_lifecycle = True
+        if state.consumed is True:
+            factory._stop_synthetic_owner_for_test(provider)
+            return None
+        if not factory._synthetic_owner_ready_for_test(provider, public_id):
+            return None
+        state.consumed = True
+        receipt = projection._process_syntax_validated_payload_for_test(
+            payload=state.payload, dispositions=dispositions,
+            requested_content_id=requested_content_id, provider=provider, public_id=public_id,
+        )
+        if type(receipt) is not projection.ProjectionReceipt or receipt.status != projection.ACCEPTED:
+            factory._stop_synthetic_owner_for_test(provider)
+            return receipt if type(receipt) is projection.ProjectionReceipt else None
+        if (state.snapshot.kill_after or state.snapshot.revoked
+                or not factory._synthetic_owner_ready_for_test(provider, public_id)):
+            factory._stop_synthetic_owner_for_test(provider)
+            return projection._receipt(projection.BLOCKED, "FINAL_LEASE_BLOCKED",
+                                       kept=receipt.kept_field_count,
+                                       adapter_ok=True, owner_ok=True)
+        return receipt
+    except Exception:
+        if trusted_lifecycle:
+            factory._stop_synthetic_owner_for_test(provider)
+        return None
 
 
 OFFICIAL_WIRE_CONTRACT_VERSION = capability.OFFICIAL_WIRE_CONTRACT_VERSION
