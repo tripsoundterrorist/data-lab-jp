@@ -15,9 +15,10 @@ import revenue_mvp_sort_condition_evidence
 import revenue_mvp_temporal_continuation_assessment
 import revenue_mvp_temporal_active_runner_candidate_evidence
 import revenue_mvp_temporal_series_candidate_evidence
+import revenue_mvp_unordered_exact_scope_evidence
 
 
-VERSION = "0.9"
+VERSION = "0.10"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
 
@@ -80,6 +81,7 @@ class NextGatePlan:
     temporal_continuation_status: str
     temporal_series_candidate_evidence_status: str
     temporal_active_runner_candidate_evidence_status: str
+    unordered_exact_scope_evidence_status: str
     safe_local_actions: tuple[str, ...]
     external_boundary_actions: tuple[str, ...]
     next_safe_local_action: str | None
@@ -102,6 +104,7 @@ def build_plan(
     temporal_active_runner_evidence: Any | None = None,
     followup_status: Any | None = None,
     artifact_evidence: Any | None = None,
+    unordered_scope_evidence: Any | None = None,
 ) -> NextGatePlan:
     """Classify exact known actions without authorizing either lane."""
 
@@ -125,6 +128,10 @@ def build_plan(
             followup_status = revenue_mvp_official_followup_status.current_status()
         if artifact_evidence is None:
             artifact_evidence = revenue_mvp_publication_artifact_evidence.assess_evidence()
+        if unordered_scope_evidence is None:
+            unordered_scope_evidence = (
+                revenue_mvp_unordered_exact_scope_evidence.assess_evidence()
+            )
         actions = release.next_actions
         if (
             not isinstance(actions, tuple)
@@ -230,6 +237,22 @@ def build_plan(
             or artifact_evidence.publication_allowed is not False
             or artifact_evidence.production_write_performed is not False
             or artifact_evidence.gate_unlock_allowed is not False
+            or unordered_scope_evidence.version
+            != revenue_mvp_unordered_exact_scope_evidence.VERSION
+            or unordered_scope_evidence.status not in {
+                revenue_mvp_unordered_exact_scope_evidence.READY,
+                revenue_mvp_unordered_exact_scope_evidence.BLOCKED,
+            }
+            or not isinstance(unordered_scope_evidence.exact_scope_verified, bool)
+            or not isinstance(
+                unordered_scope_evidence.additional_lifecycle_sort_inquiry_required,
+                bool,
+            )
+            or unordered_scope_evidence.expanded_scope_requires_new_review is not True
+            or unordered_scope_evidence.publication_allowed is not False
+            or unordered_scope_evidence.production_activation_allowed is not False
+            or unordered_scope_evidence.affiliate_eligibility_allowed is not False
+            or unordered_scope_evidence.gate_mutation_allowed is not False
         ):
             raise ValueError("invalid release summary")
         evidence_ready = (
@@ -254,6 +277,13 @@ def build_plan(
             and artifact_evidence.artifact_validation_passed is True
             and type(artifact_evidence.item_count) is int
             and artifact_evidence.item_count > 0
+        )
+        exact_scope_ready = (
+            unordered_scope_evidence.status
+            == revenue_mvp_unordered_exact_scope_evidence.READY
+            and unordered_scope_evidence.exact_scope_verified is True
+            and unordered_scope_evidence
+            .additional_lifecycle_sort_inquiry_required is False
         )
         temporal_integration_candidate = (
             "CONTINUE_TEMPORAL_OBSERVATION" in actions
@@ -300,9 +330,9 @@ def build_plan(
                 else DERIVED_SAFE_ACTION,
             ) + local
         external_actions = set(actions)
-        if evidence_ready:
+        if evidence_ready and not exact_scope_ready:
             external_actions.add("RESOLVE_DMM_LIFECYCLE_RETENTION_SCOPE")
-        if sort_evidence_ready:
+        if sort_evidence_ready and not exact_scope_ready:
             external_actions.add("RESOLVE_DMM_SORT_POSITION_SCOPE")
         external = tuple(
             action
@@ -320,15 +350,20 @@ def build_plan(
             temporal_continuation.status,
             temporal_series_evidence.status,
             temporal_active_runner_evidence.status,
+            unordered_scope_evidence.status,
             local,
             external,
             local[0] if local else None,
-            ("SEPARATE_APPROVAL_REQUIRED", "WORK_LANES_CLASSIFIED"),
+            (
+                "SEPARATE_APPROVAL_REQUIRED",
+                "WORK_LANES_CLASSIFIED",
+                "EXACT_UNORDERED_SCOPE_CLASSIFIED",
+            ),
         )
     except Exception:
         return NextGatePlan(
             VERSION, FAIL_CLOSED, False, "UNKNOWN", "UNKNOWN", "UNKNOWN",
-            "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN",
+            "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN",
             (), (), None,
             ("NEXT_GATE_PLAN_INPUT_INVALID",),
         )
@@ -350,11 +385,12 @@ def run_plan() -> NextGatePlan:
             .assess_candidate_evidence(),
             revenue_mvp_official_followup_status.current_status(),
             revenue_mvp_publication_artifact_evidence.assess_evidence(),
+            revenue_mvp_unordered_exact_scope_evidence.assess_evidence(),
         )
     except Exception:
         return NextGatePlan(
             VERSION, FAIL_CLOSED, False, "UNKNOWN", "UNKNOWN", "UNKNOWN",
-            "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN",
+            "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN",
             (), (), None,
             ("NEXT_GATE_PLAN_INTERNAL_ERROR",),
         )
