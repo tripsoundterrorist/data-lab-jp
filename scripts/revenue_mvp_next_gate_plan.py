@@ -171,6 +171,7 @@ def build_plan(
                 revenue_mvp_temporal_continuation_assessment.WINDOW_CANDIDATE,
                 revenue_mvp_temporal_continuation_assessment.WAIT,
                 revenue_mvp_temporal_continuation_assessment.LONG_GAP_BLOCKED,
+                revenue_mvp_temporal_continuation_assessment.FAIL_CLOSED,
             }
             or temporal_continuation.api_request_authorized is not False
             or temporal_continuation.state_write_authorized is not False
