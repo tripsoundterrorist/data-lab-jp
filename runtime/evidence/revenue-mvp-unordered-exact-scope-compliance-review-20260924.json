@@ -1,0 +1,28 @@
+{
+  "evidence_version": "0.1",
+  "reviewed_on": "2026-09-24",
+  "base_main_commit": "ccf7f8970f4692c6cc805d6beed78ca71d0dc8ae",
+  "scope_contract_version": "0.1",
+  "assessment": "EXACT_SCOPE_NO_ADDITIONAL_INQUIRY_REQUIRED",
+  "presentation_mode": "UNORDERED_GRID",
+  "allowed_fields": [
+    "title",
+    "api_observed_at",
+    "transparency_notice",
+    "current_price",
+    "price_observed_at"
+  ],
+  "excluded_topics": [
+    "rank_order_offset_source_sort_or_review",
+    "history_or_price_history",
+    "availability_inventory_or_update_claim",
+    "content_or_item_identifier",
+    "url_or_affiliate_value",
+    "affiliate_cta"
+  ],
+  "expanded_scope_requires_new_review": true,
+  "publication_allowed": false,
+  "production_activation_allowed": false,
+  "affiliate_eligibility_allowed": false,
+  "gate_mutation_allowed": false
+}

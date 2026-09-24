@@ -118,6 +118,22 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         values.update(overrides)
         return SimpleNamespace(**values)
 
+    @staticmethod
+    def unordered_scope_evidence(**overrides):
+        values = {
+            "version": plan.revenue_mvp_unordered_exact_scope_evidence.VERSION,
+            "status": plan.revenue_mvp_unordered_exact_scope_evidence.READY,
+            "exact_scope_verified": True,
+            "additional_lifecycle_sort_inquiry_required": False,
+            "expanded_scope_requires_new_review": True,
+            "publication_allowed": False,
+            "production_activation_allowed": False,
+            "affiliate_eligibility_allowed": False,
+            "gate_mutation_allowed": False,
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
     def build_plan(
         self,
         release,
@@ -128,6 +144,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         temporal_active_runner_evidence=None,
         followup_status=None,
         artifact_evidence=None,
+        unordered_scope_evidence=None,
     ):
         return plan.build_plan(
             release,
@@ -138,6 +155,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             temporal_active_runner_evidence or self.temporal_active_runner_evidence(),
             followup_status or self.followup_status(),
             artifact_evidence or self.artifact_evidence(),
+            unordered_scope_evidence or self.unordered_scope_evidence(),
         )
 
     def test_actions_are_split_without_authorization(self):
@@ -165,8 +183,6 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         self.assertEqual(
             result.external_boundary_actions,
             (
-                "RESOLVE_DMM_LIFECYCLE_RETENTION_SCOPE",
-                "RESOLVE_DMM_SORT_POSITION_SCOPE",
                 "VERIFY_PRODUCTION_DOMAIN_APPROVAL",
                 "CONFIGURE_REQUIRED_SECRET_BINDINGS",
             ),
@@ -225,7 +241,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         )
         self.assertEqual(
             result.external_boundary_actions,
-            ("RESOLVE_DMM_SORT_POSITION_SCOPE",),
+            (),
         )
 
     def test_unknown_duplicate_or_non_tuple_actions_fail_closed(self):
@@ -285,9 +301,23 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             result.safe_local_actions,
             ("IMPLEMENT_DMM_SORT_SEMANTICS_CONDITIONS",),
         )
-        self.assertNotIn(
-            "RESOLVE_DMM_SORT_POSITION_SCOPE",
+        self.assertEqual(result.external_boundary_actions, ())
+
+    def test_blocked_exact_scope_evidence_restores_narrow_inquiry_boundaries(self):
+        result = self.build_plan(
+            SimpleNamespace(status="BLOCKED", next_actions=()),
+            unordered_scope_evidence=self.unordered_scope_evidence(
+                status=plan.revenue_mvp_unordered_exact_scope_evidence.BLOCKED,
+                exact_scope_verified=False,
+                additional_lifecycle_sort_inquiry_required=True,
+            ),
+        )
+        self.assertEqual(
             result.external_boundary_actions,
+            (
+                "RESOLVE_DMM_LIFECYCLE_RETENTION_SCOPE",
+                "RESOLVE_DMM_SORT_POSITION_SCOPE",
+            ),
         )
 
     def test_malformed_sort_evidence_fails_closed(self):
