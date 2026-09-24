@@ -126,25 +126,25 @@ def assess_inert_fetcher() -> InertFetcherEvidence:
         ))
 
         pending = followup.current_status()
-        official_pending = (
-            pending.status == followup.SUBMITTED_AWAITING_RESPONSE
-            and pending.response_received is False
+        official_incomplete = (
+            pending.status == followup.RESPONSE_RECEIVED_PARTIALLY_RESOLVED
+            and pending.response_received is True
             and pending.official_semantics_resolved is False
             and pending.gate_unlock_allowed is False
             and "DMM_SORT_SEMANTICS" in pending.covered_blockers
         )
-        checks.append(official_pending)
+        checks.append(official_incomplete)
 
         passed = sum(value is True for value in checks)
         ready = len(checks) == CHECKS_REQUIRED and passed == CHECKS_REQUIRED
         return InertFetcherEvidence(
             VERSION, READY_WAITING if ready else BLOCKED, passed, CHECKS_REQUIRED,
-            fixed, reduced, bounded, official_pending,
+            fixed, reduced, bounded, False,
             False, False, False, False, False, False,
             NEXT_GATE if ready else None,
             (
                 "INERT_FETCHER_BOUNDARY_VERIFIED",
-                "OFFICIAL_RESPONSE_REQUIRED_BEFORE_LIVE_REVIEW",
+                "OFFICIAL_SEMANTICS_RESOLUTION_REQUIRED_BEFORE_LIVE_REVIEW",
             ) if ready else ("INERT_FETCHER_EVIDENCE_INCOMPLETE",),
         )
     except Exception:

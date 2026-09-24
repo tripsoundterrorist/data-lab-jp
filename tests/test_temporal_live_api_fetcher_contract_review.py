@@ -16,7 +16,7 @@ class LiveApiFetcherContractReviewTests(unittest.TestCase):
         self.assertEqual(result.status, review.READY_BLOCKED)
         self.assertTrue(result.bridge_evidence_verified)
         self.assertTrue(result.fixed_request_contract_verified)
-        self.assertTrue(result.official_response_pending)
+        self.assertFalse(result.official_response_pending)
         self.assertFalse(result.official_sort_semantics_resolved)
         self.assertTrue(result.inert_implementation_allowed)
         self.assertFalse(result.live_api_request_authorized)

@@ -17,7 +17,7 @@ import revenue_mvp_temporal_active_runner_candidate_evidence
 import revenue_mvp_temporal_series_candidate_evidence
 
 
-VERSION = "0.8"
+VERSION = "0.9"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
 
@@ -39,6 +39,8 @@ DERIVED_ACTIVE_RUNNER_ACTION = "REVIEW_ACTIVE_RUNNER_CONNECTION_APPROVAL"
 EXTERNAL_BOUNDARY_ORDER = (
     "WAIT_FOR_DMM_LIFECYCLE_SEMANTICS_RESPONSE",
     "WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE",
+    "RESOLVE_DMM_LIFECYCLE_RETENTION_SCOPE",
+    "RESOLVE_DMM_SORT_POSITION_SCOPE",
     "OBTAIN_SEPARATE_DMM_LIFECYCLE_SEMANTICS_CONFIRMATION",
     "OBTAIN_SEPARATE_DMM_SORT_SEMANTICS_CONFIRMATION",
     "VERIFY_PRODUCTION_DOMAIN_APPROVAL",
@@ -52,6 +54,8 @@ DERIVED_EXTERNAL_ACTIONS = frozenset(
     (
         "OBTAIN_SEPARATE_DMM_LIFECYCLE_SEMANTICS_CONFIRMATION",
         "OBTAIN_SEPARATE_DMM_SORT_SEMANTICS_CONFIRMATION",
+        "RESOLVE_DMM_LIFECYCLE_RETENTION_SCOPE",
+        "RESOLVE_DMM_SORT_POSITION_SCOPE",
     )
 )
 KNOWN_RELEASE_ACTIONS = frozenset(
@@ -209,10 +213,10 @@ def build_plan(
             or followup_status.version
             != revenue_mvp_official_followup_status.VERSION
             or followup_status.status
-            != revenue_mvp_official_followup_status.SUBMITTED_AWAITING_RESPONSE
+            != revenue_mvp_official_followup_status.RESPONSE_RECEIVED_PARTIALLY_RESOLVED
             or followup_status.covered_blockers
             != ("DMM_LIFECYCLE_AVAILABILITY", "DMM_SORT_SEMANTICS")
-            or followup_status.response_received is not False
+            or followup_status.response_received is not True
             or followup_status.official_semantics_resolved is not False
             or followup_status.gate_unlock_allowed is not False
             or artifact_evidence.version
@@ -297,9 +301,9 @@ def build_plan(
             ) + local
         external_actions = set(actions)
         if evidence_ready:
-            external_actions.add("WAIT_FOR_DMM_LIFECYCLE_SEMANTICS_RESPONSE")
+            external_actions.add("RESOLVE_DMM_LIFECYCLE_RETENTION_SCOPE")
         if sort_evidence_ready:
-            external_actions.add("WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE")
+            external_actions.add("RESOLVE_DMM_SORT_POSITION_SCOPE")
         external = tuple(
             action
             for action in EXTERNAL_BOUNDARY_ORDER

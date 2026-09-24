@@ -18,7 +18,7 @@ class TemporalInertFetcherEvidenceTests(unittest.TestCase):
         self.assertTrue(result.fixed_requests_verified)
         self.assertTrue(result.response_reduction_verified)
         self.assertTrue(result.bounded_failures_verified)
-        self.assertTrue(result.official_response_pending)
+        self.assertFalse(result.official_response_pending)
         self.assertFalse(result.live_api_request_performed)
         self.assertFalse(result.credentials_loaded)
         self.assertFalse(result.state_write_performed)
