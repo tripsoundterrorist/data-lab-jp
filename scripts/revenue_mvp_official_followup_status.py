@@ -19,6 +19,26 @@ EVIDENCE_PATH = (
     Path(__file__).resolve().parents[1]
     / "runtime/evidence/revenue-mvp-official-response-20260916.json"
 )
+EXPECTED_UNANSWERED = {
+    LIFECYCLE_BLOCKER: {"HISTORICAL_METADATA_RETENTION"},
+    SORT_BLOCKER: {
+        "OFFSET_MEANING",
+        "POSITION_MEANING",
+        "PUBLIC_POSITION_EXPRESSION",
+        "UPDATE_BEHAVIOR",
+    },
+}
+EXPECTED_NONRESOLVED_STATUSES = {
+    LIFECYCLE_BLOCKER: {
+        "HISTORICAL_METADATA_RETENTION": "PARTIALLY_RESOLVED",
+    },
+    SORT_BLOCKER: {
+        "OFFSET_MEANING": "UNRESOLVED",
+        "POSITION_MEANING": "UNRESOLVED",
+        "PUBLIC_POSITION_EXPRESSION": "UNRESOLVED",
+        "UPDATE_BEHAVIOR": "PARTIALLY_RESOLVED",
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -44,6 +64,26 @@ def current_status() -> OfficialFollowupStatus:
     try:
         value = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
         reviewed = response_batch.handoff_batch(value)
+        by_blocker = {
+            entry["referenced_blocker"]: entry
+            for entry in value
+            if type(entry) is dict and "referenced_blocker" in entry
+        }
+        remaining_topics_match = (
+            set(by_blocker) == {LIFECYCLE_BLOCKER, SORT_BLOCKER}
+            and all(
+                set(by_blocker[blocker].get("unanswered_questions", ()))
+                == expected
+                and {
+                    question: by_blocker[blocker]
+                    .get("answered_questions", {})
+                    .get(question)
+                    for question in expected
+                }
+                == EXPECTED_NONRESOLVED_STATUSES[blocker]
+                for blocker, expected in EXPECTED_UNANSWERED.items()
+            )
+        )
         valid_partial = (
             reviewed.status == response_batch.RESPONSE_INCOMPLETE
             and reviewed.lifecycle_status == "PARTIALLY_RESOLVED"
@@ -55,6 +95,7 @@ def current_status() -> OfficialFollowupStatus:
             and reviewed.combined_gate_review_candidate is False
             and reviewed.gate_mutation_allowed is False
             and reviewed.production_activation_allowed is False
+            and remaining_topics_match
         )
         if not valid_partial:
             raise ValueError("reviewed response evidence mismatch")
