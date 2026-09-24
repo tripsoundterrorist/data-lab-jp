@@ -357,6 +357,27 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             result.safe_local_actions, ("CONTINUE_TEMPORAL_OBSERVATION",)
         )
 
+    def test_missing_temporal_state_is_valid_fail_closed_input(self):
+        release = SimpleNamespace(
+            status="BLOCKED",
+            next_actions=("CONTINUE_TEMPORAL_OBSERVATION",),
+        )
+        result = self.build_plan(
+            release,
+            temporal_continuation=self.temporal_continuation(
+                status=(
+                    plan.revenue_mvp_temporal_continuation_assessment.FAIL_CLOSED
+                ),
+                fresh_baseline_policy_required=False,
+                populations_found=0,
+            ),
+        )
+        self.assertEqual(result.status, "BLOCKED")
+        self.assertFalse(result.production_release_allowed)
+        self.assertEqual(
+            result.safe_local_actions, ("CONTINUE_TEMPORAL_OBSERVATION",)
+        )
+
     def test_incomplete_active_runner_evidence_retains_connection_review(self):
         result = self.build_plan(
             SimpleNamespace(
