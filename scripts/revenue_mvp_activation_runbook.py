@@ -12,8 +12,8 @@ import revenue_mvp_official_followup_status
 import revenue_mvp_publication_artifact_evidence
 
 
-VERSION = "0.1"
-WAITING = "WAITING_FOR_OFFICIAL_RESPONSE"
+VERSION = "0.2"
+WAITING = "WAITING_FOR_OFFICIAL_SEMANTICS_RESOLUTION"
 FAIL_CLOSED = "FAIL_CLOSED"
 ORDERED_STEPS = (
     "INTAKE_AND_CLASSIFY_DMM_RESPONSE",
@@ -68,8 +68,8 @@ def build_runbook(
         valid = (
             followup.version == revenue_mvp_official_followup_status.VERSION
             and followup.status
-            == revenue_mvp_official_followup_status.SUBMITTED_AWAITING_RESPONSE
-            and followup.response_received is False
+            == revenue_mvp_official_followup_status.RESPONSE_RECEIVED_PARTIALLY_RESOLVED
+            and followup.response_received is True
             and followup.official_semantics_resolved is False
             and followup.gate_unlock_allowed is False
             and artifact.version == revenue_mvp_publication_artifact_evidence.VERSION
@@ -99,13 +99,14 @@ def build_runbook(
             "VALIDATE_INERT_AFFILIATE_RUNTIME",
             "VALIDATE_CURRENT_PUBLIC_ARTIFACT",
             "SUBMIT_DMM_FOLLOWUP_INQUIRY",
+            "INTAKE_AND_CLASSIFY_DMM_RESPONSE",
         )
         return ActivationRunbook(
-            VERSION, WAITING, False, completed, ORDERED_STEPS,
-            ORDERED_STEPS[0], ROLLBACK_ORDER,
+            VERSION, WAITING, False, completed, ORDERED_STEPS[1:],
+            ORDERED_STEPS[1], ROLLBACK_ORDER,
             d1.row_count, 0, artifact.item_count, False,
             (
-                "OFFICIAL_RESPONSE_REQUIRED_BEFORE_ACTIVATION",
+                "OFFICIAL_SEMANTICS_RESOLUTION_REQUIRED_BEFORE_ACTIVATION",
                 "EXPLICIT_PRODUCTION_APPROVAL_REQUIRED",
                 "FREE_PLAN_ONLY",
             ),

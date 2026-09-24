@@ -14,8 +14,8 @@ import revenue_mvp_control_center_checkpoint as checkpoint  # noqa: E402
 class RevenueMvpControlCenterCheckpointTests(unittest.TestCase):
     def inputs(self):
         followup = SimpleNamespace(
-            version="0.1", status="SUBMITTED_AWAITING_RESPONSE",
-            response_received=False, gate_unlock_allowed=False,
+            version="0.2", status="RESPONSE_RECEIVED_PARTIALLY_RESOLVED",
+            response_received=True, gate_unlock_allowed=False,
         )
         artifact = SimpleNamespace(
             version="0.1", status="ARTIFACT_VALIDATION_EVIDENCE_READY",
@@ -31,9 +31,9 @@ class RevenueMvpControlCenterCheckpointTests(unittest.TestCase):
             row_count=861,
         )
         runbook = SimpleNamespace(
-            version="0.1", status="WAITING_FOR_OFFICIAL_RESPONSE",
+            version="0.2", status="WAITING_FOR_OFFICIAL_SEMANTICS_RESOLUTION",
             production_activation_allowed=False, paid_plan_change_allowed=False,
-            next_step="INTAKE_AND_CLASSIFY_DMM_RESPONSE",
+            next_step="REVIEW_AND_UPDATE_LIFECYCLE_SORT_GATES",
             public_artifact_item_count=861, d1_row_count=861,
             d1_runtime_eligible_count=0,
         )
@@ -62,7 +62,7 @@ class RevenueMvpControlCenterCheckpointTests(unittest.TestCase):
         self.assertEqual(result.public_artifact_item_count, 861)
         self.assertEqual(result.d1_row_count, 861)
         self.assertEqual(result.d1_enabled_row_count, 0)
-        self.assertTrue(result.official_response_pending)
+        self.assertFalse(result.official_response_pending)
         self.assertTrue(result.offline_launch_rehearsal_passed)
         self.assertTrue(result.official_response_rehearsal_passed)
         self.assertTrue(result.official_response_path_rehearsal_passed)
@@ -73,7 +73,7 @@ class RevenueMvpControlCenterCheckpointTests(unittest.TestCase):
 
     def test_changed_or_unsafe_fact_fails_closed(self):
         cases = (
-            (0, "response_received", True),
+            (0, "response_received", False),
             (1, "publication_allowed", True),
             (2, "all_rows_disabled", False),
             (3, "production_activation_allowed", True),

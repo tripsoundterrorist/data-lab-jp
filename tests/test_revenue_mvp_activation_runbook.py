@@ -12,8 +12,8 @@ import revenue_mvp_activation_runbook as runbook  # noqa: E402
 
 def inputs():
     followup = SimpleNamespace(
-        version="0.1", status="SUBMITTED_AWAITING_RESPONSE",
-        response_received=False, official_semantics_resolved=False,
+        version="0.2", status="RESPONSE_RECEIVED_PARTIALLY_RESOLVED",
+        response_received=True, official_semantics_resolved=False,
         gate_unlock_allowed=False,
     )
     artifact = SimpleNamespace(
@@ -39,8 +39,8 @@ class RevenueMvpActivationRunbookTests(unittest.TestCase):
     def test_current_evidence_yields_exact_fail_closed_order(self):
         result = runbook.build_runbook(*inputs())
         self.assertEqual(result.status, runbook.WAITING)
-        self.assertEqual(result.remaining_steps, runbook.ORDERED_STEPS)
-        self.assertEqual(result.next_step, "INTAKE_AND_CLASSIFY_DMM_RESPONSE")
+        self.assertEqual(result.remaining_steps, runbook.ORDERED_STEPS[1:])
+        self.assertEqual(result.next_step, "REVIEW_AND_UPDATE_LIFECYCLE_SORT_GATES")
         self.assertEqual((result.d1_row_count, result.d1_runtime_eligible_count),
                          (861, 0))
         self.assertEqual(result.public_artifact_item_count, 861)
@@ -49,7 +49,7 @@ class RevenueMvpActivationRunbookTests(unittest.TestCase):
 
     def test_each_unsafe_or_changed_fact_fails_closed(self):
         cases = (
-            (0, "response_received", True),
+            (0, "response_received", False),
             (1, "source_db_matches", False),
             (1, "publication_allowed", True),
             (2, "all_rows_disabled", False),

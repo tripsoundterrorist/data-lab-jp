@@ -15,10 +15,10 @@ import revenue_mvp_official_response_rehearsal
 import revenue_mvp_publication_artifact_evidence
 
 
-VERSION = "0.2"
-READY_WAITING = "READY_WAITING_FOR_OFFICIAL_RESPONSE"
+VERSION = "0.3"
+READY_WAITING = "READY_WAITING_FOR_OFFICIAL_SEMANTICS_RESOLUTION"
 FAIL_CLOSED = "FAIL_CLOSED"
-NEXT_ACTION = "WAIT_FOR_AND_INTAKE_OFFICIAL_RESPONSE"
+NEXT_ACTION = "REVIEW_AND_RESOLVE_REMAINING_OFFICIAL_SEMANTICS"
 
 
 @dataclass(frozen=True)
@@ -59,8 +59,8 @@ def build_checkpoint(
         valid = (
             followup.version == revenue_mvp_official_followup_status.VERSION
             and followup.status
-            == revenue_mvp_official_followup_status.SUBMITTED_AWAITING_RESPONSE
-            and followup.response_received is False
+            == revenue_mvp_official_followup_status.RESPONSE_RECEIVED_PARTIALLY_RESOLVED
+            and followup.response_received is True
             and followup.gate_unlock_allowed is False
             and artifact.version == revenue_mvp_publication_artifact_evidence.VERSION
             and artifact.status
@@ -83,7 +83,7 @@ def build_checkpoint(
             and runbook.status == revenue_mvp_activation_runbook.WAITING
             and runbook.production_activation_allowed is False
             and runbook.paid_plan_change_allowed is False
-            and runbook.next_step == "INTAKE_AND_CLASSIFY_DMM_RESPONSE"
+            and runbook.next_step == "REVIEW_AND_UPDATE_LIFECYCLE_SORT_GATES"
             and launch_rehearsal.version == revenue_mvp_launch_rehearsal.VERSION
             and launch_rehearsal.status == revenue_mvp_launch_rehearsal.PASS
             and launch_rehearsal.production_write_performed is False
@@ -115,17 +115,17 @@ def build_checkpoint(
         if not valid:
             raise ValueError("checkpoint evidence mismatch")
         return ControlCenterCheckpoint(
-            VERSION, READY_WAITING, "P0", True, artifact.item_count,
+            VERSION, READY_WAITING, "P0", False, artifact.item_count,
             d1.row_count, 0, True, True, True, False, False, False, NEXT_ACTION,
             (
                 "CURRENT_EVIDENCE_CONSISTENT",
-                "OFFICIAL_RESPONSE_IS_ONLY_CURRENT_EXTERNAL_BLOCKER",
+                "REMAINING_OFFICIAL_SEMANTICS_ARE_EXTERNAL_BLOCKERS",
                 "ALL_PUBLICATION_AND_BILLING_MUTATIONS_REMAIN_CLOSED",
             ),
         )
     except Exception:
         return ControlCenterCheckpoint(
-            VERSION, FAIL_CLOSED, "P0", True, None, None, None,
+            VERSION, FAIL_CLOSED, "P0", False, None, None, None,
             False, False, False, False, False, False,
             "RECONCILE_CONTROL_CENTER_EVIDENCE",
             ("CONTROL_CENTER_EVIDENCE_INVALID_OR_STALE",),

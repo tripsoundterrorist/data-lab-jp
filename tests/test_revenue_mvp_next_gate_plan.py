@@ -74,11 +74,11 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
     def followup_status(**overrides):
         values = {
             "version": plan.revenue_mvp_official_followup_status.VERSION,
-            "status": plan.revenue_mvp_official_followup_status.SUBMITTED_AWAITING_RESPONSE,
+            "status": plan.revenue_mvp_official_followup_status.RESPONSE_RECEIVED_PARTIALLY_RESOLVED,
             "covered_blockers": (
                 "DMM_LIFECYCLE_AVAILABILITY", "DMM_SORT_SEMANTICS"
             ),
-            "response_received": False,
+            "response_received": True,
             "official_semantics_resolved": False,
             "gate_unlock_allowed": False,
         }
@@ -165,8 +165,8 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         self.assertEqual(
             result.external_boundary_actions,
             (
-                "WAIT_FOR_DMM_LIFECYCLE_SEMANTICS_RESPONSE",
-                "WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE",
+                "RESOLVE_DMM_LIFECYCLE_RETENTION_SCOPE",
+                "RESOLVE_DMM_SORT_POSITION_SCOPE",
                 "VERIFY_PRODUCTION_DOMAIN_APPROVAL",
                 "CONFIGURE_REQUIRED_SECRET_BINDINGS",
             ),
@@ -225,7 +225,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
         )
         self.assertEqual(
             result.external_boundary_actions,
-            ("WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE",),
+            ("RESOLVE_DMM_SORT_POSITION_SCOPE",),
         )
 
     def test_unknown_duplicate_or_non_tuple_actions_fail_closed(self):
@@ -286,7 +286,7 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             ("IMPLEMENT_DMM_SORT_SEMANTICS_CONDITIONS",),
         )
         self.assertNotIn(
-            "WAIT_FOR_DMM_SORT_SEMANTICS_RESPONSE",
+            "RESOLVE_DMM_SORT_POSITION_SCOPE",
             result.external_boundary_actions,
         )
 
@@ -296,6 +296,17 @@ class RevenueMvpNextGatePlanTests(unittest.TestCase):
             release,
             self.lifecycle_evidence(),
             self.sort_evidence(publication_gate_unlock_allowed=True),
+        )
+        self.assertEqual(result.status, plan.FAIL_CLOSED)
+        self.assertFalse(result.production_release_allowed)
+
+    def test_invalid_reviewed_response_status_fails_closed(self):
+        result = self.build_plan(
+            SimpleNamespace(status="BLOCKED", next_actions=()),
+            followup_status=self.followup_status(
+                status=plan.revenue_mvp_official_followup_status.FAIL_CLOSED,
+                response_received=False,
+            ),
         )
         self.assertEqual(result.status, plan.FAIL_CLOSED)
         self.assertFalse(result.production_release_allowed)

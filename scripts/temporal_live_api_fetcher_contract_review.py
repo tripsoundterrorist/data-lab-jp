@@ -63,22 +63,22 @@ def review_contract() -> LiveApiFetcherContractReview:
             and probe.RETRY_COUNT == 0
             and probe.STOP_ON_RATE_LIMIT is True
         )
-        official_pending = (
-            pending.status == followup.SUBMITTED_AWAITING_RESPONSE
-            and pending.response_received is False
+        official_incomplete = (
+            pending.status == followup.RESPONSE_RECEIVED_PARTIALLY_RESOLVED
+            and pending.response_received is True
             and pending.official_semantics_resolved is False
             and pending.gate_unlock_allowed is False
             and "DMM_SORT_SEMANTICS" in pending.covered_blockers
         )
-        ready = bridge_ready and request_ready and official_pending
+        ready = bridge_ready and request_ready and official_incomplete
         return LiveApiFetcherContractReview(
             VERSION, READY_BLOCKED if ready else BLOCKED,
-            bridge_ready, request_ready, official_pending, False,
+            bridge_ready, request_ready, False, False,
             ready, False, False, False, False, False, False,
             NEXT_GATE if ready else None,
             (
                 "INERT_IMPLEMENTATION_ONLY",
-                "OFFICIAL_SORT_SEMANTICS_RESPONSE_REQUIRED_BEFORE_LIVE_USE",
+                "OFFICIAL_SORT_SEMANTICS_RESOLUTION_REQUIRED_BEFORE_LIVE_USE",
             ) if ready else ("LIVE_FETCHER_CONTRACT_INPUT_INCOMPLETE",),
         )
     except Exception:
