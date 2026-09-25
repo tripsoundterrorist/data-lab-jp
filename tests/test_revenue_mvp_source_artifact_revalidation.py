@@ -90,6 +90,57 @@ class SourceArtifactRevalidationTests(unittest.TestCase):
         self.assertEqual(result.api_calls, 0)
         self.assertFalse(result.network_io_performed)
 
+    def test_schema_candidate_filter_excludes_only_paired_null_price(self):
+        files = fixture()
+        index = json.loads(files["index.json"])
+        public_id = index["items"][0]["public_id"]
+        detail_path = f"items/{public_id[4:6]}/{public_id}.json"
+        detail = json.loads(files[detail_path])
+        index["items"][0]["current_price"] = None
+        detail["item"]["current_price"] = None
+        files["index.json"] = integration._json_bytes(index)
+        files[detail_path] = integration._json_bytes(detail)
+
+        filtered = revalidation._filter_artifact_schema_candidates(files)
+        filtered_index = json.loads(filtered["index.json"])
+        filtered_manifest = json.loads(filtered["manifest.json"])
+        self.assertEqual(filtered_index["items"], [])
+        self.assertEqual(filtered_manifest["item_count"], 0)
+        self.assertNotIn(detail_path, filtered)
+
+    def test_schema_candidate_filter_rejects_unpaired_or_invalid_price(self):
+        for index_price, detail_price in ((None, 100), (True, True), (-1, -1)):
+            files = fixture()
+            index = json.loads(files["index.json"])
+            public_id = index["items"][0]["public_id"]
+            detail_path = f"items/{public_id[4:6]}/{public_id}.json"
+            detail = json.loads(files[detail_path])
+            index["items"][0]["current_price"] = index_price
+            detail["item"]["current_price"] = detail_price
+            files["index.json"] = integration._json_bytes(index)
+            files[detail_path] = integration._json_bytes(detail)
+            with self.subTest(index_price=index_price, detail_price=detail_price):
+                with self.assertRaises(ValueError):
+                    revalidation._filter_artifact_schema_candidates(files)
+
+    def test_schema_candidate_filter_rejects_missing_price_keys(self):
+        for remove_from_index, remove_from_detail in ((True, False), (False, True),
+                                                       (True, True)):
+            files = fixture()
+            index = json.loads(files["index.json"])
+            public_id = index["items"][0]["public_id"]
+            detail_path = f"items/{public_id[4:6]}/{public_id}.json"
+            detail = json.loads(files[detail_path])
+            if remove_from_index:
+                del index["items"][0]["current_price"]
+            if remove_from_detail:
+                del detail["item"]["current_price"]
+            files["index.json"] = integration._json_bytes(index)
+            files[detail_path] = integration._json_bytes(detail)
+            with self.subTest(index=remove_from_index, detail=remove_from_detail):
+                with self.assertRaises(ValueError):
+                    revalidation._filter_artifact_schema_candidates(files)
+
     def test_default_build_retains_safe_base_before_lifecycle_filtering(self):
         class Builder:
             def __init__(self):
