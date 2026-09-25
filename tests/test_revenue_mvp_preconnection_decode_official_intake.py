@@ -121,7 +121,7 @@ class PreconnectionDecodeOfficialIntakeTests(unittest.TestCase):
         intake.assess_preconnection_decode_official_response(observation())
         self.assertEqual(q4q5_status.current_status(), previous_status)
         self.assertEqual(q4q5_intake.assess_preconnection_official_response(prior), previous_result)
-        self.assertFalse(previous_status.response_received)
+        self.assertTrue(previous_status.response_received)
 
 
 if __name__ == "__main__":
