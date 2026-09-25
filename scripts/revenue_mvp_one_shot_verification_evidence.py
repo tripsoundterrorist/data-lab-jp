@@ -53,16 +53,19 @@ def assess_evidence() -> OneShotVerificationEvidence:
             and value["executed_on"] == "2026-09-25"
             and value["execution_mode"] == "MANUAL_ONE_SHOT_READ_ONLY"
             and value["status"] == "SUCCESS"
+            and type(value["request_attempt_limit"]) is int
             and value["request_attempt_limit"] == 1
+            and type(value["api_calls"]) is int
             and value["api_calls"] == 1
             and value["retry_performed"] is False
             and value["api_result_status_200"] is True
             and value["result_count_positive"] is True
+            and type(value["items_returned"]) is int
             and value["items_returned"] == 1
             and value["title_present"] is True
             and value["current_price_present"] is True
             and value["release_date_present"] is True
-            and type(value["review_present"]) is bool
+            and value["review_present"] is False
             and value["affiliate_url_present"] is True
             and value["database_write_performed"] is False
             and value["artifact_write_performed"] is False

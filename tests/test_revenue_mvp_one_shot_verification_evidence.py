@@ -22,7 +22,11 @@ class OneShotVerificationEvidenceTests(unittest.TestCase):
         self.assertFalse(result.production_activation_allowed)
 
     def test_permissive_or_multi_call_receipt_fails_closed(self):
-        for key, value in (("api_calls", 2), ("retry_performed", True),
+        for key, value in (("api_calls", 2), ("api_calls", True),
+                           ("request_attempt_limit", True),
+                           ("items_returned", True),
+                           ("review_present", True),
+                           ("retry_performed", True),
                            ("database_write_performed", True),
                            ("gate_unlock_allowed", True)):
             payload = json.loads(evidence.EVIDENCE.read_text(encoding="utf-8"))
