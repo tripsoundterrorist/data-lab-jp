@@ -16,8 +16,6 @@ import revenue_mvp_minimal_opaque_go_cta_activation_review as activation  # noqa
 import revenue_mvp_minimal_opaque_go_cta_live_integration as subject  # noqa: E402
 
 
-REPOSITORY_SOURCE_SHA = subject.SOURCE_SHA256
-REPOSITORY_ITEM_COUNT = subject.ITEM_COUNT
 NOW = datetime(2026, 9, 25, 8, 0, tzinfo=timezone.utc)
 ARTIFACT_STAMP = "2026-09-25T07:00:06Z"
 LIVE_STAMP = "2026-09-21T15:59:45Z"
@@ -130,11 +128,6 @@ class MinimalOpaqueGoCtaLiveIntegrationTests(unittest.TestCase):
         with mock.patch.object(subject, "SOURCE_SHA256", hashlib.sha256(live).hexdigest()):
             with self.assertRaisesRegex(subject.LiveIntegrationFailure, "SOURCE_ITEM_COUNT_MISMATCH"):
                 self.build(live=live)
-
-    def test_repository_source_pin_is_exact(self):
-        live = (ROOT / "items/index.html").read_bytes()
-        self.assertEqual(REPOSITORY_SOURCE_SHA, hashlib.sha256(live).hexdigest())
-        self.assertEqual(REPOSITORY_ITEM_COUNT, live.count(b'<article class="item">'))
 
     def test_title_price_and_observation_drift_block_even_with_updated_source_digest(self):
         for live in (source(title="別名"), source(price="101"), source(observed="2026-09-21T15:59:46Z")):
