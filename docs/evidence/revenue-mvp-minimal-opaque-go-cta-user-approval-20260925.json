@@ -1,0 +1,32 @@
+{
+  "version": "0.1",
+  "recorded_at": "2026-09-25T14:14:27Z",
+  "source": "CONTROL_CENTER_USER_MESSAGE",
+  "decision": "APPROVED",
+  "approved_scope": {
+    "artifact_sha256": "f273ec05089eabd19da50e7d62dfb2f747282f53d37f9babcb7a63c79c78dcf9",
+    "public_route": "/items/",
+    "cta_route_prefix": "/go/",
+    "maximum_cta_count": 1,
+    "opaque_public_id_only": true,
+    "existing_live_item_count_must_be_preserved": 100,
+    "proximate_pr_disclosure_required": true,
+    "free_plan_only": true
+  },
+  "not_approved": [
+    "more than one CTA",
+    "provider URL exposure",
+    "source content ID exposure",
+    "global Publication Gate unlock",
+    "unbounded D1 eligibility",
+    "paid plan or billing change",
+    "automatic retry or automatic repair"
+  ],
+  "execution_guards": {
+    "exact_artifact_freshness_recheck_required": true,
+    "exact_live_integration_artifact_compliance_review_required": true,
+    "one D1 eligible row maximum": true,
+    "post_deploy_smoke_required": true,
+    "rollback_first_on_failure": true
+  }
+}
