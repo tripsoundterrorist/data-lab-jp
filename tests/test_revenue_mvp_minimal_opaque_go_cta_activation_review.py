@@ -23,7 +23,7 @@ def evidence(**changes):
         "artifact_preflight_status": artifact.PASS,
         "artifact_sha256": DIGEST,
         "runtime_deployment_preflight_status": "READY_FOR_DEPLOYMENT_REVIEW",
-        "compliance_artifact_approved": True,
+        "compliance_approved_artifact_sha256": DIGEST,
         "explicit_user_activation_approval": False,
     }
     value.update(changes)
@@ -52,7 +52,7 @@ class MinimalOpaqueGoCtaActivationReviewTests(unittest.TestCase):
             {"artifact_preflight_status": "BLOCKED"},
             {"artifact_sha256": "invalid"},
             {"runtime_deployment_preflight_status": "BLOCKED"},
-            {"compliance_artifact_approved": False},
+            {"compliance_approved_artifact_sha256": "0" * 64},
         )
         for changes in cases:
             with self.subTest(changes=changes):

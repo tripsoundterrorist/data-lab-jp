@@ -19,7 +19,7 @@ SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 FIELDS = frozenset({
     "contract_status", "packet_status", "renderer_status",
     "artifact_preflight_status", "artifact_sha256",
-    "runtime_deployment_preflight_status", "compliance_artifact_approved",
+    "runtime_deployment_preflight_status", "compliance_approved_artifact_sha256",
     "explicit_user_activation_approval",
 })
 
@@ -75,8 +75,13 @@ def review(value: Any) -> ActivationReviewDecision:
         for field, required in expected.items():
             if value[field] != required:
                 return _decision(BLOCKED, False, digest, (f"{field.upper()}_INVALID",))
-        if value["compliance_artifact_approved"] is not True:
-            return _decision(BLOCKED, False, digest, ("COMPLIANCE_ARTIFACT_APPROVAL_REQUIRED",))
+        approved_digest = value["compliance_approved_artifact_sha256"]
+        if (
+            type(approved_digest) is not str
+            or SHA256.fullmatch(approved_digest) is None
+            or approved_digest != digest
+        ):
+            return _decision(BLOCKED, False, digest, ("COMPLIANCE_ARTIFACT_DIGEST_MISMATCH",))
         if value["explicit_user_activation_approval"] is not False:
             return _decision(BLOCKED, False, digest, ("ACTIVATION_APPROVAL_MUST_NOT_BE_PRECONSUMED",))
         return _decision(
