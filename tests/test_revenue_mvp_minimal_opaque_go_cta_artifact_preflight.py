@@ -62,6 +62,10 @@ class MinimalOpaqueGoCtaArtifactPreflightTests(unittest.TestCase):
         duplicate = value.replace(b"</article>", value[value.index(b"<aside"):value.index(b"</aside>") + 8] + b"</article>")
         self.assertEqual(review(duplicate).status, subject.BLOCKED)
         self.assertEqual(review(value.replace(b"affiliate-cta-link", b"other-link")).status, subject.BLOCKED)
+        outside = value.replace(
+            b"</main>", f'<a href="/go/{PUBLIC_ID}">extra</a></main>'.encode(),
+        )
+        self.assertEqual(review(outside).status, subject.BLOCKED)
 
 
 if __name__ == "__main__":

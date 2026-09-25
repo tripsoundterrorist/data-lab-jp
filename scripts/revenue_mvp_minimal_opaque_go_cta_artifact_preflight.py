@@ -58,6 +58,7 @@ class _StructureParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.noindex = 0
         self.ctas: list[tuple[str, str, str]] = []
+        self.anchor_count = 0
         self.disclosures: list[str] = []
         self.sequence: list[str] = []
         self.depth = 0
@@ -68,6 +69,8 @@ class _StructureParser(HTMLParser):
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
+        if tag == "a":
+            self.anchor_count += 1
         if tag in {"script", "iframe", "form", "img", "video", "audio"}:
             self.forbidden_element = True
         if tag == "meta" and values.get("name") == "robots" and values.get("content") == "noindex,nofollow":
@@ -122,7 +125,7 @@ def review(artifact: bytes, expected_sha256: Any) -> ArtifactPreflightResult:
         parser.close()
         if parser.forbidden_element or parser.noindex != 1:
             return _blocked("DOCUMENT_SAFETY_INVALID", digest)
-        if len(parser.ctas) != 1 or len(parser.disclosures) != 1:
+        if parser.anchor_count != 1 or len(parser.ctas) != 1 or len(parser.disclosures) != 1:
             return _blocked("EXACT_CTA_UNIT_REQUIRED", digest)
         href, rel, target = parser.ctas[0]
         if HREF.fullmatch(href) is None:
