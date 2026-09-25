@@ -9,6 +9,12 @@ server-side private lookup and must never enter Public JSON or HTML. The CTA
 must display the proximate disclosure `【PR】FANZAで確認`. Server-side lookup and
 rate limiting are mandatory.
 
+When more than one reviewed item is available, an offline canary packet may
+select exactly one item by the lexicographically smallest derived opaque ID.
+This deterministic selection has no ranking, popularity, recommendation, or
+quality meaning. Every source candidate must first bind uniquely to immutable
+saved evidence; ambiguity blocks the whole packet.
+
 Passing this pure contract grants only implementation review. Publication,
 affiliate eligibility, Gate mutation, deployment, production activation, and
 another API request all remain forbidden until separately reviewed and
