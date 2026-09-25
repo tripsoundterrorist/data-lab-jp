@@ -109,7 +109,7 @@ class PreconnectionOfficialResponseIntakeTests(unittest.TestCase):
         before = followup.current_status()
         intake.assess_preconnection_official_response(observation())
         self.assertEqual(followup.current_status(), before)
-        self.assertFalse(before.response_received)
+        self.assertTrue(before.response_received)
         self.assertFalse(before.live_connection_allowed)
         self.assertFalse(before.gate_unlock_allowed)
 

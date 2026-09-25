@@ -1,0 +1,15 @@
+{
+  "evidence_version": "0.1",
+  "responded_on": "2026-09-25",
+  "source_type": "DIRECT_SUPPORT_CONFIRMATION",
+  "source_authority": "DMM_AFFILIATE_SUPPORT",
+  "question_states": {
+    "LIVE_SINGLE_REQUEST_PERMISSION": "YES",
+    "USER_AGENT_REQUIREMENT": "NO"
+  },
+  "raw_message_stored": false,
+  "live_connection_allowed": false,
+  "gate_unlock_allowed": false,
+  "compliance_review_required": true,
+  "explicit_connection_approval_required": true
+}
