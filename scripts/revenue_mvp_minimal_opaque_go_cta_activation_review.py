@@ -16,10 +16,13 @@ VERSION = "0.1-candidate"
 READY = "READY_TO_REQUEST_EXPLICIT_ACTIVATION_REVIEW"
 BLOCKED = "ACTIVATION_REVIEW_REQUEST_BLOCKED"
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+COMPLIANCE_APPROVED_ARTIFACT_SHA256 = (
+    "f273ec05089eabd19da50e7d62dfb2f747282f53d37f9babcb7a63c79c78dcf9"
+)
 FIELDS = frozenset({
     "contract_status", "packet_status", "renderer_status",
     "artifact_preflight_status", "artifact_sha256",
-    "runtime_deployment_preflight_status", "compliance_approved_artifact_sha256",
+    "runtime_deployment_preflight_status",
     "explicit_user_activation_approval",
 })
 
@@ -75,12 +78,7 @@ def review(value: Any) -> ActivationReviewDecision:
         for field, required in expected.items():
             if value[field] != required:
                 return _decision(BLOCKED, False, digest, (f"{field.upper()}_INVALID",))
-        approved_digest = value["compliance_approved_artifact_sha256"]
-        if (
-            type(approved_digest) is not str
-            or SHA256.fullmatch(approved_digest) is None
-            or approved_digest != digest
-        ):
+        if digest != COMPLIANCE_APPROVED_ARTIFACT_SHA256:
             return _decision(BLOCKED, False, digest, ("COMPLIANCE_ARTIFACT_DIGEST_MISMATCH",))
         if value["explicit_user_activation_approval"] is not False:
             return _decision(BLOCKED, False, digest, ("ACTIVATION_APPROVAL_MUST_NOT_BE_PRECONSUMED",))
@@ -99,5 +97,6 @@ def review(value: Any) -> ActivationReviewDecision:
 
 
 __all__ = [
-    "ActivationReviewDecision", "BLOCKED", "READY", "VERSION", "review",
+    "ActivationReviewDecision", "BLOCKED", "COMPLIANCE_APPROVED_ARTIFACT_SHA256",
+    "READY", "VERSION", "review",
 ]
