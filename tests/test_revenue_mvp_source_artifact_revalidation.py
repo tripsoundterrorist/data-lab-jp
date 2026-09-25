@@ -123,6 +123,24 @@ class SourceArtifactRevalidationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     revalidation._filter_artifact_schema_candidates(files)
 
+    def test_schema_candidate_filter_rejects_missing_price_keys(self):
+        for remove_from_index, remove_from_detail in ((True, False), (False, True),
+                                                       (True, True)):
+            files = fixture()
+            index = json.loads(files["index.json"])
+            public_id = index["items"][0]["public_id"]
+            detail_path = f"items/{public_id[4:6]}/{public_id}.json"
+            detail = json.loads(files[detail_path])
+            if remove_from_index:
+                del index["items"][0]["current_price"]
+            if remove_from_detail:
+                del detail["item"]["current_price"]
+            files["index.json"] = integration._json_bytes(index)
+            files[detail_path] = integration._json_bytes(detail)
+            with self.subTest(index=remove_from_index, detail=remove_from_detail):
+                with self.assertRaises(ValueError):
+                    revalidation._filter_artifact_schema_candidates(files)
+
     def test_default_build_retains_safe_base_before_lifecycle_filtering(self):
         class Builder:
             def __init__(self):

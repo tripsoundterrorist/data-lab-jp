@@ -371,6 +371,11 @@ def _filter_artifact_schema_candidates(files: Mapping[str, bytes]) -> dict[str, 
         detail = documents.get(detail_path)
         if not isinstance(detail, dict) or not isinstance(detail.get("item"), dict):
             raise ValueError("artifact detail invalid")
+        if (
+            "current_price" not in item
+            or "current_price" not in detail["item"]
+        ):
+            raise ValueError("artifact price missing")
         index_price = item.get("current_price")
         detail_price = detail["item"].get("current_price")
         if index_price is None and detail_price is None:
