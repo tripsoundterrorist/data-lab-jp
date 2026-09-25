@@ -110,6 +110,8 @@ def validate(packet: Any, *, evaluated_at: datetime) -> dict[str, Any]:
         raise CtaRendererFailure("CANDIDATE_SCHEMA_INVALID")
     if type(candidate["title"]) is not str or not candidate["title"].strip():
         raise CtaRendererFailure("TITLE_INVALID")
+    if candidate["transparency_notice"] != unordered_contract.TRANSPARENCY_NOTICE:
+        raise CtaRendererFailure("TRANSPARENCY_NOTICE_INVALID")
     observed = _timestamp(candidate["api_observed_at"])
     if observed > as_of or not timedelta(0) <= now - observed <= MAX_AGE:
         raise CtaRendererFailure("CANDIDATE_STALE")

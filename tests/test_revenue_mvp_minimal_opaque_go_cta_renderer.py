@@ -74,6 +74,7 @@ class MinimalOpaqueGoCtaRendererTests(unittest.TestCase):
         value = packet(); value["extra"] = True; mutations.append(value)
         value = packet(); value["candidates"][0]["cta_href"] = "https://example.invalid"; mutations.append(value)
         value = packet(); value["candidates"][0]["disclosure_text"] = "FANZAで確認"; mutations.append(value)
+        value = packet(); value["candidates"][0]["transparency_notice"] = "arbitrary"; mutations.append(value)
         value = packet(); value["source_candidate_count"] = True; mutations.append(value)
         for value in mutations:
             with self.subTest(value=value), self.assertRaises(subject.CtaRendererFailure):
