@@ -329,6 +329,72 @@ def _snapshot_sha256(files: Mapping[str, bytes]) -> str:
     return digest.hexdigest()
 
 
+def _json_bytes(value: Any) -> bytes:
+    return (json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ) + "\n").encode("utf-8")
+
+
+def _detail_digest(files: Mapping[str, bytes]) -> str:
+    digest = hashlib.sha256()
+    for path in sorted(key for key in files if key.startswith("items/")):
+        digest.update(path.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(files[path])
+    return digest.hexdigest()
+
+
+def _filter_artifact_schema_candidates(files: Mapping[str, bytes]) -> dict[str, bytes]:
+    """Exclude items that cannot satisfy the current immutable public schema."""
+
+    documents = {
+        path: json.loads(content.decode("utf-8"))
+        for path, content in files.items()
+    }
+    manifest = documents.get("manifest.json")
+    index = documents.get("index.json")
+    if not isinstance(manifest, dict) or not isinstance(index, dict):
+        raise ValueError("artifact boundary invalid")
+    items = index.get("items")
+    if not isinstance(items, list):
+        raise ValueError("artifact index invalid")
+
+    included: list[dict[str, Any]] = []
+    output: dict[str, bytes] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError("artifact item invalid")
+        public_id = item.get("public_id")
+        if not isinstance(public_id, str):
+            raise ValueError("artifact public id invalid")
+        detail_path = f"items/{public_id[4:6]}/{public_id}.json"
+        detail = documents.get(detail_path)
+        if not isinstance(detail, dict) or not isinstance(detail.get("item"), dict):
+            raise ValueError("artifact detail invalid")
+        index_price = item.get("current_price")
+        detail_price = detail["item"].get("current_price")
+        if index_price is None and detail_price is None:
+            continue
+        if (
+            type(index_price) is not int
+            or index_price < 0
+            or type(detail_price) is not int
+            or detail_price < 0
+            or index_price != detail_price
+        ):
+            raise ValueError("artifact price invalid")
+        included.append(item)
+        output[detail_path] = _json_bytes(detail)
+
+    index["items"] = included
+    output["index.json"] = _json_bytes(index)
+    manifest["item_count"] = len(included)
+    manifest["index_sha256"] = hashlib.sha256(output["index.json"]).hexdigest()
+    manifest["detail_aggregate_sha256"] = _detail_digest(output)
+    output["manifest.json"] = _json_bytes(manifest)
+    return output
+
+
 def _safe_output_target(path: Path) -> Path:
     target = path.resolve()
     temp_root = Path(tempfile.gettempdir()).resolve(strict=True)
@@ -523,6 +589,8 @@ def run_revalidation(
             generated_at,
             receipts,
         )
+        if artifact_builder is _default_build:
+            files = _filter_artifact_schema_candidates(files)
         initial = validator.validate_artifacts(files)
         if initial.artifact_validation != validator.PASS:
             return _failure_after_source_read(
