@@ -3,12 +3,12 @@ import { handleAffiliatePagesCandidate } from "../../../runtime-candidates/affil
 // This scope is intentionally narrower than a global Publication Gate unlock.
 // D1 remains the final exact-one-row-per-request runtime eligibility boundary.
 export const ACTIVATION_SCOPE = Object.freeze({
-  candidateSha256: "1be517bb3448ad5c53c7df6eec0779138eea51fd192b1304533fd6aa3cf47f52",
-  artifactSha256: "1be517bb3448ad5c53c7df6eec0779138eea51fd192b1304533fd6aa3cf47f52",
+  candidateSha256: "c7d569dc732b73e4085c9d860f1a54c73c201b974d37dda7ae15d9c5193dddf1",
+  artifactSha256: "c7d569dc732b73e4085c9d860f1a54c73c201b974d37dda7ae15d9c5193dddf1",
   sourceSha256: "564bbeaf628de624e816ff8f2b4a3824119e338d3052e8d2594a084f06ef2e85",
   publicSurface: "/items/",
   routePrefix: "/go/",
-  maximumCtaCount: 94,
+  maximumCtaCount: 100,
   itemCount: 100,
   relayOperationGuaranteed: false,
   affiliateOutcomeGuaranteed: false,
