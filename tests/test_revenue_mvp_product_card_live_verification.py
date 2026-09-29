@@ -22,10 +22,11 @@ class ProductCardLiveVerificationTests(unittest.TestCase):
         deployment = self.value["deployment"]
         self.assertTrue(deployment["first_lifecycle_run_verified"])
         self.assertIsNone(deployment["lifecycle_cron"])
-        self.assertEqual(deployment["revalidation_status"], "LOCAL_CANARY_VERIFIED_PENDING_SCHEDULER")
+        self.assertEqual(deployment["revalidation_status"], "LOCAL_SCHEDULER_ACTIVE_PENDING_FIRST_SCHEDULED_RUN")
         self.assertEqual(deployment["first_lifecycle_run"]["restored_count"], 5)
         self.assertEqual(deployment["local_revalidation_canary"]["valid_count"], 5)
-        self.assertFalse(deployment["local_revalidation_canary"]["scheduler_registered"])
+        self.assertTrue(deployment["local_revalidation_canary"]["scheduler_registered"])
+        self.assertEqual(deployment["local_revalidation_canary"]["scheduler_time_jst"], "20:00")
         self.assertEqual(self.value["global_publication_gate"], "unchanged")
 
     def test_evidence_does_not_expose_private_values(self):
