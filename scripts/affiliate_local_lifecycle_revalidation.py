@@ -86,12 +86,26 @@ def _wrangler(arguments: list[str], runner: Callable[..., Any] = subprocess.run)
     )
 
 
+def _json_payload(stdout: Any) -> Any:
+    if not isinstance(stdout, str):
+        raise ValueError("output invalid")
+    stripped = stdout.lstrip()
+    if stripped.startswith("[") or stripped.startswith("{"):
+        return json.loads(stripped)
+    marker = stdout.find("\n[")
+    if marker < 0:
+        marker = stdout.find("\r\n[")
+    if marker < 0:
+        raise ValueError("output invalid")
+    return json.loads(stdout[marker + (2 if stdout.startswith("\r\n", marker) else 1):])
+
+
 def _select(runner: Callable[..., Any]) -> list[dict[str, str]]:
     process = _wrangler(
         ["d1", "execute", DATABASE_NAME, "--remote", "--json", "--command", SELECT_SQL],
         runner,
     )
-    payload = json.loads(process.stdout)
+    payload = _json_payload(process.stdout)
     if not isinstance(payload, list) or len(payload) != 1 or payload[0].get("success") is not True:
         raise RuntimeError("selection invalid")
     rows = payload[0].get("results")
@@ -107,7 +121,7 @@ def _select(runner: Callable[..., Any]) -> list[dict[str, str]]:
 
 def _write_succeeded(process: Any) -> bool:
     try:
-        payload = json.loads(process.stdout)
+        payload = _json_payload(process.stdout)
         return (isinstance(payload, list) and len(payload) >= 1
                 and all(entry.get("success") is True for entry in payload))
     except (AttributeError, TypeError, ValueError, json.JSONDecodeError):
