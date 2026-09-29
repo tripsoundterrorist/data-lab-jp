@@ -41,7 +41,7 @@ class CurrentRevenueStateTests(unittest.TestCase):
         self.assertTrue(result.affiliate_integration_allowed)
         self.assertFalse(result.production_write_allowed)
         self.assertEqual(result.next_action, "VERIFY_PRODUCT_CARD_CANARY_AT_EDGE")
-        self.assertEqual(result.affiliate_d1_enabled_row_count, 14)
+        self.assertEqual(result.affiliate_d1_enabled_row_count, 34)
 
     def test_artifact_mismatch_fails_closed(self):
         result = self.assess(artifact=self.artifact + b"\n")
