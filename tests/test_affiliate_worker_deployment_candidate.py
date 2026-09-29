@@ -30,12 +30,12 @@ class AffiliateWorkerDeploymentCandidateTests(unittest.TestCase):
 
     def test_release_facts_are_bound_to_the_approved_activation_scope(self):
         expected_scope = {
-            "candidateSha256": "1be517bb3448ad5c53c7df6eec0779138eea51fd192b1304533fd6aa3cf47f52",
-            "artifactSha256": "1be517bb3448ad5c53c7df6eec0779138eea51fd192b1304533fd6aa3cf47f52",
+            "candidateSha256": "c7d569dc732b73e4085c9d860f1a54c73c201b974d37dda7ae15d9c5193dddf1",
+            "artifactSha256": "c7d569dc732b73e4085c9d860f1a54c73c201b974d37dda7ae15d9c5193dddf1",
             "sourceSha256": "564bbeaf628de624e816ff8f2b4a3824119e338d3052e8d2594a084f06ef2e85",
             "publicSurface": "/items/",
             "routePrefix": "/go/",
-            "maximumCtaCount": 94,
+            "maximumCtaCount": 100,
             "itemCount": 100,
             "relayOperationGuaranteed": False,
             "affiliateOutcomeGuaranteed": False,
