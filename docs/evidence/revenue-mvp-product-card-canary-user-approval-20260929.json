@@ -1,0 +1,18 @@
+{
+  "version": "0.1",
+  "source": "CONTROL_CENTER_USER_MESSAGE",
+  "decision": "APPROVED_FOR_PRODUCTION",
+  "user_direction": "最速で進める。収益性を最優先し、商品ごとのリンクを実装する。",
+  "approved_scope": {
+    "candidate_sha256": "67ee750902e16cab3b15778e03926caee092b56b629d0d2abb5ce2fd67c85786",
+    "public_route": "/items/",
+    "item_count": 100,
+    "image_count": 100,
+    "maximum_cta_count": 4,
+    "official_image_host_only": true,
+    "opaque_public_id_only": true,
+    "proximate_pr_disclosure_required": true,
+    "free_plan_only": true,
+    "global_publication_gate_unchanged": true
+  }
+}

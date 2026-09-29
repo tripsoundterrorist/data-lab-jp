@@ -20,11 +20,14 @@ ARTIFACT_PATH = ROOT / "items" / "index.html"
 VERSION = "0.1"
 LIVE_AFFILIATE_CLOSED = "REVENUE_SURFACE_LIVE_AFFILIATE_GATE_CLOSED"
 APPROVED_CANARY_PENDING_EDGE = "REVENUE_SURFACE_APPROVED_ONE_CTA_PENDING_EDGE_VERIFICATION"
+PRODUCT_CARD_CANARY_PENDING_EDGE = "REVENUE_SURFACE_PRODUCT_CARD_CANARY_PENDING_EDGE_VERIFICATION"
 FAIL_CLOSED = "CURRENT_REVENUE_STATE_FAIL_CLOSED"
 EXPECTED_SHA256 = "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d"
 APPROVED_CANARY_SHA256 = "62ad8f93cc91769b5c92854bc4ff2ccb6bb4e939d8791a8b36245d4c93878374"
 APPROVED_CANARY_CANONICAL_SHA256 = "bb65f1a2e8b437de4d1f26e224733c9341aa0d85d46752e12d0c857108d54c11"
 CANARY_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-one-cta-final-user-approval-20260929.json"
+PRODUCT_CARD_SHA256 = "67ee750902e16cab3b15778e03926caee092b56b629d0d2abb5ce2fd67c85786"
+PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-card-canary-user-approval-20260929.json"
 EXPECTED_COUNT = 100
 EXPECTED_ROUTE = "/items/"
 
@@ -74,6 +77,44 @@ def assess(receipt: Any, artifact_bytes: bytes, preflight: Any, route: Any, d1: 
     try:
         raw_artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()
         artifact_sha256 = _canonical_sha256(artifact_bytes)
+        if raw_artifact_sha256 == PRODUCT_CARD_SHA256 or artifact_sha256 == PRODUCT_CARD_SHA256:
+            approval = json.loads(PRODUCT_CARD_APPROVAL_PATH.read_text(encoding="utf-8"))
+            text = artifact_bytes.decode("utf-8")
+            scope = approval.get("approved_scope", {})
+            image_urls = re.findall(r'<img class="card-image" src="([^"]+)"', text)
+            product_card_valid = (
+                approval.get("decision") == "APPROVED_FOR_PRODUCTION"
+                and scope.get("candidate_sha256") == PRODUCT_CARD_SHA256
+                and scope.get("public_route") == EXPECTED_ROUTE
+                and scope.get("item_count") == EXPECTED_COUNT
+                and scope.get("image_count") == EXPECTED_COUNT
+                and scope.get("maximum_cta_count") == 4
+                and text.count('class="item"') == EXPECTED_COUNT
+                and len(image_urls) == EXPECTED_COUNT
+                and all(url.startswith("https://pics.dmm.co.jp/") for url in image_urls)
+                and text.count('class="affiliate-cta-block"') == 4
+                and len(re.findall(r'href="/go/itm_[0-9a-f]{24}"', text)) == 4
+                and text.count("【PR】") == 4
+                and text.count('rel="noopener noreferrer sponsored"') == 4
+                and 'name="robots" content="noindex,nofollow"' in text
+                and "affiliateURL" not in text
+            )
+            if not product_card_valid:
+                return _failed("PRODUCT_CARD_CANARY_ARTIFACT_INVALID")
+            return CurrentRevenueState(
+                VERSION, PRODUCT_CARD_CANARY_PENDING_EDGE, "P0", True,
+                "UNORDERED_REDUCED_SURFACE_PRODUCT_CARD_CANARY", EXPECTED_ROUTE,
+                EXPECTED_COUNT, False, True, True, 4, True, True, False,
+                False, "VERIFY_PRODUCT_CARD_CANARY_AT_EDGE",
+                (
+                    "EXACT_APPROVED_PRODUCT_CARD_ARTIFACT_PRESENT",
+                    "ONE_HUNDRED_OFFICIAL_IMAGES_PRESENT",
+                    "FOUR_PROXIMATE_PR_DISCLOSED_CTAS_PRESENT",
+                    "OPAQUE_SAME_ORIGIN_GO_ROUTE_ONLY",
+                    "EDGE_VERIFICATION_REQUIRED_AFTER_DEPLOYMENT",
+                    "GLOBAL_PUBLICATION_GATE_UNCHANGED",
+                ),
+            )
         if (
             raw_artifact_sha256 == APPROVED_CANARY_SHA256
             or artifact_sha256 == APPROVED_CANARY_CANONICAL_SHA256
@@ -190,7 +231,10 @@ def current_state() -> CurrentRevenueState:
 def main() -> int:
     result = current_state()
     print(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
-    return 0 if result.status in (LIVE_AFFILIATE_CLOSED, APPROVED_CANARY_PENDING_EDGE) else 2
+    return 0 if result.status in (
+        LIVE_AFFILIATE_CLOSED, APPROVED_CANARY_PENDING_EDGE,
+        PRODUCT_CARD_CANARY_PENDING_EDGE,
+    ) else 2
 
 
 if __name__ == "__main__":
