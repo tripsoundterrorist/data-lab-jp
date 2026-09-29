@@ -35,7 +35,7 @@
       "restored_count": 5,
       "enabled_count_after_recovery": 100
     },
-    "revalidation_status": "LOCAL_CANARY_VERIFIED_PENDING_SCHEDULER",
+    "revalidation_status": "LOCAL_SCHEDULER_ACTIVE_PENDING_FIRST_SCHEDULED_RUN",
     "local_revalidation_canary": {
       "checked_at": "2026-09-29T15:03:06Z",
       "selected_count": 5,
@@ -46,7 +46,13 @@
       "enabled_count_after_canary": 100,
       "production_smoke_checked_url_count": 14,
       "production_smoke_failed_url_count": 0,
-      "scheduler_registered": false
+      "scheduler_registered": true,
+      "scheduler_time_jst": "20:00",
+      "scheduler_batch_size": 5,
+      "scheduler_manual_smoke_last_task_result": 0,
+      "scheduler_manual_smoke_valid_count": 5,
+      "scheduler_manual_smoke_disabled_count": 0,
+      "residual_worker_cron_explicitly_removed": true
     }
   },
   "global_publication_gate": "unchanged",

@@ -24,6 +24,7 @@ PRODUCT_CARD_CANARY_PENDING_EDGE = "REVENUE_SURFACE_PRODUCT_CARD_CANARY_PENDING_
 PRODUCT_CARD_LIVE_REVALIDATION_PENDING = "REVENUE_SURFACE_PRODUCT_CARD_LIVE_REVALIDATION_PENDING_FIRST_RUN"
 PRODUCT_CARD_LIVE_REVALIDATION_PAUSED = "REVENUE_SURFACE_PRODUCT_CARD_LIVE_REVALIDATION_PAUSED_TRANSPORT_INCOMPATIBLE"
 PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY = "REVENUE_SURFACE_PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY_VERIFIED"
+PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE = "REVENUE_SURFACE_PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE"
 FAIL_CLOSED = "CURRENT_REVENUE_STATE_FAIL_CLOSED"
 EXPECTED_SHA256 = "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d"
 APPROVED_CANARY_SHA256 = "62ad8f93cc91769b5c92854bc4ff2ccb6bb4e939d8791a8b36245d4c93878374"
@@ -136,7 +137,7 @@ def assess(
                 and re.fullmatch(r"[0-9a-f-]{36}", deployment.get("worker_version_id", "")) is not None
                 and deployment.get("lifecycle_cron") is None
                 and deployment.get("first_lifecycle_run_verified") is True
-                and deployment.get("revalidation_status") == "LOCAL_CANARY_VERIFIED_PENDING_SCHEDULER"
+                and deployment.get("revalidation_status") == "LOCAL_SCHEDULER_ACTIVE_PENDING_FIRST_SCHEDULED_RUN"
                 and first_run.get("checked_count") == 5
                 and first_run.get("valid_count") == 0
                 and first_run.get("disabled_count") == 5
@@ -154,16 +155,22 @@ def assess(
                 and local_canary.get("enabled_count_after_canary") == EXPECTED_COUNT
                 and local_canary.get("production_smoke_checked_url_count") == 14
                 and local_canary.get("production_smoke_failed_url_count") == 0
-                and local_canary.get("scheduler_registered") is False
+                and local_canary.get("scheduler_registered") is True
+                and local_canary.get("scheduler_time_jst") == "20:00"
+                and local_canary.get("scheduler_batch_size") == 5
+                and local_canary.get("scheduler_manual_smoke_last_task_result") == 0
+                and local_canary.get("scheduler_manual_smoke_valid_count") == 5
+                and local_canary.get("scheduler_manual_smoke_disabled_count") == 0
+                and local_canary.get("residual_worker_cron_explicitly_removed") is True
                 and live.get("global_publication_gate") == "unchanged"
                 and live.get("paid_plan_change") is False
             )
             if live_verified:
                 return CurrentRevenueState(
-                    VERSION, PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY, "P0", True,
+                    VERSION, PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE, "P0", True,
                     "UNORDERED_REDUCED_SURFACE_PRODUCT_CARD_LIVE", EXPECTED_ROUTE,
                     EXPECTED_COUNT, True, True, True, EXPECTED_COUNT, True, True,
-                    False, False, "REVIEW_LOCAL_REVALIDATION_SCHEDULER_ACTIVATION",
+                    False, False, "VERIFY_FIRST_AUTOMATIC_LOCAL_REVALIDATION_RUN",
                     (
                         "PRODUCTION_PRODUCT_CARD_ARTIFACT_EXACT_MATCH_VERIFIED",
                         "ONE_HUNDRED_OFFICIAL_IMAGES_LIVE",
@@ -174,7 +181,9 @@ def assess(
                         "WORKER_CRON_DISABLED_AFTER_BOUNDED_FAILURE",
                         "FIVE_ROWS_LOCALLY_REVERIFIED_AND_RESTORED",
                         "LOCAL_REVALIDATION_CANARY_FIVE_OF_FIVE_VALID",
-                        "LOCAL_REVALIDATION_SCHEDULER_NOT_REGISTERED",
+                        "LOCAL_REVALIDATION_SCHEDULER_ACTIVE_AT_20_00_JST",
+                        "LOCAL_REVALIDATION_TASK_MANUAL_SMOKE_PASSED",
+                        "RESIDUAL_WORKER_CRON_EXPLICITLY_REMOVED",
                         "GLOBAL_PUBLICATION_GATE_UNCHANGED",
                     ),
                 )
@@ -317,6 +326,7 @@ def main() -> int:
         PRODUCT_CARD_CANARY_PENDING_EDGE, PRODUCT_CARD_LIVE_REVALIDATION_PENDING,
         PRODUCT_CARD_LIVE_REVALIDATION_PAUSED,
         PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY,
+        PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE,
     ) else 2
 
 
