@@ -56,9 +56,9 @@ class AffiliateWorkerDeploymentCandidateTests(unittest.TestCase):
         self.assertNotIn("DMM_AFFILIATE_ID =", self.config)
         self.assertNotIn("AFFILIATE_CLIENT_KEY_SECRET =", self.config)
 
-    def test_lifecycle_revalidation_schedule_is_bounded_and_utc(self):
-        self.assertIn('[triggers]', self.config)
-        self.assertIn('crons = ["17 * * * *"]', self.config)
+    def test_lifecycle_revalidation_handler_is_inert_without_a_trigger(self):
+        self.assertNotIn('[triggers]', self.config)
+        self.assertNotIn('crons =', self.config)
         self.assertIn("async scheduled(controller, env, ctx)", self.entrypoint)
         self.assertIn("runAffiliateLifecycleRevalidation", self.entrypoint)
         self.assertNotIn("ctx.waitUntil", self.entrypoint)
