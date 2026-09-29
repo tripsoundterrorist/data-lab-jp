@@ -41,12 +41,15 @@ class LocalLifecycleTests(unittest.TestCase):
 
     def test_default_is_read_only_dry_run(self):
         calls = []
-        result = subject.run_cycle(runner=lambda *a, **k: calls.append(a) or Process(stdout=selection()))
+        options = []
+        result = subject.run_cycle(runner=lambda *a, **k: (calls.append(a), options.append(k), Process(stdout=selection()))[-1])
         self.assertEqual("READY", result.status)
         self.assertEqual("DRY_RUN", result.mode)
         self.assertEqual(2, result.selected)
         self.assertFalse(result.database_write_performed)
         self.assertEqual(1, len(calls))
+        self.assertEqual("utf-8", options[0]["encoding"])
+        self.assertEqual("replace", options[0]["errors"])
 
     def test_live_requires_exact_confirmation(self):
         result = subject.run_cycle(execute=True, confirmed=False, runner=lambda *a, **k: None)
