@@ -20,6 +20,15 @@ data deployment, or GA4 transmission.
 All four events remain parameter-free. Consent enforcement remains owned by
 `analytics-consent.js` and is verified separately.
 
+The server-rendered production list uses the same parameter-free boundary:
+
+- `items/discovery.js` emits `view_item_list` after `DOMContentLoaded`;
+- selecting any rendered `.affiliate-cta-link` emits
+  `outbound_product_click`;
+- no item identifier, title, URL, price, query, or referrer is attached;
+- an absent, denied, or unavailable analytics receiver fails soft and never
+  blocks the CTA navigation.
+
 ## Execution boundary
 
 CI runs the Node harness. A local machine without Node.js skips only this

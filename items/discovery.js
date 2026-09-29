@@ -9,6 +9,14 @@
   const pageStatus = document.querySelector("#page-status");
   if (!grid || !search || !priceFilter || !sort || !resultCount || !pageStatus) return;
 
+  const trackFunnelEvent = (name) => {
+    try {
+      return window.dataLabAnalytics?.trackEvent(name) === true;
+    } catch (_) {
+      return false;
+    }
+  };
+
   const normalize = (value) => value.normalize("NFKC").toLocaleLowerCase("ja").trim();
   const cards = Array.from(grid.querySelectorAll(":scope > .item")).map((element, index) => {
     const priceText = element.querySelector(".price")?.textContent || "";
@@ -54,5 +62,9 @@
   search.addEventListener("input", update);
   priceFilter.addEventListener("change", update);
   sort.addEventListener("change", update);
+  document.querySelectorAll(".affiliate-cta-link").forEach((link) => {
+    link.addEventListener("click", () => trackFunnelEvent("outbound_product_click"));
+  });
+  document.addEventListener("DOMContentLoaded", () => trackFunnelEvent("view_item_list"));
   update();
 })();

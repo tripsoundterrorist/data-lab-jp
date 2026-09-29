@@ -1,4 +1,6 @@
 from pathlib import Path
+import shutil
+import subprocess
 import unittest
 
 
@@ -29,6 +31,37 @@ class DiscoveryControlsTests(unittest.TestCase):
     def test_hidden_cards_override_existing_flex_layout(self):
         css = (ROOT / "items" / "items.css").read_text(encoding="utf-8")
         self.assertIn(".item[hidden] { display: none; }", css)
+
+    def test_live_list_funnel_events_are_parameter_free_and_fail_soft(self):
+        self.assertIn('trackFunnelEvent("view_item_list")', self.source)
+        self.assertIn('trackFunnelEvent("outbound_product_click")', self.source)
+        self.assertIn('document.querySelectorAll(".affiliate-cta-link")', self.source)
+        self.assertNotIn("dataset", self.source)
+        self.assertNotIn("content_id", self.source)
+
+    def test_live_list_funnel_runtime_boundary(self):
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js is not installed or is not available on PATH")
+        result = subprocess.run(
+            [node, str(ROOT / "tests" / "discovery_funnel_runtime_harness.js")],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_discovery_javascript_is_syntactically_valid(self):
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js is not installed or is not available on PATH")
+        result = subprocess.run(
+            [node, "--check", str(ROOT / "items" / "discovery.js")],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 if __name__ == "__main__":
