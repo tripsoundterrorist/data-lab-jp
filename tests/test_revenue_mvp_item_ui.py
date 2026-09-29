@@ -34,6 +34,21 @@ class RevenueMvpItemUiTests(unittest.TestCase):
             rule = self.styles.split(selector, 1)[1].split("}", 1)[0]
             self.assertIn("min-height: 44px", rule)
 
+    def test_affiliate_cta_is_full_width_and_card_bottom_aligned(self):
+        block_rule = self.styles.split(".affiliate-cta-block", 1)[1].split("}", 1)[0]
+        link_rule = self.styles.split(".affiliate-cta-link", 1)[1].split("}", 1)[0]
+        self.assertIn("margin-top: auto", block_rule)
+        self.assertIn("padding-block: 14px", block_rule)
+        self.assertIn("display: flex", link_rule)
+        self.assertIn("width: 100%", link_rule)
+        self.assertIn("min-height: 48px", link_rule)
+        self.assertIn("justify-content: center", link_rule)
+        self.assertIn("text-decoration: none", link_rule)
+
+    def test_narrow_mobile_cta_is_at_least_52px_high(self):
+        narrow = self.styles.split("@media (max-width: 430px)", 1)[1]
+        self.assertIn(".affiliate-cta-link { min-height: 52px; }", narrow)
+
     def test_dynamic_results_use_bounded_live_regions(self):
         self.assertIn('id="result-count" role="status" aria-live="polite"', self.index)
         self.assertIn('id="page-status" aria-live="polite"', self.index)
