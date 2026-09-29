@@ -29,7 +29,9 @@ const SAFE_DIAGNOSTIC_REASONS = new Set([
   "PROVIDER_RESPONSE_TOO_LARGE",
   "PROVIDER_RESPONSE_READ_FAILED",
   "PROVIDER_RESPONSE_INVALID",
+  "PROVIDER_DELIVERY_FAILED",
   "PROVIDER_INTERNAL_ERROR",
+  "ENTRYPOINT_INTERNAL_ERROR",
 ]);
 
 function fallback(status = 404) {
@@ -93,7 +95,9 @@ export async function handleAffiliatePagesCandidate(
       createAffiliateBlockedResponse(result), request, env, result?.reason_codes?.[0],
     );
   } catch (_) {
-    return fallback(404);
+    return privateDiagnosticResponse(
+      fallback(404), context?.request, context?.env, "ENTRYPOINT_INTERNAL_ERROR",
+    );
   }
 }
 
