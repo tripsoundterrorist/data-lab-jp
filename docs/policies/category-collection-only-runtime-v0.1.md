@@ -41,6 +41,16 @@ live canary, database audit, and operating-time review passed. It is separated
 from the Revenue collector at 16:00 JST. Scheduling does not authorize
 publication or affiliate use.
 
+The task must start after a missed 15:00 trigger, wake the machine when allowed,
+and continue if the machine changes to battery power after launch. These
+resilience settings do not change its trigger, action, collection limits, or
+collection-only boundary. Inspect without mutation, then apply explicitly:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/harden-category-collector-schedule.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/harden-category-collector-schedule.ps1 -Apply
+```
+
 Read-only health check:
 
 ```powershell
