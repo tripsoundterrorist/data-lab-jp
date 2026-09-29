@@ -4,6 +4,7 @@ import { runAffiliateRuntimeCandidate } from
 
 const publicId = "itm_0123456789abcdef01234567";
 const contentId = "lookup-content-001";
+const affiliateUrl = "https://al.dmm.co.jp/?fixture=1";
 const facts = {
   officialAnswerCandidate: true,
   publicationGateEligible: true,
@@ -38,10 +39,10 @@ assert.deepEqual(blocked.result.reason_codes, ["AFFILIATE_ITEM_NOT_ELIGIBLE"]);
 assert.equal(blocked.queries, 1);
 assert.equal(blocked.pipelineCalls, 0);
 
-const eligible = await run({ results: [{ content_id: contentId }] });
+const eligible = await run({ results: [{ content_id: contentId, affiliate_url: affiliateUrl }] });
 assert.equal(eligible.result, eligible.sentinel);
 assert.equal(eligible.pipelineCalls, 1);
-assert.equal(eligible.received, contentId);
+assert.deepEqual(eligible.received, { content_id: contentId, affiliate_url: affiliateUrl });
 
 for (const changes of [
   { factChanges: { officialAnswerCandidate: false } },
@@ -51,7 +52,7 @@ for (const changes of [
   { path: `/go/${publicId}?unexpected=1` },
   { method: "POST" },
 ]) {
-  const actual = await run({ ...changes, results: [{ content_id: contentId }] });
+  const actual = await run({ ...changes, results: [{ content_id: contentId, affiliate_url: affiliateUrl }] });
   assert.equal(actual.pipelineCalls, 0);
   assert.equal(actual.queries, 0);
 }

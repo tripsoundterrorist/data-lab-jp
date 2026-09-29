@@ -1,7 +1,7 @@
 import { assessCloudflareCandidate } from "./cloudflare-affiliate-route.mjs";
 import { deriveAffiliateOpaqueClientKey } from "./affiliate-client-key-derivation.mjs";
 import { runPerClientAffiliateRuntimeCandidate } from "./affiliate-runtime-per-client-composition.mjs";
-import { deliverPrevalidatedDmmAffiliateUrl } from "./affiliate-workers-dmm-provider.mjs";
+import { deliverStoredDmmAffiliateUrl } from "./affiliate-workers-dmm-provider.mjs";
 import { createAffiliateBlockedResponse } from "./affiliate-blocked-response-adapter.mjs";
 
 const REDIRECT_HEADERS = Object.freeze({
@@ -78,8 +78,8 @@ export async function handleAffiliatePagesCandidate(
     let redirectResponse = null;
     const result = await runPerClientAffiliateRuntimeCandidate(
       request, env, releaseFacts, clientKey.opaque_client_key,
-      async (contentId) => deliverPrevalidatedDmmAffiliateUrl(
-        env, contentId,
+      async (target) => deliverStoredDmmAffiliateUrl(
+        target,
         async (affiliateUrl) => {
           redirectResponse = new Response(null, {
             status: 302,

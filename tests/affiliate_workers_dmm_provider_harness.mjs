@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  deliverStoredDmmAffiliateUrl,
   deliverPrevalidatedDmmAffiliateUrl,
   fetchAndDeliverDmmAffiliateUrl,
 } from "../runtime-candidates/affiliate-workers-dmm-provider.mjs";
@@ -70,4 +71,26 @@ for (const candidateEnv of [
   );
   assert.equal(result.status, "FAIL_CLOSED");
   assert.equal(result.delivery_attempted, false);
+}
+
+let storedReceived = null;
+const stored = await deliverStoredDmmAffiliateUrl(
+  { content_id: contentId, affiliate_url: affiliateUrl },
+  async (url) => { storedReceived = url; },
+);
+assert.equal(stored.status, "DELIVERED");
+assert.equal(storedReceived, affiliateUrl);
+assert.equal(JSON.stringify(stored).includes(affiliateUrl), false);
+for (const target of [
+  null,
+  { content_id: contentId },
+  { content_id: "bad/content", affiliate_url: affiliateUrl },
+  { content_id: contentId, affiliate_url: "http://al.dmm.co.jp/unsafe" },
+  { content_id: contentId, affiliate_url: "https://evil.invalid/" },
+  { content_id: contentId, affiliate_url: affiliateUrl, extra: true },
+]) {
+  let deliveries = 0;
+  const result = await deliverStoredDmmAffiliateUrl(target, async () => { deliveries += 1; });
+  assert.equal(result.status, "FAIL_CLOSED");
+  assert.equal(deliveries, 0);
 }

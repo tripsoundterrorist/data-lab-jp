@@ -118,4 +118,26 @@ export async function deliverPrevalidatedDmmAffiliateUrl(
   }
 }
 
+// The URL was verified before being written to private D1 state. Revalidate the
+// content ID and destination boundary on every request before delivery.
+export async function deliverStoredDmmAffiliateUrl(
+  target, deliverAffiliateUrl,
+) {
+  try {
+    if (!target || Object.keys(target).length !== 2 ||
+        !CONTENT_ID.test(target.content_id) || !allowedAffiliateUrl(target.affiliate_url) ||
+        typeof deliverAffiliateUrl !== "function") {
+      return outcome("FAIL_CLOSED", false, "PROVIDER_INPUT_INVALID");
+    }
+    try {
+      await deliverAffiliateUrl(target.affiliate_url);
+    } catch (_) {
+      return outcome("FAIL_CLOSED", true, "PROVIDER_DELIVERY_FAILED");
+    }
+    return outcome("DELIVERED", true, "PROVIDER_STORED_URL_DELIVERED");
+  } catch (_) {
+    return outcome("FAIL_CLOSED", false, "PROVIDER_INTERNAL_ERROR");
+  }
+}
+
 export const AFFILIATE_WORKERS_DMM_PROVIDER_VERSION = "0.1";

@@ -43,3 +43,28 @@ WHERE affiliate_enabled = 1
   AND rights_status = 'CONDITIONALLY_APPROVED'
   AND lifecycle_status = 'RESOLVED'
   AND verification_status = 'PASS';
+
+-- Affiliate URLs are deliberately kept in private D1 state. They must never be
+-- exported to public JSON, HTML, logs, or repository fixtures.
+CREATE TABLE affiliate_redirect_target (
+    public_id TEXT PRIMARY KEY
+        REFERENCES affiliate_item_lookup(public_id) ON DELETE CASCADE,
+    content_id TEXT NOT NULL UNIQUE
+        CHECK (
+            length(content_id) BETWEEN 1 AND 128
+            AND content_id NOT GLOB '*[^A-Za-z0-9._-]*'
+        ),
+    affiliate_url TEXT NOT NULL
+        CHECK (
+            length(affiliate_url) BETWEEN 12 AND 4096
+            AND substr(affiliate_url, 1, 8) = 'https://'
+        ),
+    verified_at TEXT NOT NULL
+) STRICT;
+
+CREATE VIEW affiliate_runtime_redirect_target AS
+SELECT eligible.public_id, eligible.content_id, target.affiliate_url
+FROM affiliate_runtime_eligible_lookup AS eligible
+JOIN affiliate_redirect_target AS target
+  ON target.public_id = eligible.public_id
+ AND target.content_id = eligible.content_id;

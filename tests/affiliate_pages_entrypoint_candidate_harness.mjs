@@ -11,12 +11,12 @@ const facts = { officialAnswerCandidate: true, publicationGateEligible: true, ru
 function context({ eligible = true, limited = false, method = "GET", address = "203.0.113.10" } = {}) {
   let queries = 0;
   let limits = 0;
-  const database = { prepare() { queries += 1; return { bind() { return { async all() { return { success: true, results: eligible ? [{ content_id: contentId }] : [] }; } }; } }; } };
+  const database = { prepare() { queries += 1; return { bind() { return { async all() { return { success: true, results: eligible ? [{ content_id: contentId, affiliate_url: affiliateUrl }] : [] }; } }; } }; } };
   const rate = { async limit() { limits += 1; return { success: !limited }; } };
   return {
     value: {
       request: new Request(`https://candidate.invalid/go/${publicId}`, { method, headers: { "CF-Connecting-IP": address } }),
-      env: { DMM_API_ID: "fixture-api", DMM_AFFILIATE_ID: "fixture-affiliate", DMM_PREVALIDATED_CONTENT_ID: contentId, DMM_PREVALIDATED_AFFILIATE_URL: affiliateUrl, AFFILIATE_CLIENT_KEY_SECRET: "fixture-secret-with-at-least-32-characters", AFFILIATE_ITEM_LOOKUP: database, AFFILIATE_CLIENT_RATE_LIMITER: rate },
+      env: { DMM_API_ID: "fixture-api", DMM_AFFILIATE_ID: "fixture-affiliate", AFFILIATE_CLIENT_KEY_SECRET: "fixture-secret-with-at-least-32-characters", AFFILIATE_ITEM_LOOKUP: database, AFFILIATE_CLIENT_RATE_LIMITER: rate },
     },
     counts: () => ({ queries, limits }),
   };
