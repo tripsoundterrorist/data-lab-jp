@@ -26,8 +26,8 @@ PASS = "ONE_CARD_CTA_LIVE_INTEGRATION_PREFLIGHT_PASS"
 BLOCKED = "ONE_CARD_CTA_LIVE_INTEGRATION_BLOCKED"
 PUBLIC_ID = re.compile(r"itm_[0-9a-f]{24}\Z")
 SOURCE_SHA256 = "564bbeaf628de624e816ff8f2b4a3824119e338d3052e8d2594a084f06ef2e85"
-APPROVED_ARTIFACT_SHA256 = "a8fa335543cfe9b737494588e0ebd53409b0c5931593c141dc3fe224eb32811e"
-APPROVAL_EVIDENCE_PATH = (Path(__file__).resolve().parents[1] / "docs/evidence/revenue-mvp-minimal-opaque-go-cta-user-approval-20260929.json")
+APPROVED_ARTIFACT_SHA256 = "10aafd067419cfec813ed9614db33407833fc577fb44365bc55080df354095b9"
+APPROVAL_EVIDENCE_PATH = (Path(__file__).resolve().parents[1] / "docs/evidence/revenue-mvp-minimal-opaque-go-cta-user-approval-20260929-d1-intersection.json")
 ITEM_COUNT = 100
 CARD = re.compile(r'<article class="item"><h2>(.*?)</h2><p class="price">([0-9][0-9,]*)円</p><time>([^<]+)</time></article>', re.DOTALL)
 CTA_BLOCK = (
@@ -130,6 +130,8 @@ def _approval_scope_valid() -> None:
             type(scope.get("maximum_cta_count")) is not int or scope["maximum_cta_count"] != 1,
             type(scope.get("existing_live_item_count_must_be_preserved")) is not int or scope["existing_live_item_count_must_be_preserved"] != ITEM_COUNT,
             any(scope.get(name) is not True for name in ("opaque_public_id_only", "proximate_pr_disclosure_required", "free_plan_only")),
+            scope.get("selection_method") != "EXACT_REVIEWED_D1_INTERSECTION_ID",
+            type(scope.get("d1_match_count")) is not int or scope["d1_match_count"] != 1,
         )):
             raise ValueError
     except (OSError, ValueError, TypeError, KeyError):
