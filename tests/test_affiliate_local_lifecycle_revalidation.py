@@ -28,7 +28,7 @@ def selection(rows=ROWS):
 
 
 def write_success():
-    return json.dumps([{"success": True, "results": []}])
+    return "upload progress\n" + json.dumps([{"success": True, "results": []}])
 
 
 class LocalLifecycleTests(unittest.TestCase):
