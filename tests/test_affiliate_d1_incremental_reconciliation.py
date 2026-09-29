@@ -28,14 +28,20 @@ def candidate(rows: list[tuple[str, str]]) -> bytes:
     return ("\n".join(lines) + "\n").encode()
 
 
-def remote(rows: list[tuple[str, str]], *, enabled: int = 0) -> bytes:
+def remote(
+    rows: list[tuple[str, str]], *, enabled: int = 0,
+    rights: str = "PENDING_SEPARATE_POLICY",
+    lifecycle: str = "PENDING_OFFICIAL_CONFIRMATION",
+    verification: str = "PENDING",
+    updated_at: str = "1970-01-01T00:00:00Z",
+) -> bytes:
     lines = ["PRAGMA defer_foreign_keys=TRUE;"]
     lines.extend(
         'INSERT INTO "affiliate_item_lookup" '
         '("public_id","content_id","rights_status","lifecycle_status",'
         '"verification_status","affiliate_enabled","updated_at") VALUES'
-        f"('{public_id}','{content_id}','PENDING_SEPARATE_POLICY',"
-        f"'PENDING_OFFICIAL_CONFIRMATION','PENDING',{enabled},'1970-01-01T00:00:00Z');"
+        f"('{public_id}','{content_id}','{rights}',"
+        f"'{lifecycle}','{verification}',{enabled},'{updated_at}');"
         for public_id, content_id in rows
     )
     return ("\n".join(lines) + "\n").encode()
@@ -93,6 +99,20 @@ class IncrementalReconciliationTests(unittest.TestCase):
         self.assertEqual(FAIL_CLOSED, result.status)
         self.assertIn("INPUT_FORMAT_INVALID", result.reason_codes)
         self.assertIsNone(delta)
+
+    def test_valid_enabled_remote_row_can_be_reconciled_without_status_mutation(self):
+        remote_bytes = remote(
+            ROWS[:1], enabled=1, rights="CONDITIONALLY_APPROVED",
+            lifecycle="RESOLVED", verification="PASS",
+            updated_at="2026-09-29T16:35:00Z",
+        )
+        result, delta = self.reconcile(remote_bytes, candidate(ROWS))
+        self.assertEqual(READY, result.status)
+        self.assertEqual(1, result.missing_row_count)
+        self.assertTrue(result.remote_subset_verified)
+        self.assertFalse(result.all_remote_rows_disabled_and_pending)
+        self.assertNotIn(ROWS[0][0].encode(), delta)
+        self.assertIn(ROWS[1][0].encode(), delta)
 
     def test_identity_mismatch_fails_closed(self):
         result, delta = self.reconcile(

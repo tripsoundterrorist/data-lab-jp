@@ -35,8 +35,9 @@ REMOTE_INSERT = re.compile(
     r'\("public_id","content_id","rights_status","lifecycle_status",'
     r'"verification_status","affiliate_enabled","updated_at"\) VALUES'
     r"\('(itm_[0-9a-f]{24})','([A-Za-z0-9._-]{1,128})',"
-    r"'PENDING_SEPARATE_POLICY','PENDING_OFFICIAL_CONFIRMATION','PENDING',0,"
-    r"'1970-01-01T00:00:00Z'\);\Z"
+    r"'(CONDITIONALLY_APPROVED|PENDING_SEPARATE_POLICY|PROHIBITED)',"
+    r"'(PENDING_OFFICIAL_CONFIRMATION|RESOLVED)',"
+    r"'(PASS|PENDING|FAILED)',([01]),'([^'\r\n]{1,64})'\);\Z"
 )
 
 
@@ -90,17 +91,31 @@ def _parse_candidate(data: bytes) -> list[tuple[str, str]]:
     return rows
 
 
-def _parse_remote(data: bytes) -> list[tuple[str, str]]:
+def _parse_remote(data: bytes) -> tuple[list[tuple[str, str]], bool]:
     lines = data.decode("utf-8").splitlines()
     if not lines or lines[0] != "PRAGMA defer_foreign_keys=TRUE;":
         raise ValueError("remote boundary")
     rows: list[tuple[str, str]] = []
+    all_disabled_and_pending = True
     for line in lines[1:]:
         match = REMOTE_INSERT.fullmatch(line)
         if match is None:
             raise ValueError("remote statement")
-        rows.append(match.groups())
-    return rows
+        public_id, content_id, rights, lifecycle, verification, enabled, _updated = match.groups()
+        if enabled == "1" and (
+            rights != "CONDITIONALLY_APPROVED"
+            or lifecycle != "RESOLVED"
+            or verification != "PASS"
+        ):
+            raise ValueError("remote eligibility invariant")
+        all_disabled_and_pending = all_disabled_and_pending and (
+            rights == "PENDING_SEPARATE_POLICY"
+            and lifecycle == "PENDING_OFFICIAL_CONFIRMATION"
+            and verification == "PENDING"
+            and enabled == "0"
+        )
+        rows.append((public_id, content_id))
+    return rows, all_disabled_and_pending
 
 
 def _unique_mapping(rows: list[tuple[str, str]]) -> bool:
@@ -147,14 +162,14 @@ def reconcile_snapshots(
         ):
             return _result(FAIL_CLOSED, ("EXPECTED_ROW_COUNTS_INVALID",)), None
 
-        remote_rows = _parse_remote(remote_bytes)
+        remote_rows, all_remote_disabled_and_pending = _parse_remote(remote_bytes)
         candidate_rows = _parse_candidate(candidate_bytes)
         counts = {
             "remote_row_count": len(remote_rows),
             "candidate_row_count": len(candidate_rows),
             "remote_identity_verified": True,
             "candidate_identity_verified": True,
-            "all_remote_rows_disabled_and_pending": True,
+            "all_remote_rows_disabled_and_pending": all_remote_disabled_and_pending,
         }
         if len(remote_rows) != expected_remote_row_count or len(candidate_rows) != expected_candidate_row_count:
             return _result(FAIL_CLOSED, ("ROW_COUNT_MISMATCH",), **counts), None
