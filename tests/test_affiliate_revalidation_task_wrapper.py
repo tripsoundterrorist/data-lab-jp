@@ -28,6 +28,8 @@ class AffiliateRevalidationTaskWrapperTests(unittest.TestCase):
         self.assertIn("ConvertFrom-Json", self.text)
         self.assertIn('logs\\affiliate-revalidation', self.text)
         self.assertIn('2>$null', self.text)
+        self.assertIn("-Encoding UTF8", self.text)
+        self.assertNotIn("utf8NoBOM", self.text)
 
 
 if __name__ == "__main__":

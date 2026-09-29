@@ -45,7 +45,7 @@ try {
     if (-not $allowedStatus -or -not $allowedMode) {
         throw "invalid result"
     }
-    $result | Set-Content -LiteralPath $LogPath -Encoding utf8NoBOM -NoNewline
+    $result | Set-Content -LiteralPath $LogPath -Encoding UTF8 -NoNewline
 }
 catch {
     [Console]::Error.WriteLine("wrapper_error=RUNNER_RESULT_INVALID")
