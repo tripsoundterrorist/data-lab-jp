@@ -37,6 +37,7 @@ PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-c
 DISCOVERY_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-discovery-user-approval-20260930.json"
 LATEST_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-latest-product-user-approval-20260930.json"
 PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-discovery-live-verification-20260930.json"
+LATEST_PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-latest-product-live-verification-20260930.json"
 EXPECTED_COUNT = 100
 EXPECTED_ROUTE = "/items/"
 
@@ -176,7 +177,7 @@ def assess(
             deployment = live.get("deployment", {}) if type(live) is dict else {}
             first_run = deployment.get("first_lifecycle_run", {}) if type(deployment) is dict else {}
             local_canary = deployment.get("local_revalidation_canary", {}) if type(deployment) is dict else {}
-            live_verified = (
+            production_verified = (
                 type(live) is dict
                 and live.get("version") == VERSION
                 and live.get("status") == "VERIFIED_LIVE"
@@ -192,11 +193,32 @@ def assess(
                 and production.get("invalid_public_id_status") == 404
                 and production.get("invalid_public_id_location_absent") is True
                 and production.get("private_affiliate_url_exposed") is False
-                and private_d1.get("enabled_count") == EXPECTED_COUNT
-                and private_d1.get("runtime_target_count") == EXPECTED_COUNT
                 and re.fullmatch(r"[0-9a-f]{40}", deployment.get("main_commit", "")) is not None
                 and re.fullmatch(r"[0-9a-f-]{36}", deployment.get("worker_version_id", "")) is not None
                 and deployment.get("lifecycle_cron") is None
+                and live.get("global_publication_gate") == "unchanged"
+                and live.get("paid_plan_change") is False
+            )
+            latest_live_verified = (
+                latest_candidate
+                and production_verified
+                and deployment.get("main_commit") == "6a05bf24f3a90d8133ffd6041348462a608a79b1"
+                and deployment.get("revalidation_status") == "LOCAL_SCHEDULER_ACTIVE"
+                and private_d1.get("enabled_count") == 112
+                and private_d1.get("runtime_target_count") == 112
+                and private_d1.get("candidate_lookup_matches") == EXPECTED_COUNT
+                and private_d1.get("candidate_eligible_matches") == EXPECTED_COUNT
+                and private_d1.get("candidate_redirect_matches") == EXPECTED_COUNT
+                and private_d1.get("candidate_runtime_redirect_matches") == EXPECTED_COUNT
+                and private_d1.get("scoped_revalidation_selected") == 12
+                and private_d1.get("scoped_revalidation_valid") == 12
+                and private_d1.get("scoped_revalidation_disabled") == 0
+            )
+            prior_live_verified = (
+                not latest_candidate
+                and production_verified
+                and private_d1.get("enabled_count") == EXPECTED_COUNT
+                and private_d1.get("runtime_target_count") == EXPECTED_COUNT
                 and deployment.get("first_lifecycle_run_verified") is True
                 and deployment.get("revalidation_status") == "LOCAL_SCHEDULER_ACTIVE_PENDING_FIRST_SCHEDULED_RUN"
                 and first_run.get("checked_count") == 5
@@ -223,20 +245,26 @@ def assess(
                 and local_canary.get("scheduler_manual_smoke_valid_count") == 5
                 and local_canary.get("scheduler_manual_smoke_disabled_count") == 0
                 and local_canary.get("residual_worker_cron_explicitly_removed") is True
-                and live.get("global_publication_gate") == "unchanged"
-                and live.get("paid_plan_change") is False
             )
+            live_verified = latest_live_verified or prior_live_verified
             if live_verified:
-                return CurrentRevenueState(
-                    VERSION, PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE, "P0", True,
-                    "UNORDERED_REDUCED_SURFACE_PRODUCT_CARD_LIVE", EXPECTED_ROUTE,
-                    EXPECTED_COUNT, True, True, True, EXPECTED_COUNT, True, True,
-                    False, False, "VERIFY_FIRST_AUTOMATIC_LOCAL_REVALIDATION_RUN",
+                live_reason_codes = (
                     (
                         "PRODUCTION_PRODUCT_CARD_ARTIFACT_EXACT_MATCH_VERIFIED",
                         "ONE_HUNDRED_OFFICIAL_IMAGES_LIVE",
                         "ONE_HUNDRED_PROXIMATE_PR_DISCLOSED_CTAS_LIVE",
-                        "D1_RUNTIME_TARGETS_EXACTLY_ONE_HUNDRED",
+                        "CURRENT_SURFACE_D1_RUNTIME_TARGETS_EXACTLY_ONE_HUNDRED",
+                        "TWELVE_NEW_ROUTES_SCOPED_REVALIDATION_PASSED",
+                        "INVALID_PUBLIC_ID_FAIL_CLOSED_VERIFIED",
+                        "LOCAL_REVALIDATION_SCHEDULER_ACTIVE_AT_20_00_JST",
+                        "GLOBAL_PUBLICATION_GATE_UNCHANGED",
+                    )
+                    if latest_candidate
+                    else (
+                        "PRODUCTION_PRODUCT_CARD_ARTIFACT_EXACT_MATCH_VERIFIED",
+                        "ONE_HUNDRED_OFFICIAL_IMAGES_LIVE",
+                        "ONE_HUNDRED_PROXIMATE_PR_DISCLOSED_CTAS_LIVE",
+                        "CURRENT_SURFACE_D1_RUNTIME_TARGETS_EXACTLY_ONE_HUNDRED",
                         "INVALID_PUBLIC_ID_FAIL_CLOSED_VERIFIED",
                         "WORKER_REVALIDATION_TRANSPORT_INCOMPATIBLE",
                         "WORKER_CRON_DISABLED_AFTER_BOUNDED_FAILURE",
@@ -246,7 +274,15 @@ def assess(
                         "LOCAL_REVALIDATION_TASK_MANUAL_SMOKE_PASSED",
                         "RESIDUAL_WORKER_CRON_EXPLICITLY_REMOVED",
                         "GLOBAL_PUBLICATION_GATE_UNCHANGED",
-                    ),
+                    )
+                )
+                return CurrentRevenueState(
+                    VERSION, PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE, "P0", True,
+                    "UNORDERED_REDUCED_SURFACE_PRODUCT_CARD_LIVE", EXPECTED_ROUTE,
+                    EXPECTED_COUNT, True, True, True,
+                    private_d1.get("enabled_count"), True, True,
+                    False, False, "VERIFY_FIRST_AUTOMATIC_LOCAL_REVALIDATION_RUN",
+                    live_reason_codes,
                 )
             return CurrentRevenueState(
                 VERSION, PRODUCT_CARD_CANARY_PENDING_EDGE, "P0", True,
@@ -358,9 +394,16 @@ def current_state() -> CurrentRevenueState:
     try:
         receipt = json.loads(RECEIPT_PATH.read_text(encoding="utf-8"))
         artifact = ARTIFACT_PATH.read_bytes()
-        product_card_live_evidence = json.loads(
-            PRODUCT_CARD_LIVE_EVIDENCE_PATH.read_text(encoding="utf-8")
+        artifact_hashes = {
+            hashlib.sha256(artifact).hexdigest(),
+            _canonical_sha256(artifact),
+        }
+        live_evidence_path = (
+            LATEST_PRODUCT_CARD_LIVE_EVIDENCE_PATH
+            if LATEST_PRODUCT_CARD_SHA256 in artifact_hashes
+            else PRODUCT_CARD_LIVE_EVIDENCE_PATH
         )
+        product_card_live_evidence = json.loads(live_evidence_path.read_text(encoding="utf-8"))
     except Exception:
         return _failed("CURRENT_REVENUE_EVIDENCE_UNREADABLE")
     return assess(

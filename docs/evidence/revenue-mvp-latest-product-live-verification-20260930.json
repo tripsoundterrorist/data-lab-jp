@@ -1,0 +1,39 @@
+{
+  "version": "0.1",
+  "status": "VERIFIED_LIVE",
+  "verified_at": "2026-09-30",
+  "production": {
+    "route": "/items/",
+    "http_status": 200,
+    "artifact_sha256": "5eece329debeb14e517c20aaf6c7e2ded40488c2ff16f57dbec34afb54a2c2b4",
+    "item_count": 100,
+    "official_image_count": 100,
+    "cta_count": 100,
+    "proximate_pr_disclosure_count": 100,
+    "representative_redirects_tested": 3,
+    "representative_redirects_passed": 3,
+    "invalid_public_id_status": 404,
+    "invalid_public_id_location_absent": true,
+    "private_affiliate_url_exposed": false,
+    "discovery_script_count": 1
+  },
+  "private_d1": {
+    "enabled_count": 112,
+    "runtime_target_count": 112,
+    "candidate_lookup_matches": 100,
+    "candidate_eligible_matches": 100,
+    "candidate_redirect_matches": 100,
+    "candidate_runtime_redirect_matches": 100,
+    "scoped_revalidation_selected": 12,
+    "scoped_revalidation_valid": 12,
+    "scoped_revalidation_disabled": 0
+  },
+  "deployment": {
+    "main_commit": "6a05bf24f3a90d8133ffd6041348462a608a79b1",
+    "worker_version_id": "96a98656-b650-4365-a7cb-38ceaa197ae2",
+    "lifecycle_cron": null,
+    "revalidation_status": "LOCAL_SCHEDULER_ACTIVE"
+  },
+  "global_publication_gate": "unchanged",
+  "paid_plan_change": false
+}
