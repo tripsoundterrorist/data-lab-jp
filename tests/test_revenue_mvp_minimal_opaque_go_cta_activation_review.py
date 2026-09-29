@@ -12,7 +12,7 @@ import revenue_mvp_minimal_opaque_go_cta_packet as packet  # noqa: E402
 import revenue_mvp_minimal_opaque_go_cta_renderer as renderer  # noqa: E402
 
 
-DIGEST = "f273ec05089eabd19da50e7d62dfb2f747282f53d37f9babcb7a63c79c78dcf9"
+DIGEST = subject.COMPLIANCE_APPROVED_ARTIFACT_SHA256
 
 
 def evidence(**changes):

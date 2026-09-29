@@ -26,8 +26,8 @@ PASS = "ONE_CARD_CTA_LIVE_INTEGRATION_PREFLIGHT_PASS"
 BLOCKED = "ONE_CARD_CTA_LIVE_INTEGRATION_BLOCKED"
 PUBLIC_ID = re.compile(r"itm_[0-9a-f]{24}\Z")
 SOURCE_SHA256 = "564bbeaf628de624e816ff8f2b4a3824119e338d3052e8d2594a084f06ef2e85"
-APPROVED_ARTIFACT_SHA256 = "f273ec05089eabd19da50e7d62dfb2f747282f53d37f9babcb7a63c79c78dcf9"
-APPROVAL_EVIDENCE_PATH = (Path(__file__).resolve().parents[1] / "docs/evidence/revenue-mvp-minimal-opaque-go-cta-user-approval-20260925.json")
+APPROVED_ARTIFACT_SHA256 = "a8fa335543cfe9b737494588e0ebd53409b0c5931593c141dc3fe224eb32811e"
+APPROVAL_EVIDENCE_PATH = (Path(__file__).resolve().parents[1] / "docs/evidence/revenue-mvp-minimal-opaque-go-cta-user-approval-20260929.json")
 ITEM_COUNT = 100
 CARD = re.compile(r'<article class="item"><h2>(.*?)</h2><p class="price">([0-9][0-9,]*)円</p><time>([^<]+)</time></article>', re.DOTALL)
 CTA_BLOCK = (
