@@ -86,8 +86,10 @@ main { width: min(1180px, 100%); margin: auto; padding: 20px 18px 60px; }
 .official-link { display: inline-flex; min-height: 44px; align-items: center; overflow-wrap: anywhere; color: var(--accent); text-decoration: none; }
 .external-link-block { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
 .external-link-note { max-width: 560px; margin: 0 0 6px; color: var(--muted); font-size: .78rem; }
-.affiliate-cta-block { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.affiliate-cta-block { margin-top: auto; padding-block: 14px; border-top: 1px solid var(--line); }
 .affiliate-cta-disclosure { max-width: 560px; margin: 0 0 8px; color: var(--muted); font-size: .78rem; }
+.affiliate-cta-link { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: center; padding: 10px 12px; color: var(--bg); background: var(--accent); border-radius: 8px; font-weight: 700; text-align: center; text-decoration: none; }
+.affiliate-cta-link:hover { filter: brightness(.92); }
 .data-disclosure { padding: 20px; }
 .data-disclosure h2 { margin: 0 0 10px; font-size: 1rem; }
 .data-disclosure p { color: var(--muted); font-size: .84rem; }
@@ -98,4 +100,4 @@ main { width: min(1180px, 100%); margin: auto; padding: 20px 18px 60px; }
 
 @media (max-width: 950px) { .item-grid { grid-template-columns: repeat(3, 1fr); } .controls { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 700px) { .intro, .detail-hero, .detail-grid { grid-template-columns: 1fr; } .controls { grid-template-columns: 1fr; } .item-grid { grid-template-columns: repeat(2, 1fr); } .set-summary { width: 100%; } }
-@media (max-width: 430px) { .topbar { display: block; padding: 16px; } main { padding-inline: 14px; } .intro, .fallback, .detail-hero, .detail-panel, .data-disclosure { padding: 16px; } .results-head { display: block; } .publication-status { display: inline-block; margin-top: 10px; } .item-grid { grid-template-columns: 1fr; } }
+@media (max-width: 430px) { .topbar { display: block; padding: 16px; } main { padding-inline: 14px; } .intro, .fallback, .detail-hero, .detail-panel, .data-disclosure { padding: 16px; } .results-head { display: block; } .publication-status { display: inline-block; margin-top: 10px; } .item-grid { grid-template-columns: 1fr; } .affiliate-cta-link { min-height: 52px; } }
