@@ -1,0 +1,23 @@
+{
+  "version": "0.1",
+  "decision": "APPROVED_FOR_PRODUCTION",
+  "approved_at": "2026-09-30",
+  "approved_scope": {
+    "source_sha256": "497495a8148e34d752bd0c237d9ea58d114d538f0faeb7bc94652d7b90a65498",
+    "candidate_sha256": "4e5df75fd909f14896958a0ae51929592ce6f2b3931bc6c47b4a0fff52002cf2",
+    "public_route": "/items/",
+    "item_count": 100,
+    "image_count": 100,
+    "maximum_cta_count": 100,
+    "card_bytes_preserved": true,
+    "go_routes_preserved": true,
+    "allowed_change": "local title search, price-band filter and stable client-side sorting controls only"
+  },
+  "boundaries": {
+    "global_publication_gate": "unchanged",
+    "d1": "unchanged",
+    "affiliate_routes": "unchanged",
+    "robots": "noindex,nofollow",
+    "paid_plan_change": false
+  }
+}

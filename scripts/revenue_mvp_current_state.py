@@ -31,7 +31,9 @@ APPROVED_CANARY_SHA256 = "62ad8f93cc91769b5c92854bc4ff2ccb6bb4e939d8791a8b36245d
 APPROVED_CANARY_CANONICAL_SHA256 = "bb65f1a2e8b437de4d1f26e224733c9341aa0d85d46752e12d0c857108d54c11"
 CANARY_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-one-cta-final-user-approval-20260929.json"
 PRODUCT_CARD_SHA256 = "c7d569dc732b73e4085c9d860f1a54c73c201b974d37dda7ae15d9c5193dddf1"
+DISCOVERY_PRODUCT_CARD_SHA256 = "4e5df75fd909f14896958a0ae51929592ce6f2b3931bc6c47b4a0fff52002cf2"
 PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-card-canary-user-approval-20260929.json"
+DISCOVERY_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-discovery-user-approval-20260930.json"
 PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-card-live-verification-20260929.json"
 EXPECTED_COUNT = 100
 EXPECTED_ROUTE = "/items/"
@@ -85,14 +87,26 @@ def assess(
     try:
         raw_artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()
         artifact_sha256 = _canonical_sha256(artifact_bytes)
-        if raw_artifact_sha256 == PRODUCT_CARD_SHA256 or artifact_sha256 == PRODUCT_CARD_SHA256:
-            approval = json.loads(PRODUCT_CARD_APPROVAL_PATH.read_text(encoding="utf-8"))
+        product_card_hashes = {PRODUCT_CARD_SHA256, DISCOVERY_PRODUCT_CARD_SHA256}
+        if raw_artifact_sha256 in product_card_hashes or artifact_sha256 in product_card_hashes:
+            discovery_candidate = (
+                raw_artifact_sha256 == DISCOVERY_PRODUCT_CARD_SHA256
+                or artifact_sha256 == DISCOVERY_PRODUCT_CARD_SHA256
+            )
+            expected_product_card_sha256 = (
+                DISCOVERY_PRODUCT_CARD_SHA256 if discovery_candidate else PRODUCT_CARD_SHA256
+            )
+            approval_path = (
+                DISCOVERY_PRODUCT_CARD_APPROVAL_PATH if discovery_candidate
+                else PRODUCT_CARD_APPROVAL_PATH
+            )
+            approval = json.loads(approval_path.read_text(encoding="utf-8"))
             text = artifact_bytes.decode("utf-8")
             scope = approval.get("approved_scope", {})
             image_urls = re.findall(r'<img class="card-image" src="([^"]+)"', text)
             product_card_valid = (
                 approval.get("decision") == "APPROVED_FOR_PRODUCTION"
-                and scope.get("candidate_sha256") == PRODUCT_CARD_SHA256
+                and scope.get("candidate_sha256") == expected_product_card_sha256
                 and scope.get("public_route") == EXPECTED_ROUTE
                 and scope.get("item_count") == EXPECTED_COUNT
                 and scope.get("image_count") == EXPECTED_COUNT
@@ -106,6 +120,18 @@ def assess(
                 and text.count('rel="noopener noreferrer sponsored"') == 100
                 and 'name="robots" content="noindex,nofollow"' in text
                 and "affiliateURL" not in text
+                and (
+                    not discovery_candidate
+                    or (
+                        scope.get("source_sha256") == "497495a8148e34d752bd0c237d9ea58d114d538f0faeb7bc94652d7b90a65498"
+                        and scope.get("card_bytes_preserved") is True
+                        and scope.get("go_routes_preserved") is True
+                        and text.count('<script src="discovery.js" defer></script>') == 1
+                        and text.count('id="item-search"') == 1
+                        and text.count('id="price-filter"') == 1
+                        and text.count('id="item-sort"') == 1
+                    )
+                )
             )
             if not product_card_valid:
                 return _failed("PRODUCT_CARD_CANARY_ARTIFACT_INVALID")
@@ -121,7 +147,7 @@ def assess(
                 and live.get("status") == "VERIFIED_LIVE"
                 and production.get("route") == EXPECTED_ROUTE
                 and production.get("http_status") == 200
-                and production.get("artifact_sha256") == PRODUCT_CARD_SHA256
+                and production.get("artifact_sha256") == expected_product_card_sha256
                 and production.get("item_count") == EXPECTED_COUNT
                 and production.get("official_image_count") == EXPECTED_COUNT
                 and production.get("cta_count") == EXPECTED_COUNT
