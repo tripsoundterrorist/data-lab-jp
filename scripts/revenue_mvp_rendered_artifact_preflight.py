@@ -11,7 +11,7 @@ import revenue_mvp_unordered_surface_review as contract
 
 
 VERSION = "0.1-candidate"
-ALLOWED_TAGS = frozenset({"html", "head", "meta", "title", "body", "main", "h1", "article", "h2", "p", "time", "link", "script", "a", "header", "footer", "nav", "section"})
+ALLOWED_TAGS = frozenset({"html", "head", "meta", "title", "body", "main", "h1", "article", "h2", "p", "time", "link", "script", "a", "header", "footer", "nav", "section", "div", "label", "input", "select", "option"})
 FORBIDDEN_ATTRIBUTES = frozenset({"srcset", "action", "style", "onclick"})
 
 
@@ -34,7 +34,7 @@ class _Inspector(HTMLParser):
             raise ValidationFailure("EXTERNAL_OR_ACTIVE_ATTRIBUTE")
         allowed = {
             "html": {"lang"}, "meta": {"charset", "name", "content"},
-            "article": {"class"}, "p": {"class", "id", "role", "aria-live"}, "section": {"class"}, "header": {"class"}, "footer": {"class"}, "a": {"class", "href"}, "main": {"id"}, "nav": {"aria-label"}, "link": {"rel", "href"}, "script": {"src", "defer"},
+            "article": {"class"}, "p": {"class", "id", "role", "aria-live"}, "section": {"class", "aria-label"}, "div": {"class"}, "header": {"class"}, "footer": {"class"}, "a": {"class", "href"}, "main": {"id"}, "nav": {"aria-label"}, "link": {"rel", "href"}, "script": {"src", "defer"}, "input": {"id", "type", "autocomplete", "placeholder"}, "select": {"id"}, "option": {"value"},
         }.get(tag, set())
         if not set(values) <= allowed:
             raise ValidationFailure("ATTRIBUTE_NOT_ALLOWED")
@@ -91,7 +91,7 @@ def validate_and_preflight(
     inspector = _Inspector()
     inspector.feed(decoded)
     inspector.close()
-    allowed_references = {"items.css", "/analytics-consent.css", "/analytics-consent.js", "#main-content", "/about", "/disclosure", "/privacy", "/terms", "/contact", "https://datalabx.jp/items/"}
+    allowed_references = {"items.css", "discovery.js", "/analytics-consent.css", "/analytics-consent.js", "#main-content", "/about", "/disclosure", "/privacy", "/terms", "/contact", "https://datalabx.jp/items/"}
     for tag, attrs in inspector.attrs:
         reference = attrs.get("href", attrs.get("src"))
         if reference is not None and reference not in allowed_references:
@@ -105,9 +105,10 @@ def validate_and_preflight(
         raise ValidationFailure("ROBOTS_DIRECTIVE_INVALID")
     if inspector.text.count(contract.TRANSPARENCY_NOTICE) != 1:
         raise ValidationFailure("TRANSPARENCY_NOTICE_INVALID")
-    required = {"/analytics-consent.css", "/analytics-consent.js", "/about", "/disclosure", "/privacy", "/terms", "/contact", "#main-content", "https://datalabx.jp/items/"}
+    required = {"discovery.js", "/analytics-consent.css", "/analytics-consent.js", "/about", "/disclosure", "/privacy", "/terms", "/contact", "#main-content", "https://datalabx.jp/items/"}
     links = {attrs.get("href", attrs.get("src")) for _tag, attrs in inspector.attrs}
-    if not required <= links or "items.js" in decoded or 'id="result-count" role="status" aria-live="polite"' not in decoded or 'id="page-status" aria-live="polite"' not in decoded:
+    controls = ('id="item-search" type="search"', 'id="price-filter"', 'id="item-sort"')
+    if not required <= links or "items.js" in decoded or not all(value in decoded for value in controls) or 'id="result-count" role="status" aria-live="polite"' not in decoded or 'id="page-status" aria-live="polite"' not in decoded:
         raise ValidationFailure("ACCESSIBILITY_OR_CONSENT_CONTRACT_INVALID")
     source = repo_root.resolve() / "items" / "index.html"
     if not source.is_file():

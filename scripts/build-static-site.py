@@ -33,6 +33,7 @@ ALLOWLIST = (
     "items/index.html",
     "items/item.html",
     "items/items.css",
+    "items/discovery.js",
     "items/items.js",
 )
 FORBIDDEN_FILENAMES = frozenset(

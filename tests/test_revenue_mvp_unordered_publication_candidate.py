@@ -42,6 +42,10 @@ class CandidateTests(unittest.TestCase):
         self.assertEqual(receipt.target_route, "/items/")
         self.assertFalse(receipt.publication_allowed)
         self.assertIn(b"noindex,nofollow", first)
+        self.assertIn(b'<script src="discovery.js" defer></script>', first)
+        self.assertIn(b'id="item-search" type="search"', first)
+        self.assertIn(b'id="price-filter"', first)
+        self.assertIn(b'id="item-sort"', first)
 
     def test_html_is_escaped_and_contains_no_link_or_identifier(self):
         value = packet(); value["candidates"][0]["title"] = '<script>alert(1)</script>'
@@ -49,6 +53,7 @@ class CandidateTests(unittest.TestCase):
         self.assertNotIn(b"<script>", rendered)
         self.assertNotIn(b"https://example", rendered)
         self.assertNotIn(b"items.js", rendered)
+        self.assertEqual(rendered.count(b'<article class="item">'), 1)
 
     def test_fail_closed_for_extra_field_activation_stale_or_price_mismatch(self):
         mutations = []
