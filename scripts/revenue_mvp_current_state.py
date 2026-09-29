@@ -31,7 +31,7 @@ APPROVED_CANARY_SHA256 = "62ad8f93cc91769b5c92854bc4ff2ccb6bb4e939d8791a8b36245d
 APPROVED_CANARY_CANONICAL_SHA256 = "bb65f1a2e8b437de4d1f26e224733c9341aa0d85d46752e12d0c857108d54c11"
 CANARY_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-one-cta-final-user-approval-20260929.json"
 PRODUCT_CARD_SHA256 = "c7d569dc732b73e4085c9d860f1a54c73c201b974d37dda7ae15d9c5193dddf1"
-DISCOVERY_PRODUCT_CARD_SHA256 = "4e5df75fd909f14896958a0ae51929592ce6f2b3931bc6c47b4a0fff52002cf2"
+DISCOVERY_PRODUCT_CARD_SHA256 = "293f10a921359f3f29091ece45c16e9214ce9164ad53a44c3ce35d38aff76a86"
 PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-card-canary-user-approval-20260929.json"
 DISCOVERY_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-discovery-user-approval-20260930.json"
 PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-card-live-verification-20260929.json"
@@ -123,7 +123,9 @@ def assess(
                 and (
                     not discovery_candidate
                     or (
-                        scope.get("source_sha256") == "497495a8148e34d752bd0c237d9ea58d114d538f0faeb7bc94652d7b90a65498"
+                        scope.get("source_sha256") == PRODUCT_CARD_SHA256
+                        and scope.get("reviewed_windows_source_sha256") == "497495a8148e34d752bd0c237d9ea58d114d538f0faeb7bc94652d7b90a65498"
+                        and scope.get("reviewed_windows_candidate_sha256") == "4e5df75fd909f14896958a0ae51929592ce6f2b3931bc6c47b4a0fff52002cf2"
                         and scope.get("card_bytes_preserved") is True
                         and scope.get("go_routes_preserved") is True
                         and text.count('<script src="discovery.js" defer></script>') == 1
