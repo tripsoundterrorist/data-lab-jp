@@ -93,4 +93,29 @@ export async function fetchAndDeliverDmmAffiliateUrl(
   }
 }
 
+// The URL and its exact content ID are populated as encrypted Worker secrets
+// only after a bounded official-API verification. Neither value is returned.
+export async function deliverPrevalidatedDmmAffiliateUrl(
+  env, contentId, deliverAffiliateUrl,
+) {
+  try {
+    if (!CONTENT_ID.test(contentId) || typeof deliverAffiliateUrl !== "function") {
+      return outcome("FAIL_CLOSED", false, "PROVIDER_INPUT_INVALID");
+    }
+    if (!env || typeof env.DMM_PREVALIDATED_CONTENT_ID !== "string" ||
+        env.DMM_PREVALIDATED_CONTENT_ID !== contentId ||
+        !allowedAffiliateUrl(env.DMM_PREVALIDATED_AFFILIATE_URL)) {
+      return outcome("FAIL_CLOSED", false, "PROVIDER_PREVALIDATED_BINDING_UNAVAILABLE");
+    }
+    try {
+      await deliverAffiliateUrl(env.DMM_PREVALIDATED_AFFILIATE_URL);
+    } catch (_) {
+      return outcome("FAIL_CLOSED", true, "PROVIDER_DELIVERY_FAILED");
+    }
+    return outcome("DELIVERED", true, "PROVIDER_PREVALIDATED_URL_DELIVERED");
+  } catch (_) {
+    return outcome("FAIL_CLOSED", false, "PROVIDER_INTERNAL_ERROR");
+  }
+}
+
 export const AFFILIATE_WORKERS_DMM_PROVIDER_VERSION = "0.1";
