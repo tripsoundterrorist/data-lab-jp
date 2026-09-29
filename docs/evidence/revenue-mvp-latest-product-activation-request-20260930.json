@@ -1,0 +1,52 @@
+{
+  "version": "0.1",
+  "status": "READY_FOR_EXPLICIT_PRODUCTION_APPROVAL",
+  "requested_at": "2026-09-29T16:50:00Z",
+  "scope": {
+    "route": "/items/",
+    "source_artifact_sha256": "293f10a921359f3f29091ece45c16e9214ce9164ad53a44c3ce35d38aff76a86",
+    "candidate_artifact_sha256": "5eece329debeb14e517c20aaf6c7e2ded40488c2ff16f57dbec34afb54a2c2b4",
+    "source_card_count": 100,
+    "candidate_card_count": 100,
+    "retained_count": 88,
+    "added_count": 12,
+    "removed_count": 12,
+    "candidate_official_image_count": 100,
+    "candidate_cta_count": 100,
+    "candidate_go_route_count": 100,
+    "discovery_controls_preserved": true,
+    "robots_noindex_preserved": true,
+    "private_affiliate_url_exposed": false
+  },
+  "source_database": {
+    "sha256": "73986f925850bb07ca816bb7e6cdea52488d24c5da775332745bf2d259482d68",
+    "candidate_observed_at": "2026-09-29T07:01:37Z",
+    "candidate_count": 100,
+    "affiliate_observed_count": 100,
+    "official_image_count": 100
+  },
+  "private_d1": {
+    "lookup_count": 1101,
+    "eligible_count": 112,
+    "redirect_count": 112,
+    "runtime_redirect_count": 112,
+    "candidate_lookup_matches": 100,
+    "candidate_eligible_matches": 100,
+    "candidate_redirect_matches": 100,
+    "candidate_runtime_redirect_matches": 100,
+    "scoped_revalidation_selected": 12,
+    "scoped_revalidation_valid": 12,
+    "scoped_revalidation_disabled": 0,
+    "identifiers_exposed": false,
+    "affiliate_urls_exposed": false
+  },
+  "activation": {
+    "production_write_performed": false,
+    "publication_allowed": false,
+    "explicit_user_approval_required": true,
+    "operation": "replace items/index.html with the exact reviewed candidate artifact",
+    "rollback": "restore the exact source artifact SHA-256 and redeploy"
+  },
+  "global_publication_gate": "unchanged",
+  "paid_plan_change": false
+}
