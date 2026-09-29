@@ -39,7 +39,7 @@ ALLOWED_HOSTS = ("dmm.com", "dmm.co.jp", "fanza.com", "fanza.co.jp")
 SELECT_SQL = (
     "SELECT public_id,content_id FROM affiliate_item_lookup "
     "WHERE rights_status='CONDITIONALLY_APPROVED' AND lifecycle_status='RESOLVED' "
-    "ORDER BY updated_at ASC,public_id ASC LIMIT 5"
+    "ORDER BY affiliate_enabled ASC,updated_at ASC,public_id ASC LIMIT 5"
 )
 
 

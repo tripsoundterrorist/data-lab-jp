@@ -50,6 +50,7 @@ class LocalLifecycleTests(unittest.TestCase):
         self.assertEqual(1, len(calls))
         self.assertEqual("utf-8", options[0]["encoding"])
         self.assertEqual("replace", options[0]["errors"])
+        self.assertIn("ORDER BY affiliate_enabled ASC", subject.SELECT_SQL)
 
     def test_live_requires_exact_confirmation(self):
         result = subject.run_cycle(execute=True, confirmed=False, runner=lambda *a, **k: None)
