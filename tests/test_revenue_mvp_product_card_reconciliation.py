@@ -79,6 +79,10 @@ class ProductCardReconciliationTests(unittest.TestCase):
         self.assertIn(f'href="/go/{card.public_id}"', text)
         self.assertNotIn(card.content_id, text)
         self.assertNotIn("affiliateURL", text)
+        self.assertEqual(
+            subject.enrich(rendered, self.db, frozenset({card.public_id})),
+            rendered,
+        )
 
     def test_enrichment_requires_explicit_known_cta_scope(self):
         for selected in (frozenset(), frozenset({"itm_000000000000000000000000"})):

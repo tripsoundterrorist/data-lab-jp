@@ -163,13 +163,16 @@ def enrich(source: bytes, database: Path, cta_public_ids: frozenset[str]) -> byt
     text = source.decode("utf-8")
     for card in cards:
         title = escape(card.title)
-        prefix = (
-            '<article class="item"><h2>' + title + '</h2>'
+        core = (
+            '<h2>' + title + '</h2>'
             f'<p class="price">{card.price:,}円</p><time>{escape(card.observed_at)}</time>'
         )
-        if text.count(prefix) != 1:
+        if text.count(core) != 1:
             raise ValueError("LIVE_CARD_HTML_NOT_EXACT")
-        start = text.index(prefix)
+        core_start = text.index(core)
+        start = text.rfind('<article class="item">', 0, core_start)
+        if start < 0:
+            raise ValueError("LIVE_CARD_HTML_NOT_EXACT")
         end = text.index("</article>", start) + len("</article>")
         article = text[start:end]
         image = (
@@ -177,7 +180,11 @@ def enrich(source: bytes, database: Path, cta_public_ids: frozenset[str]) -> byt
             + escape(card.image_url, quote=True) + '" alt="' + title
             + '" loading="lazy" decoding="async"></div>'
         )
-        article = article.replace('<article class="item">', '<article class="item">' + image, 1)
+        if 'class="card-image"' in article:
+            if article.count('class="card-image"') != 1 or image not in article:
+                raise ValueError("EXISTING_IMAGE_BINDING_MISMATCH")
+        else:
+            article = article.replace('<article class="item">', '<article class="item">' + image, 1)
         has_cta = 'class="affiliate-cta-block"' in article
         selected = card.public_id in cta_public_ids
         if selected and not has_cta:
@@ -209,6 +216,7 @@ def main() -> int:
     parser.add_argument("--db", required=True, type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--cta-public-id", action="append", default=[])
+    parser.add_argument("--report-limit", type=int, default=10)
     args = parser.parse_args()
     try:
         source = args.source.read_bytes()
@@ -227,7 +235,7 @@ def main() -> int:
         "card_count": len(cards),
         "image_count": sum(bool(card.image_url) for card in cards),
         "output_written": args.output is not None,
-        "public_ids": [card.public_id for card in cards[:10]],
+        "public_ids": [card.public_id for card in cards[:max(0, args.report_limit)]],
     }, sort_keys=True))
     return 0
 
