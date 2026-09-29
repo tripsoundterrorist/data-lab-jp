@@ -43,10 +43,18 @@ export async function fetchAndDeliverDmmAffiliateUrl(
       site: "FANZA", service: "digital", floor: "videoa", cid: contentId,
       hits: "1", offset: "1", output: "json",
     });
-    const response = await fetcher(`https://api.dmm.com/affiliate/v3/ItemList?${query}`, {
+    const requestOptions = {
       method: "GET", headers: { Accept: "application/json" }, redirect: "error",
-      signal: AbortSignal.timeout(15000),
-    });
+    };
+    if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+      requestOptions.signal = AbortSignal.timeout(15000);
+    }
+    let response;
+    try {
+      response = await fetcher(`https://api.dmm.com/affiliate/v3/ItemList?${query}`, requestOptions);
+    } catch (_) {
+      return outcome("FAIL_CLOSED", false, "PROVIDER_UPSTREAM_UNAVAILABLE");
+    }
     if (!(response instanceof Response) || !response.ok) {
       return outcome("FAIL_CLOSED", false, "PROVIDER_UPSTREAM_UNAVAILABLE");
     }
@@ -54,11 +62,21 @@ export async function fetchAndDeliverDmmAffiliateUrl(
     if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) {
       return outcome("FAIL_CLOSED", false, "PROVIDER_RESPONSE_TOO_LARGE");
     }
-    const body = await response.text();
+    let body;
+    try {
+      body = await response.text();
+    } catch (_) {
+      return outcome("FAIL_CLOSED", false, "PROVIDER_RESPONSE_READ_FAILED");
+    }
     if (new TextEncoder().encode(body).byteLength > MAX_RESPONSE_BYTES) {
       return outcome("FAIL_CLOSED", false, "PROVIDER_RESPONSE_TOO_LARGE");
     }
-    const payload = JSON.parse(body);
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch (_) {
+      return outcome("FAIL_CLOSED", false, "PROVIDER_RESPONSE_INVALID");
+    }
     const items = payload?.result?.items;
     if (!Array.isArray(items) || items.length !== 1 || items[0]?.content_id !== contentId ||
         !allowedAffiliateUrl(items[0]?.affiliateURL)) {
