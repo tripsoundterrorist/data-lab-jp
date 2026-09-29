@@ -74,6 +74,48 @@ class DiscoveryActivationCandidateTests(unittest.TestCase):
             candidate.write_candidate(target, b"ok")
             self.assertEqual(target.read_bytes(), b"ok")
 
+    def test_reviewed_activation_is_exact_atomic_and_still_non_authorizing(self):
+        original = source()
+        rendered, _receipt = self.build(original)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "items" / "index.html"
+            target.parent.mkdir()
+            target.write_bytes(original)
+            receipt = candidate.activate_reviewed_candidate(
+                target, rendered,
+                expected_source_sha256=hashlib.sha256(original).hexdigest(),
+                expected_candidate_sha256=hashlib.sha256(rendered).hexdigest(),
+                repository_root=root,
+            )
+            self.assertEqual(target.read_bytes(), rendered)
+            self.assertTrue(receipt.production_write_performed)
+            self.assertFalse(receipt.activation_allowed)
+
+    def test_activation_rejects_wrong_target_source_candidate_and_scope(self):
+        original = source()
+        rendered, _receipt = self.build(original)
+        source_hash = hashlib.sha256(original).hexdigest()
+        candidate_hash = hashlib.sha256(rendered).hexdigest()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "items" / "index.html"
+            target.parent.mkdir()
+            target.write_bytes(original)
+            cases = [
+                (root / "other.html", source_hash, candidate_hash, rendered),
+                (target, "0" * 64, candidate_hash, rendered),
+                (target, source_hash, "0" * 64, rendered),
+                (target, source_hash, hashlib.sha256(rendered + b"x").hexdigest(), rendered + b"x"),
+            ]
+            for selected, before, after, payload in cases:
+                with self.subTest(selected=selected, before=before, after=after), self.assertRaises(candidate.CandidateFailure):
+                    candidate.activate_reviewed_candidate(
+                        selected, payload, expected_source_sha256=before,
+                        expected_candidate_sha256=after, repository_root=root,
+                    )
+                self.assertEqual(target.read_bytes(), original)
+
 
 if __name__ == "__main__":
     unittest.main()

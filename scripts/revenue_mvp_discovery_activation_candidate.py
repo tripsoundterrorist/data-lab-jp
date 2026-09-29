@@ -66,6 +66,20 @@ class CandidateReceipt:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class ActivationReceipt:
+    version: str
+    status: str
+    source_sha256: str
+    activated_sha256: str
+    target: str
+    production_write_performed: bool
+    activation_allowed: bool = False
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
 def _sha256(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
@@ -138,19 +152,77 @@ def write_candidate(path: Path, payload: bytes) -> None:
         raise
 
 
+def activate_reviewed_candidate(
+    target: Path, payload: bytes, *, expected_source_sha256: str,
+    expected_candidate_sha256: str, repository_root: Path = ROOT,
+) -> ActivationReceipt:
+    resolved_root = repository_root.resolve()
+    resolved_target = target.resolve()
+    if resolved_target != resolved_root / "items" / "index.html":
+        raise CandidateFailure("ACTIVATION_TARGET_INVALID")
+    if not resolved_target.is_file():
+        raise CandidateFailure("ACTIVATION_SOURCE_MISSING")
+    source = resolved_target.read_bytes()
+    if _sha256(source) != expected_source_sha256:
+        raise CandidateFailure("ACTIVATION_SOURCE_HASH_MISMATCH")
+    if _sha256(payload) != expected_candidate_sha256:
+        raise CandidateFailure("ACTIVATION_CANDIDATE_HASH_MISMATCH")
+    source_item_count = len(CARD_PATTERN.findall(source.decode("utf-8")))
+    rebuilt, _receipt = build(
+        source, expected_sha256=expected_source_sha256,
+        expected_item_count=source_item_count,
+    )
+    if rebuilt != payload:
+        raise CandidateFailure("ACTIVATION_CANDIDATE_NOT_REPRODUCIBLE")
+    cards = CARD_PATTERN.findall(payload.decode("utf-8"))
+    source_cards = CARD_PATTERN.findall(source.decode("utf-8"))
+    if cards != source_cards or GO_PATTERN.findall(payload.decode("utf-8")) != GO_PATTERN.findall(source.decode("utf-8")):
+        raise CandidateFailure("ACTIVATION_SCOPE_CHANGED")
+    descriptor, temporary = tempfile.mkstemp(prefix="items-index-", suffix=".tmp", dir=resolved_target.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(payload)
+        os.replace(temporary, resolved_target)
+    except Exception:
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
+        raise
+    if _sha256(resolved_target.read_bytes()) != expected_candidate_sha256:
+        raise CandidateFailure("ACTIVATION_WRITE_VERIFICATION_FAILED")
+    return ActivationReceipt(
+        VERSION, "REVIEWED_CANDIDATE_ACTIVATED", expected_source_sha256,
+        expected_candidate_sha256, "items/index.html", True,
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--expected-sha256", required=True)
     parser.add_argument("--expected-item-count", type=int, required=True)
-    parser.add_argument("--output", type=Path, required=True)
+    output = parser.add_mutually_exclusive_group(required=True)
+    output.add_argument("--output", type=Path)
+    output.add_argument("--activate-reviewed-candidate", action="store_true")
+    parser.add_argument("--expected-candidate-sha256")
     args = parser.parse_args()
     payload, receipt = build(
         args.source.read_bytes(), expected_sha256=args.expected_sha256,
         expected_item_count=args.expected_item_count,
     )
-    write_candidate(args.output, payload)
-    print(json.dumps(receipt.to_dict(), ensure_ascii=False, sort_keys=True))
+    if args.activate_reviewed_candidate:
+        if not args.expected_candidate_sha256:
+            raise CandidateFailure("EXPECTED_CANDIDATE_HASH_REQUIRED")
+        activated = activate_reviewed_candidate(
+            args.source, payload,
+            expected_source_sha256=args.expected_sha256,
+            expected_candidate_sha256=args.expected_candidate_sha256,
+        )
+        print(json.dumps(activated.to_dict(), ensure_ascii=False, sort_keys=True))
+    else:
+        write_candidate(args.output, payload)
+        print(json.dumps(receipt.to_dict(), ensure_ascii=False, sort_keys=True))
     return 0
 
 
@@ -158,4 +230,7 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
-__all__ = ["CandidateFailure", "CandidateReceipt", "build", "write_candidate"]
+__all__ = [
+    "ActivationReceipt", "CandidateFailure", "CandidateReceipt",
+    "activate_reviewed_candidate", "build", "write_candidate",
+]
