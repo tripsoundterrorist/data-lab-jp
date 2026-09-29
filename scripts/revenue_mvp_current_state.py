@@ -26,7 +26,7 @@ EXPECTED_SHA256 = "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a40
 APPROVED_CANARY_SHA256 = "62ad8f93cc91769b5c92854bc4ff2ccb6bb4e939d8791a8b36245d4c93878374"
 APPROVED_CANARY_CANONICAL_SHA256 = "bb65f1a2e8b437de4d1f26e224733c9341aa0d85d46752e12d0c857108d54c11"
 CANARY_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-one-cta-final-user-approval-20260929.json"
-PRODUCT_CARD_SHA256 = "854ecb10bdc751d08cdd554894d3143b05f7f3a01be979ca3ce6a6553009f740"
+PRODUCT_CARD_SHA256 = "1be517bb3448ad5c53c7df6eec0779138eea51fd192b1304533fd6aa3cf47f52"
 PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-card-canary-user-approval-20260929.json"
 EXPECTED_COUNT = 100
 EXPECTED_ROUTE = "/items/"
@@ -88,14 +88,14 @@ def assess(receipt: Any, artifact_bytes: bytes, preflight: Any, route: Any, d1: 
                 and scope.get("public_route") == EXPECTED_ROUTE
                 and scope.get("item_count") == EXPECTED_COUNT
                 and scope.get("image_count") == EXPECTED_COUNT
-                and scope.get("maximum_cta_count") == 74
+                and scope.get("maximum_cta_count") == 94
                 and text.count('class="item"') == EXPECTED_COUNT
                 and len(image_urls) == EXPECTED_COUNT
                 and all(url.startswith("https://pics.dmm.co.jp/") for url in image_urls)
-                and text.count('class="affiliate-cta-block"') == 74
-                and len(re.findall(r'href="/go/itm_[0-9a-f]{24}"', text)) == 74
-                and text.count("【PR】") == 74
-                and text.count('rel="noopener noreferrer sponsored"') == 74
+                and text.count('class="affiliate-cta-block"') == 94
+                and len(re.findall(r'href="/go/itm_[0-9a-f]{24}"', text)) == 94
+                and text.count("【PR】") == 94
+                and text.count('rel="noopener noreferrer sponsored"') == 94
                 and 'name="robots" content="noindex,nofollow"' in text
                 and "affiliateURL" not in text
             )
@@ -104,12 +104,12 @@ def assess(receipt: Any, artifact_bytes: bytes, preflight: Any, route: Any, d1: 
             return CurrentRevenueState(
                 VERSION, PRODUCT_CARD_CANARY_PENDING_EDGE, "P0", True,
                 "UNORDERED_REDUCED_SURFACE_PRODUCT_CARD_CANARY", EXPECTED_ROUTE,
-                EXPECTED_COUNT, False, True, True, 74, True, True, False,
+                EXPECTED_COUNT, False, True, True, 94, True, True, False,
                 False, "VERIFY_PRODUCT_CARD_CANARY_AT_EDGE",
                 (
                     "EXACT_APPROVED_PRODUCT_CARD_ARTIFACT_PRESENT",
                     "ONE_HUNDRED_OFFICIAL_IMAGES_PRESENT",
-                    "SEVENTY_FOUR_PROXIMATE_PR_DISCLOSED_CTAS_PRESENT",
+                    "NINETY_FOUR_PROXIMATE_PR_DISCLOSED_CTAS_PRESENT",
                     "OPAQUE_SAME_ORIGIN_GO_ROUTE_ONLY",
                     "EDGE_VERIFICATION_REQUIRED_AFTER_DEPLOYMENT",
                     "GLOBAL_PUBLICATION_GATE_UNCHANGED",
