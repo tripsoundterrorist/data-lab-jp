@@ -14,7 +14,10 @@ Collector実行環境を使う単発・5件限定の代替transport候補であ�
 - 公式APIのcontent ID完全一致と許可HTTPS hostを満たす場合だけ有効化する。
 - 0件・不一致・affiliate URL欠落は無効化する。
 - 通信失敗など未確認状態もfail-closedで無効化する。
-- D1更新は1トランザクションの一時SQLに限定し、実行後は成功・失敗を問わず削除する。
+- D1更新は1つの一時SQLに限定し、Cloudflare公式のimport要件に従い明示的な
+  `BEGIN TRANSACTION` / `COMMIT`を含めない。VALID時はtarget、audit、enableの順、
+  無効時はdisable、auditの順とし、途中停止でも公開導線が安全側になる順序を維持する。
+  一時SQLは実行後、成功・失敗を問わず削除する。
 - stdoutは集計値とallowlist済みreason codeのみ。ID、URL、credential、SQL、応答本文、例外詳細を出さない。
 - 自動retry、自動repair、lock解除、無制限loopは行わない。
 

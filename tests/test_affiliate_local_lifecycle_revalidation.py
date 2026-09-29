@@ -58,8 +58,11 @@ class LocalLifecycleTests(unittest.TestCase):
 
     def test_exact_items_write_one_bounded_transaction_and_delete_temp_sql(self):
         calls = []
+        sql_seen = []
         def runner(command, **kwargs):
             calls.append(command)
+            if "--file" in command:
+                sql_seen.append(Path(command[command.index("--file") + 1]).read_text(encoding="utf-8"))
             return Process(returncode=1, stdout=selection()) if len(calls) == 1 else Process(returncode=1, stdout=write_success())
         def connector(**kwargs):
             content_id = kwargs["content_id"]
@@ -77,6 +80,10 @@ class LocalLifecycleTests(unittest.TestCase):
         self.assertTrue(result.temporary_sql_deleted)
         self.assertEqual(2, len(calls))
         self.assertIn("--file", calls[1])
+        self.assertNotIn("BEGIN TRANSACTION", sql_seen[0])
+        self.assertNotIn("COMMIT", sql_seen[0])
+        self.assertLess(sql_seen[0].index("INSERT INTO affiliate_redirect_target"),
+                        sql_seen[0].index("affiliate_enabled=1"))
 
     def test_upstream_failure_disables_in_same_bounded_write(self):
         calls = []
