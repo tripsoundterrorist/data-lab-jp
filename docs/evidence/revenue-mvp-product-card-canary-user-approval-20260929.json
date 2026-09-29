@@ -4,11 +4,11 @@
   "decision": "APPROVED_FOR_PRODUCTION",
   "user_direction": "最速で進める。収益性を最優先し、商品ごとのリンクを実装する。",
   "approved_scope": {
-    "candidate_sha256": "ae9252fd48b59a0fc4f48b53cf92b8190a377584ae1f8fb6fe687824a369ecd5",
+    "candidate_sha256": "fe1c1ea55f0ca7031f612b1ac17ea27b7004ef9b72f5d600a4b4e78d09359a67",
     "public_route": "/items/",
     "item_count": 100,
     "image_count": 100,
-    "maximum_cta_count": 14,
+    "maximum_cta_count": 34,
     "official_image_host_only": true,
     "opaque_public_id_only": true,
     "proximate_pr_disclosure_required": true,
