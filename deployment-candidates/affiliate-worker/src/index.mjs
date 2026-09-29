@@ -1,4 +1,5 @@
 import { handleAffiliatePagesCandidate } from "../../../runtime-candidates/affiliate-pages-entrypoint-candidate.mjs";
+import { runAffiliateLifecycleRevalidation } from "../../../runtime-candidates/affiliate-lifecycle-revalidation.mjs";
 
 // This scope is intentionally narrower than a global Publication Gate unlock.
 // D1 remains the final exact-one-row-per-request runtime eligibility boundary.
@@ -25,5 +26,10 @@ export const RELEASE_FACTS = Object.freeze({
 export default {
   async fetch(request, env) {
     return handleAffiliatePagesCandidate({ request, env }, RELEASE_FACTS);
+  },
+  async scheduled(controller, env, ctx) {
+    await runAffiliateLifecycleRevalidation(
+      env, fetch, new Date(controller.scheduledTime).toISOString(),
+    );
   },
 };
