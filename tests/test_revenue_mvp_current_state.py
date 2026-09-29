@@ -35,7 +35,7 @@ class CurrentRevenueStateTests(unittest.TestCase):
 
     def test_current_exact_surface_is_live_with_worker_revalidation_paused(self):
         result = self.assess()
-        self.assertEqual(result.status, state.PRODUCT_CARD_LIVE_REVALIDATION_PAUSED)
+        self.assertEqual(result.status, state.PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY)
         self.assertTrue(result.limited_surface_live)
         self.assertTrue(result.edge_artifact_verified)
         self.assertEqual(result.live_item_count, 100)
@@ -43,7 +43,7 @@ class CurrentRevenueStateTests(unittest.TestCase):
         self.assertTrue(result.cta_allowed)
         self.assertTrue(result.affiliate_integration_allowed)
         self.assertFalse(result.production_write_allowed)
-        self.assertEqual(result.next_action, "REPLACE_WORKER_REVALIDATION_TRANSPORT")
+        self.assertEqual(result.next_action, "REVIEW_LOCAL_REVALIDATION_SCHEDULER_ACTIVATION")
         self.assertEqual(result.affiliate_d1_enabled_row_count, 100)
 
     def test_artifact_mismatch_fails_closed(self):
@@ -55,7 +55,7 @@ class CurrentRevenueStateTests(unittest.TestCase):
         receipt = copy.deepcopy(self.receipt)
         receipt["cta_allowed"] = True
         result = self.assess(receipt=receipt)
-        self.assertEqual(result.status, state.PRODUCT_CARD_LIVE_REVALIDATION_PAUSED)
+        self.assertEqual(result.status, state.PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY)
         self.assertTrue(result.affiliate_integration_allowed)
 
     def test_invalid_live_evidence_falls_back_to_pending_edge(self):
@@ -67,7 +67,7 @@ class CurrentRevenueStateTests(unittest.TestCase):
 
     def test_cli_current_state(self):
         result = state.current_state()
-        self.assertEqual(result.status, state.PRODUCT_CARD_LIVE_REVALIDATION_PAUSED)
+        self.assertEqual(result.status, state.PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY)
 
 
 if __name__ == "__main__":

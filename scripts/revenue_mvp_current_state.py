@@ -23,6 +23,7 @@ APPROVED_CANARY_PENDING_EDGE = "REVENUE_SURFACE_APPROVED_ONE_CTA_PENDING_EDGE_VE
 PRODUCT_CARD_CANARY_PENDING_EDGE = "REVENUE_SURFACE_PRODUCT_CARD_CANARY_PENDING_EDGE_VERIFICATION"
 PRODUCT_CARD_LIVE_REVALIDATION_PENDING = "REVENUE_SURFACE_PRODUCT_CARD_LIVE_REVALIDATION_PENDING_FIRST_RUN"
 PRODUCT_CARD_LIVE_REVALIDATION_PAUSED = "REVENUE_SURFACE_PRODUCT_CARD_LIVE_REVALIDATION_PAUSED_TRANSPORT_INCOMPATIBLE"
+PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY = "REVENUE_SURFACE_PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY_VERIFIED"
 FAIL_CLOSED = "CURRENT_REVENUE_STATE_FAIL_CLOSED"
 EXPECTED_SHA256 = "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d"
 APPROVED_CANARY_SHA256 = "62ad8f93cc91769b5c92854bc4ff2ccb6bb4e939d8791a8b36245d4c93878374"
@@ -112,6 +113,7 @@ def assess(
             private_d1 = live.get("private_d1", {}) if type(live) is dict else {}
             deployment = live.get("deployment", {}) if type(live) is dict else {}
             first_run = deployment.get("first_lifecycle_run", {}) if type(deployment) is dict else {}
+            local_canary = deployment.get("local_revalidation_canary", {}) if type(deployment) is dict else {}
             live_verified = (
                 type(live) is dict
                 and live.get("version") == VERSION
@@ -134,7 +136,7 @@ def assess(
                 and re.fullmatch(r"[0-9a-f-]{36}", deployment.get("worker_version_id", "")) is not None
                 and deployment.get("lifecycle_cron") is None
                 and deployment.get("first_lifecycle_run_verified") is True
-                and deployment.get("revalidation_status") == "PAUSED_TRANSPORT_INCOMPATIBLE"
+                and deployment.get("revalidation_status") == "LOCAL_CANARY_VERIFIED_PENDING_SCHEDULER"
                 and first_run.get("checked_count") == 5
                 and first_run.get("valid_count") == 0
                 and first_run.get("disabled_count") == 5
@@ -143,15 +145,25 @@ def assess(
                 and first_run.get("local_official_api_reverified_count") == 5
                 and first_run.get("restored_count") == 5
                 and first_run.get("enabled_count_after_recovery") == EXPECTED_COUNT
+                and local_canary.get("checked_at") == "2026-09-29T15:03:06Z"
+                and local_canary.get("selected_count") == 5
+                and local_canary.get("valid_count") == 5
+                and local_canary.get("disabled_count") == 0
+                and local_canary.get("database_write_performed") is True
+                and local_canary.get("temporary_sql_deleted") is True
+                and local_canary.get("enabled_count_after_canary") == EXPECTED_COUNT
+                and local_canary.get("production_smoke_checked_url_count") == 14
+                and local_canary.get("production_smoke_failed_url_count") == 0
+                and local_canary.get("scheduler_registered") is False
                 and live.get("global_publication_gate") == "unchanged"
                 and live.get("paid_plan_change") is False
             )
             if live_verified:
                 return CurrentRevenueState(
-                    VERSION, PRODUCT_CARD_LIVE_REVALIDATION_PAUSED, "P0", True,
+                    VERSION, PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY, "P0", True,
                     "UNORDERED_REDUCED_SURFACE_PRODUCT_CARD_LIVE", EXPECTED_ROUTE,
                     EXPECTED_COUNT, True, True, True, EXPECTED_COUNT, True, True,
-                    False, False, "REPLACE_WORKER_REVALIDATION_TRANSPORT",
+                    False, False, "REVIEW_LOCAL_REVALIDATION_SCHEDULER_ACTIVATION",
                     (
                         "PRODUCTION_PRODUCT_CARD_ARTIFACT_EXACT_MATCH_VERIFIED",
                         "ONE_HUNDRED_OFFICIAL_IMAGES_LIVE",
@@ -161,6 +173,8 @@ def assess(
                         "WORKER_REVALIDATION_TRANSPORT_INCOMPATIBLE",
                         "WORKER_CRON_DISABLED_AFTER_BOUNDED_FAILURE",
                         "FIVE_ROWS_LOCALLY_REVERIFIED_AND_RESTORED",
+                        "LOCAL_REVALIDATION_CANARY_FIVE_OF_FIVE_VALID",
+                        "LOCAL_REVALIDATION_SCHEDULER_NOT_REGISTERED",
                         "GLOBAL_PUBLICATION_GATE_UNCHANGED",
                     ),
                 )
@@ -302,6 +316,7 @@ def main() -> int:
         LIVE_AFFILIATE_CLOSED, APPROVED_CANARY_PENDING_EDGE,
         PRODUCT_CARD_CANARY_PENDING_EDGE, PRODUCT_CARD_LIVE_REVALIDATION_PENDING,
         PRODUCT_CARD_LIVE_REVALIDATION_PAUSED,
+        PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY,
     ) else 2
 
 

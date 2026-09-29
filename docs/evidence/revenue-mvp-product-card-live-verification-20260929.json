@@ -1,7 +1,7 @@
 {
   "version": "0.1",
   "status": "VERIFIED_LIVE",
-  "verified_at": "2026-09-29T14:30:00Z",
+  "verified_at": "2026-09-29T15:03:06Z",
   "production": {
     "route": "/items/",
     "http_status": 200,
@@ -21,7 +21,7 @@
     "runtime_target_count": 100
   },
   "deployment": {
-    "main_commit": "deacda60d76f1d6e681cb9a2a4b3c667abd3a594",
+    "main_commit": "7a240ffc3d17cd33fc67f345e6f1c986f450af0e",
     "worker_version_id": "96a98656-b650-4365-a7cb-38ceaa197ae2",
     "lifecycle_cron": null,
     "first_lifecycle_run_verified": true,
@@ -35,7 +35,19 @@
       "restored_count": 5,
       "enabled_count_after_recovery": 100
     },
-    "revalidation_status": "PAUSED_TRANSPORT_INCOMPATIBLE"
+    "revalidation_status": "LOCAL_CANARY_VERIFIED_PENDING_SCHEDULER",
+    "local_revalidation_canary": {
+      "checked_at": "2026-09-29T15:03:06Z",
+      "selected_count": 5,
+      "valid_count": 5,
+      "disabled_count": 0,
+      "database_write_performed": true,
+      "temporary_sql_deleted": true,
+      "enabled_count_after_canary": 100,
+      "production_smoke_checked_url_count": 14,
+      "production_smoke_failed_url_count": 0,
+      "scheduler_registered": false
+    }
   },
   "global_publication_gate": "unchanged",
   "paid_plan_change": false
