@@ -1,0 +1,24 @@
+{
+  "version": "0.1",
+  "recorded_on": "2026-09-29",
+  "source": "CONTROL_CENTER_USER_MESSAGE",
+  "decision": "APPROVED_FOR_PRODUCTION",
+  "approved_scope": {
+    "candidate_sha256": "62ad8f93cc91769b5c92854bc4ff2ccb6bb4e939d8791a8b36245d4c93878374",
+    "review_artifact_sha256": "10aafd067419cfec813ed9614db33407833fc577fb44365bc55080df354095b9",
+    "source_sha256": "564bbeaf628de624e816ff8f2b4a3824119e338d3052e8d2594a084f06ef2e85",
+    "public_route": "/items/",
+    "cta_route_prefix": "/go/",
+    "item_count": 100,
+    "maximum_cta_count": 1,
+    "proximate_pr_disclosure_required": true,
+    "free_plan_only": true
+  },
+  "execution_guards": {
+    "exact_candidate_hash_required": true,
+    "one_d1_eligible_row_maximum": true,
+    "provider_url_must_not_be_committed": true,
+    "post_deploy_smoke_required": true,
+    "rollback_first_on_failure": true
+  }
+}

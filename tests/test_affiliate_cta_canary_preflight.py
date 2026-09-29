@@ -5,9 +5,11 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "tests"))
 
 import affiliate_cta_canary_plan as plan_module
 import affiliate_cta_canary_preflight as preflight
+from affiliate_cta_test_support import closed_revenue_state
 
 
 NOW = datetime(2026, 9, 22, 4, 0, tzinfo=timezone.utc)
@@ -31,7 +33,7 @@ def visible_payload(content_id):
 
 class AffiliateCtaCanaryPreflightTests(unittest.TestCase):
     def setUp(self):
-        self.plan = plan_module.current_plan()
+        self.plan = plan_module.assess(closed_revenue_state())
         self.ids = tuple(public_id(index) for index in range(10))
         self.mapping = {value: f"cid{index}" for index, value in enumerate(self.ids)}
 

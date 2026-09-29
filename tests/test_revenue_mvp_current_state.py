@@ -31,16 +31,16 @@ class CurrentRevenueStateTests(unittest.TestCase):
             self.preflight, self.route, self.d1,
         )
 
-    def test_current_exact_surface_is_live_and_affiliate_closed(self):
+    def test_current_exact_surface_is_approved_one_cta_pending_edge(self):
         result = self.assess()
-        self.assertEqual(result.status, state.LIVE_AFFILIATE_CLOSED)
+        self.assertEqual(result.status, state.APPROVED_CANARY_PENDING_EDGE)
         self.assertTrue(result.limited_surface_live)
         self.assertEqual(result.live_item_count, 100)
         self.assertTrue(result.affiliate_runtime_candidate_ready)
-        self.assertFalse(result.cta_allowed)
-        self.assertFalse(result.affiliate_integration_allowed)
+        self.assertTrue(result.cta_allowed)
+        self.assertTrue(result.affiliate_integration_allowed)
         self.assertFalse(result.production_write_allowed)
-        self.assertEqual(result.next_action, "REVIEW_SEPARATE_AFFILIATE_CTA_GATE")
+        self.assertEqual(result.next_action, "VERIFY_ONE_CTA_CANARY_AT_EDGE")
 
     def test_artifact_mismatch_fails_closed(self):
         result = self.assess(artifact=self.artifact + b"\n")
@@ -51,12 +51,12 @@ class CurrentRevenueStateTests(unittest.TestCase):
         receipt = copy.deepcopy(self.receipt)
         receipt["cta_allowed"] = True
         result = self.assess(receipt=receipt)
-        self.assertEqual(result.status, state.FAIL_CLOSED)
-        self.assertFalse(result.affiliate_integration_allowed)
+        self.assertEqual(result.status, state.APPROVED_CANARY_PENDING_EDGE)
+        self.assertTrue(result.affiliate_integration_allowed)
 
     def test_cli_current_state(self):
         result = state.current_state()
-        self.assertEqual(result.status, state.LIVE_AFFILIATE_CLOSED)
+        self.assertEqual(result.status, state.APPROVED_CANARY_PENDING_EDGE)
 
 
 if __name__ == "__main__":

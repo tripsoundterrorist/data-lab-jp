@@ -5,14 +5,16 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "tests"))
 
 import affiliate_cta_canary_plan as plan
 import revenue_mvp_current_state as current_state
+from affiliate_cta_test_support import closed_revenue_state
 
 
 class AffiliateCtaCanaryPlanTests(unittest.TestCase):
     def setUp(self):
-        self.current = current_state.current_state()
+        self.current = closed_revenue_state()
         self.assertEqual(self.current.status, current_state.LIVE_AFFILIATE_CLOSED)
 
     def test_exact_closed_state_produces_review_only_plan(self):

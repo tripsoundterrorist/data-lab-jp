@@ -6,9 +6,11 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "tests"))
 
 import affiliate_cta_canary_plan as plan_module
 import affiliate_cta_canary_selection as selection
+from affiliate_cta_test_support import closed_revenue_state
 from product_verification import Observation, VerificationObservation
 
 
@@ -34,7 +36,7 @@ def candidate(index=0, **kwargs):
 
 class AffiliateCtaCanarySelectionTests(unittest.TestCase):
     def setUp(self):
-        self.plan = plan_module.current_plan()
+        self.plan = plan_module.assess(closed_revenue_state())
         self.assertEqual(self.plan.status, plan_module.READY)
 
     def test_ten_fresh_eligible_items_yield_counts_only(self):

@@ -5,17 +5,19 @@ import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"scripts"))
+sys.path.insert(0,str(ROOT/"tests"))
 
 import affiliate_cta_canary_plan as plan_module
 import affiliate_cta_canonical_selection_preflight as subject
 import affiliate_cta_exact_selection as exact
+from affiliate_cta_test_support import closed_revenue_state
 
 NOW=datetime(2026,9,22,7,0,tzinfo=timezone.utc)
 ID="itm_0123456789abcdef01234567"
 
 
 def plan():
-    return plan_module.current_plan()
+    return plan_module.assess(closed_revenue_state())
 
 
 def payload(content_id):
