@@ -23,7 +23,10 @@ VERSION = "0.1-candidate"
 READY = "MINIMAL_OPAQUE_GO_CTA_ARTIFACT_READY"
 MAX_AGE = timedelta(hours=24)
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
-SELECTION_METHOD = "OPAQUE_ID_LEXICOGRAPHIC_MIN_NO_RANKING_MEANING"
+SELECTION_METHODS = frozenset({
+    "OPAQUE_ID_LEXICOGRAPHIC_MIN_NO_RANKING_MEANING",
+    "EXACT_REVIEWED_D1_INTERSECTION_ID",
+})
 TOP_LEVEL_FIELDS = frozenset({
     "version", "source_packet_sha256", "as_of", "selection_method",
     "source_candidate_count", "candidates", "publication_allowed",
@@ -88,7 +91,7 @@ def validate(packet: Any, *, evaluated_at: datetime) -> dict[str, Any]:
         packet["source_packet_sha256"]
     ) is None:
         raise CtaRendererFailure("SOURCE_PACKET_DIGEST_INVALID")
-    if packet["selection_method"] != SELECTION_METHOD:
+    if packet["selection_method"] not in SELECTION_METHODS:
         raise CtaRendererFailure("SELECTION_METHOD_INVALID")
     if type(packet["source_candidate_count"]) is not int or packet[
         "source_candidate_count"
