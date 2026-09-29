@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -103,6 +104,32 @@ class LocalLifecycleTests(unittest.TestCase):
         result = subject.run_cycle(runner=lambda *a, **k: Process(stdout="{}"))
         self.assertEqual("FAILED_SAFE", result.status)
         self.assertFalse(result.database_write_performed)
+
+    def test_scoped_selection_requires_every_exact_requested_id(self):
+        calls = []
+        def runner(command, **kwargs):
+            calls.append(command)
+            return Process(stdout=selection(ROWS[:1]))
+        result = subject.run_cycle(
+            runner=runner,
+            public_ids=(ROWS[0]["public_id"], ROWS[1]["public_id"]),
+        )
+        self.assertEqual("FAILED_SAFE", result.status)
+        self.assertFalse(result.database_write_performed)
+        self.assertEqual(1, len(calls))
+        self.assertIn("public_id IN", calls[0][calls[0].index("--command") + 1])
+
+    def test_private_selection_file_is_bounded_and_outside_repository(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "selection.txt"
+            path.write_text("\n".join(row["public_id"] for row in ROWS), encoding="utf-8")
+            self.assertEqual(
+                tuple(row["public_id"] for row in ROWS),
+                subject._load_private_selection(path),
+            )
+            path.write_text("\n".join([ROWS[0]["public_id"]] * 2), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                subject._load_private_selection(path)
 
     def test_failed_d1_write_still_deletes_temporary_sql(self):
         calls = []
