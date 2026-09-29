@@ -100,9 +100,39 @@ def _json_payload(stdout: Any) -> Any:
     return json.loads(stdout[marker + (2 if stdout.startswith("\r\n", marker) else 1):])
 
 
-def _select(runner: Callable[..., Any]) -> list[dict[str, str]]:
+def _load_private_selection(path: Path) -> tuple[str, ...]:
+    target = path.resolve()
+    try:
+        target.relative_to(ROOT.resolve())
+    except ValueError:
+        pass
+    else:
+        raise ValueError("selection must remain outside repository")
+    if path.is_symlink() or not target.is_file() or target.stat().st_size > 512:
+        raise ValueError("selection invalid")
+    values = tuple(target.read_text(encoding="utf-8").splitlines())
+    if (
+        not 1 <= len(values) <= BATCH_SIZE
+        or len(set(values)) != len(values)
+        or any(PUBLIC_ID.fullmatch(value) is None for value in values)
+    ):
+        raise ValueError("selection invalid")
+    return values
+
+
+def _select(
+    runner: Callable[..., Any], public_ids: tuple[str, ...] | None = None,
+) -> list[dict[str, str]]:
+    sql = SELECT_SQL
+    if public_ids is not None:
+        quoted = ",".join(_quote(value) for value in public_ids)
+        sql = (
+            "SELECT public_id,content_id FROM affiliate_item_lookup "
+            "WHERE rights_status='CONDITIONALLY_APPROVED' AND lifecycle_status='RESOLVED' "
+            f"AND public_id IN ({quoted}) ORDER BY public_id ASC LIMIT 5"
+        )
     process = _wrangler(
-        ["d1", "execute", DATABASE_NAME, "--remote", "--json", "--command", SELECT_SQL],
+        ["d1", "execute", DATABASE_NAME, "--remote", "--json", "--command", sql],
         runner,
     )
     payload = _json_payload(process.stdout)
@@ -116,6 +146,11 @@ def _select(runner: Callable[..., Any]) -> list[dict[str, str]]:
                 or not isinstance(row["public_id"], str) or not PUBLIC_ID.fullmatch(row["public_id"])
                 or not isinstance(row["content_id"], str) or not CONTENT_ID.fullmatch(row["content_id"])):
             raise RuntimeError("selection invalid")
+    if public_ids is not None and (
+        len(rows) != len(public_ids)
+        or {row["public_id"] for row in rows} != set(public_ids)
+    ):
+        raise RuntimeError("scoped selection incomplete")
     return rows
 
 
@@ -183,7 +218,8 @@ def _statements(rows: list[dict[str, str]], outcomes: list[tuple[str, str | None
 def run_cycle(*, execute: bool = False, confirmed: bool = False,
               runner: Callable[..., Any] = subprocess.run,
               fetcher: Callable[..., Any] | None = None,
-              checked_at: str | None = None) -> Result:
+              checked_at: str | None = None,
+              public_ids: tuple[str, ...] | None = None) -> Result:
     mode = "LIVE" if execute else "DRY_RUN"
     temporary_path: Path | None = None
     try:
@@ -191,7 +227,13 @@ def run_cycle(*, execute: bool = False, confirmed: bool = False,
             return _result("BLOCKED", mode, "EXPLICIT_CONFIRMATION_REQUIRED")
         if not ENV_PATH.is_file() or not WRANGLER_CONFIG.is_file():
             return _result("BLOCKED", mode, "REQUIRED_LOCAL_STATE_UNAVAILABLE")
-        rows = _select(runner)
+        if public_ids is not None and (
+            not 1 <= len(public_ids) <= BATCH_SIZE
+            or len(set(public_ids)) != len(public_ids)
+            or any(PUBLIC_ID.fullmatch(value) is None for value in public_ids)
+        ):
+            return _result("BLOCKED", mode, "SCOPED_SELECTION_INVALID")
+        rows = _select(runner, public_ids)
         if not execute:
             return _result("READY", mode, "BOUNDED_SELECTION_VALIDATED", selected=len(rows))
         if not rows:
@@ -258,8 +300,20 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run one bounded local affiliate revalidation cycle.")
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--confirm")
+    parser.add_argument("--selection-file", type=Path)
     args = parser.parse_args(argv)
-    result = run_cycle(execute=args.execute, confirmed=args.confirm == CONFIRMATION)
+    try:
+        public_ids = (
+            _load_private_selection(args.selection_file)
+            if args.selection_file is not None else None
+        )
+    except (OSError, UnicodeError, ValueError):
+        result = _result("BLOCKED", "LIVE" if args.execute else "DRY_RUN", "SCOPED_SELECTION_INVALID")
+    else:
+        result = run_cycle(
+            execute=args.execute, confirmed=args.confirm == CONFIRMATION,
+            public_ids=public_ids,
+        )
     print(json.dumps(result.to_dict(), sort_keys=True))
     return 0 if result.status in {"READY", "COMPLETED"} else 2
 
