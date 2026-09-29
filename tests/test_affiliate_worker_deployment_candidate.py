@@ -28,12 +28,26 @@ class AffiliateWorkerDeploymentCandidateTests(unittest.TestCase):
         self.assertIn('zone_name = "datalabx.jp"', self.config)
         self.assertEqual(self.config.count('pattern = "'), 1)
 
-    def test_all_release_facts_are_hard_closed(self):
+    def test_release_facts_are_bound_to_the_approved_activation_scope(self):
+        expected_scope = {
+            "candidateSha256": "62ad8f93cc91769b5c92854bc4ff2ccb6bb4e939d8791a8b36245d4c93878374",
+            "artifactSha256": "10aafd067419cfec813ed9614db33407833fc577fb44365bc55080df354095b9",
+            "sourceSha256": "564bbeaf628de624e816ff8f2b4a3824119e338d3052e8d2594a084f06ef2e85",
+            "publicSurface": "/items/",
+            "routePrefix": "/go/",
+            "maximumCtaCount": 1,
+            "itemCount": 100,
+            "relayOperationGuaranteed": False,
+            "affiliateOutcomeGuaranteed": False,
+        }
+        for name, value in expected_scope.items():
+            literal = str(value).lower() if isinstance(value, bool) else f'"{value}"' if isinstance(value, str) else str(value)
+            self.assertIn(f"{name}: {literal}", self.entrypoint)
         for name in (
             "officialAnswerCandidate", "publicationGateEligible",
             "runtimeChainConnected", "rateLimitAllowed", "prDisclosureAvailable",
         ):
-            self.assertRegex(self.entrypoint, rf"{name}: false")
+            self.assertRegex(self.entrypoint, rf"{name}: true")
         self.assertNotIn("console.", self.entrypoint)
 
     def test_required_worker_bindings_are_names_only_except_reviewed_d1(self):
