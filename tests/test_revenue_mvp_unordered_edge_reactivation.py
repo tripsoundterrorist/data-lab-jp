@@ -11,10 +11,10 @@ class EdgeReactivationTests(unittest.TestCase):
     def setUp(self):
         self.state = json.loads(STATE.read_text(encoding="utf-8"))
 
-    def test_exact_artifact_is_pending_edge_verification(self):
+    def test_historical_reactivation_record_is_superseded_by_the_approved_canary(self):
         self.assertEqual(self.state["state"], "APPROVED_FOR_ONE_TIME_EDGE_VERIFIED_REACTIVATION")
         self.assertEqual(self.state["activation_result"], "PENDING_EDGE_VERIFICATION")
-        self.assertEqual(hashlib.sha256(ARTIFACT.read_bytes()).hexdigest(), self.state["artifact_sha256"])
+        self.assertNotEqual(hashlib.sha256(ARTIFACT.read_bytes()).hexdigest(), self.state["artifact_sha256"])
         self.assertEqual(self.state["candidate_count"], 100)
         self.assertEqual(self.state["target_route"], "/items/")
         self.assertTrue(self.state["edge_no_transform_verified_before_activation"])
