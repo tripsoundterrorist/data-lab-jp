@@ -23,6 +23,7 @@ APPROVED_CANARY_PENDING_EDGE = "REVENUE_SURFACE_APPROVED_ONE_CTA_PENDING_EDGE_VE
 FAIL_CLOSED = "CURRENT_REVENUE_STATE_FAIL_CLOSED"
 EXPECTED_SHA256 = "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d"
 APPROVED_CANARY_SHA256 = "62ad8f93cc91769b5c92854bc4ff2ccb6bb4e939d8791a8b36245d4c93878374"
+APPROVED_CANARY_CANONICAL_SHA256 = "bb65f1a2e8b437de4d1f26e224733c9341aa0d85d46752e12d0c857108d54c11"
 CANARY_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-one-cta-final-user-approval-20260929.json"
 EXPECTED_COUNT = 100
 EXPECTED_ROUTE = "/items/"
@@ -73,7 +74,10 @@ def assess(receipt: Any, artifact_bytes: bytes, preflight: Any, route: Any, d1: 
     try:
         raw_artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()
         artifact_sha256 = _canonical_sha256(artifact_bytes)
-        if raw_artifact_sha256 == APPROVED_CANARY_SHA256:
+        if (
+            raw_artifact_sha256 == APPROVED_CANARY_SHA256
+            or artifact_sha256 == APPROVED_CANARY_CANONICAL_SHA256
+        ):
             approval = json.loads(CANARY_APPROVAL_PATH.read_text(encoding="utf-8"))
             text = artifact_bytes.decode("utf-8")
             scope = approval.get("approved_scope", {})
