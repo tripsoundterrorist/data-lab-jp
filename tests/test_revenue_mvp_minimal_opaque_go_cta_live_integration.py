@@ -64,6 +64,8 @@ class MinimalOpaqueGoCtaLiveIntegrationTests(unittest.TestCase):
             "version": "0.1", "source": "CONTROL_CENTER_USER_MESSAGE", "decision": "APPROVED",
             "approved_scope": {
                 "artifact_sha256": hashlib.sha256(self.artifact).hexdigest(),
+                "selection_method": "EXACT_REVIEWED_D1_INTERSECTION_ID",
+                "d1_match_count": 1,
                 "public_route": "/items/", "cta_route_prefix": "/go/",
                 "maximum_cta_count": 1, "existing_live_item_count_must_be_preserved": 2,
                 "opaque_public_id_only": True, "proximate_pr_disclosure_required": True,
