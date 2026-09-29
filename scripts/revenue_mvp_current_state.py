@@ -21,6 +21,7 @@ VERSION = "0.1"
 LIVE_AFFILIATE_CLOSED = "REVENUE_SURFACE_LIVE_AFFILIATE_GATE_CLOSED"
 APPROVED_CANARY_PENDING_EDGE = "REVENUE_SURFACE_APPROVED_ONE_CTA_PENDING_EDGE_VERIFICATION"
 PRODUCT_CARD_CANARY_PENDING_EDGE = "REVENUE_SURFACE_PRODUCT_CARD_CANARY_PENDING_EDGE_VERIFICATION"
+PRODUCT_CARD_LIVE_REVALIDATION_PENDING = "REVENUE_SURFACE_PRODUCT_CARD_LIVE_REVALIDATION_PENDING_FIRST_RUN"
 FAIL_CLOSED = "CURRENT_REVENUE_STATE_FAIL_CLOSED"
 EXPECTED_SHA256 = "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d"
 APPROVED_CANARY_SHA256 = "62ad8f93cc91769b5c92854bc4ff2ccb6bb4e939d8791a8b36245d4c93878374"
@@ -28,6 +29,7 @@ APPROVED_CANARY_CANONICAL_SHA256 = "bb65f1a2e8b437de4d1f26e224733c9341aa0d85d467
 CANARY_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-one-cta-final-user-approval-20260929.json"
 PRODUCT_CARD_SHA256 = "c7d569dc732b73e4085c9d860f1a54c73c201b974d37dda7ae15d9c5193dddf1"
 PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-card-canary-user-approval-20260929.json"
+PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-card-live-verification-20260929.json"
 EXPECTED_COUNT = 100
 EXPECTED_ROUTE = "/items/"
 
@@ -72,7 +74,10 @@ def _canonical_sha256(value: bytes) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def assess(receipt: Any, artifact_bytes: bytes, preflight: Any, route: Any, d1: Any) -> CurrentRevenueState:
+def assess(
+    receipt: Any, artifact_bytes: bytes, preflight: Any, route: Any, d1: Any,
+    product_card_live_evidence: Any = None,
+) -> CurrentRevenueState:
     """Validate the live receipt and keep the separate affiliate Gate closed."""
     try:
         raw_artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()
@@ -101,6 +106,51 @@ def assess(receipt: Any, artifact_bytes: bytes, preflight: Any, route: Any, d1: 
             )
             if not product_card_valid:
                 return _failed("PRODUCT_CARD_CANARY_ARTIFACT_INVALID")
+            live = product_card_live_evidence
+            production = live.get("production", {}) if type(live) is dict else {}
+            private_d1 = live.get("private_d1", {}) if type(live) is dict else {}
+            deployment = live.get("deployment", {}) if type(live) is dict else {}
+            live_verified = (
+                type(live) is dict
+                and live.get("version") == VERSION
+                and live.get("status") == "VERIFIED_LIVE"
+                and production.get("route") == EXPECTED_ROUTE
+                and production.get("http_status") == 200
+                and production.get("artifact_sha256") == PRODUCT_CARD_SHA256
+                and production.get("item_count") == EXPECTED_COUNT
+                and production.get("official_image_count") == EXPECTED_COUNT
+                and production.get("cta_count") == EXPECTED_COUNT
+                and production.get("proximate_pr_disclosure_count") == EXPECTED_COUNT
+                and production.get("representative_redirects_tested") == 3
+                and production.get("representative_redirects_passed") == 3
+                and production.get("invalid_public_id_status") == 404
+                and production.get("invalid_public_id_location_absent") is True
+                and production.get("private_affiliate_url_exposed") is False
+                and private_d1.get("enabled_count") == EXPECTED_COUNT
+                and private_d1.get("runtime_target_count") == EXPECTED_COUNT
+                and re.fullmatch(r"[0-9a-f]{40}", deployment.get("main_commit", "")) is not None
+                and re.fullmatch(r"[0-9a-f-]{36}", deployment.get("worker_version_id", "")) is not None
+                and deployment.get("lifecycle_cron") == "17 * * * *"
+                and deployment.get("first_lifecycle_run_verified") is False
+                and live.get("global_publication_gate") == "unchanged"
+                and live.get("paid_plan_change") is False
+            )
+            if live_verified:
+                return CurrentRevenueState(
+                    VERSION, PRODUCT_CARD_LIVE_REVALIDATION_PENDING, "P0", True,
+                    "UNORDERED_REDUCED_SURFACE_PRODUCT_CARD_LIVE", EXPECTED_ROUTE,
+                    EXPECTED_COUNT, True, True, True, EXPECTED_COUNT, True, True,
+                    False, False, "VERIFY_FIRST_LIFECYCLE_REVALIDATION_RUN",
+                    (
+                        "PRODUCTION_PRODUCT_CARD_ARTIFACT_EXACT_MATCH_VERIFIED",
+                        "ONE_HUNDRED_OFFICIAL_IMAGES_LIVE",
+                        "ONE_HUNDRED_PROXIMATE_PR_DISCLOSED_CTAS_LIVE",
+                        "D1_RUNTIME_TARGETS_EXACTLY_ONE_HUNDRED",
+                        "INVALID_PUBLIC_ID_FAIL_CLOSED_VERIFIED",
+                        "FIRST_LIFECYCLE_REVALIDATION_RUN_PENDING",
+                        "GLOBAL_PUBLICATION_GATE_UNCHANGED",
+                    ),
+                )
             return CurrentRevenueState(
                 VERSION, PRODUCT_CARD_CANARY_PENDING_EDGE, "P0", True,
                 "UNORDERED_REDUCED_SURFACE_PRODUCT_CARD_CANARY", EXPECTED_ROUTE,
@@ -211,6 +261,9 @@ def current_state() -> CurrentRevenueState:
     try:
         receipt = json.loads(RECEIPT_PATH.read_text(encoding="utf-8"))
         artifact = ARTIFACT_PATH.read_bytes()
+        product_card_live_evidence = json.loads(
+            PRODUCT_CARD_LIVE_EVIDENCE_PATH.read_text(encoding="utf-8")
+        )
     except Exception:
         return _failed("CURRENT_REVENUE_EVIDENCE_UNREADABLE")
     return assess(
@@ -225,6 +278,7 @@ def current_state() -> CurrentRevenueState:
         affiliate_d1_production_state.assess(
             affiliate_d1_production_state.current_evidence()
         ),
+        product_card_live_evidence,
     )
 
 
@@ -233,7 +287,7 @@ def main() -> int:
     print(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
     return 0 if result.status in (
         LIVE_AFFILIATE_CLOSED, APPROVED_CANARY_PENDING_EDGE,
-        PRODUCT_CARD_CANARY_PENDING_EDGE,
+        PRODUCT_CARD_CANARY_PENDING_EDGE, PRODUCT_CARD_LIVE_REVALIDATION_PENDING,
     ) else 2
 
 
