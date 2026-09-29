@@ -1,0 +1,31 @@
+{
+  "version": "0.1",
+  "source": "CONTROL_CENTER_USER_MESSAGE",
+  "decision": "APPROVED_FOR_PRODUCTION",
+  "approved_at": "2026-09-30",
+  "user_direction": "承認",
+  "approved_scope": {
+    "source_sha256": "293f10a921359f3f29091ece45c16e9214ce9164ad53a44c3ce35d38aff76a86",
+    "candidate_sha256": "5eece329debeb14e517c20aaf6c7e2ded40488c2ff16f57dbec34afb54a2c2b4",
+    "reviewed_windows_source_sha256": "4e5df75fd909f14896958a0ae51929592ce6f2b3931bc6c47b4a0fff52002cf2",
+    "reviewed_windows_candidate_sha256": "5eece329debeb14e517c20aaf6c7e2ded40488c2ff16f57dbec34afb54a2c2b4",
+    "public_route": "/items/",
+    "item_count": 100,
+    "image_count": 100,
+    "maximum_cta_count": 100,
+    "retained_count": 88,
+    "added_count": 12,
+    "removed_count": 12,
+    "candidate_runtime_redirect_matches": 100,
+    "discovery_controls_preserved": true,
+    "robots_noindex_preserved": true,
+    "proximate_pr_disclosure_required": true
+  },
+  "boundaries": {
+    "d1": "already_prevalidated_100_of_100",
+    "affiliate_routes": "already_prevalidated_100_of_100",
+    "global_publication_gate": "unchanged",
+    "robots": "noindex,nofollow",
+    "paid_plan_change": false
+  }
+}
