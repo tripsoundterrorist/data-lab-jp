@@ -22,7 +22,7 @@ EXPECTED_PUBLIC_FILES = {
     "column-price.html", "column-score.html", "column-trend.html",
     "contact.html", "disclosure.html", "index.html", "legal.css",
     "privacy.html", "robots.txt", "sitemap.xml", "terms.html",
-    "items/index.html", "items/item.html", "items/items.css", "items/items.js",
+    "items/index.html", "items/item.html", "items/items.css", "items/discovery.js", "items/items.js",
 }
 
 
