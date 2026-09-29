@@ -83,7 +83,8 @@ def _candidate_key(candidate: dict[str, Any]) -> tuple[Any, ...]:
 
 
 def build_packet(
-    database: Path, expected_sha256: str, as_of: datetime
+    database: Path, expected_sha256: str, as_of: datetime,
+    *, required_public_id: str | None = None,
 ) -> tuple[bytes, CtaPacketReceipt]:
     """Bind exactly one reviewed candidate to its DB-derived opaque ID."""
 
@@ -114,7 +115,20 @@ def build_packet(
             raise CtaPacketFailure("SOURCE_IDENTITY_INVALID")
         bound.append((public_item_id(*values), candidate, row))
     bound.sort(key=lambda value: value[0])
-    opaque_id, candidate, row = bound[0]
+    selection_method = "OPAQUE_ID_LEXICOGRAPHIC_MIN_NO_RANKING_MEANING"
+    if required_public_id is not None:
+        if (
+            type(required_public_id) is not str
+            or cta_contract.PUBLIC_ID.fullmatch(required_public_id) is None
+        ):
+            raise CtaPacketFailure("REQUIRED_PUBLIC_ID_INVALID")
+        selected = [value for value in bound if value[0] == required_public_id]
+        if len(selected) != 1:
+            raise CtaPacketFailure("REQUIRED_PUBLIC_ID_NOT_EXACTLY_BOUND")
+        opaque_id, candidate, row = selected[0]
+        selection_method = "EXACT_REVIEWED_D1_INTERSECTION_ID"
+    else:
+        opaque_id, candidate, row = bound[0]
     review = cta_contract.review({
         "contract_version": cta_contract.VERSION,
         "public_id": opaque_id,
@@ -143,7 +157,7 @@ def build_packet(
         "version": VERSION,
         "source_packet_sha256": hashlib.sha256(source).hexdigest(),
         "as_of": source_value["as_of"],
-        "selection_method": "OPAQUE_ID_LEXICOGRAPHIC_MIN_NO_RANKING_MEANING",
+        "selection_method": selection_method,
         "source_candidate_count": len(candidates),
         "candidates": [public_candidate],
         "publication_allowed": False,

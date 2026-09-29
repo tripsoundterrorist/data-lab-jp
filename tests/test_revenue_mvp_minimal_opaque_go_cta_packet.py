@@ -91,6 +91,31 @@ class MinimalOpaqueGoCtaPacketTests(unittest.TestCase):
             "deployment_allowed", "network_io_performed", "production_write_performed",
         )))
 
+    def test_exact_reviewed_d1_intersection_id_can_be_selected(self):
+        expected = receipt.public_item_id(
+            "FANZA", "digital", "videoa", "private-content-1"
+        )
+        payload, result = subject.build_packet(
+            self.database, digest(self.database), NOW,
+            required_public_id=expected,
+        )
+        value = json.loads(payload)
+        self.assertEqual(value["selection_method"], "EXACT_REVIEWED_D1_INTERSECTION_ID")
+        self.assertEqual(value["candidates"][0]["public_id"], expected)
+        self.assertEqual(result.status, subject.READY)
+
+    def test_unbound_or_malformed_required_public_id_fails_closed(self):
+        for value, reason in (
+            ("not-opaque", "REQUIRED_PUBLIC_ID_INVALID"),
+            ("itm_" + "0" * 24, "REQUIRED_PUBLIC_ID_NOT_EXACTLY_BOUND"),
+        ):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(subject.CtaPacketFailure, reason):
+                    subject.build_packet(
+                        self.database, digest(self.database), NOW,
+                        required_public_id=value,
+                    )
+
     def test_stale_empty_or_duplicate_binding_fails_closed(self):
         with self.assertRaisesRegex(subject.CtaPacketFailure, "REVIEWED_CANDIDATE"):
             subject.build_packet(
