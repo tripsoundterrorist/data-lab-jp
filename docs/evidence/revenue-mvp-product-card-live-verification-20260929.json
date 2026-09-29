@@ -1,0 +1,31 @@
+{
+  "version": "0.1",
+  "status": "VERIFIED_LIVE",
+  "verified_at": "2026-09-29T14:04:44Z",
+  "production": {
+    "route": "/items/",
+    "http_status": 200,
+    "artifact_sha256": "c7d569dc732b73e4085c9d860f1a54c73c201b974d37dda7ae15d9c5193dddf1",
+    "item_count": 100,
+    "official_image_count": 100,
+    "cta_count": 100,
+    "proximate_pr_disclosure_count": 100,
+    "representative_redirects_tested": 3,
+    "representative_redirects_passed": 3,
+    "invalid_public_id_status": 404,
+    "invalid_public_id_location_absent": true,
+    "private_affiliate_url_exposed": false
+  },
+  "private_d1": {
+    "enabled_count": 100,
+    "runtime_target_count": 100
+  },
+  "deployment": {
+    "main_commit": "217b251322c6f9dd3db5e23d4fa662cb471b9046",
+    "worker_version_id": "db179b4c-0c2c-4003-a9aa-0e083a0a7766",
+    "lifecycle_cron": "17 * * * *",
+    "first_lifecycle_run_verified": false
+  },
+  "global_publication_gate": "unchanged",
+  "paid_plan_change": false
+}
