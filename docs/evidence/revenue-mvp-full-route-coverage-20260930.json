@@ -1,0 +1,45 @@
+{
+  "version": "0.1",
+  "status": "VERIFIED_FULL_ROUTE_COVERAGE",
+  "verified_at": "2026-09-29T16:35:00Z",
+  "production_surface": {
+    "route": "/items/",
+    "artifact_sha256": "293f10a921359f3f29091ece45c16e9214ce9164ad53a44c3ce35d38aff76a86",
+    "card_count": 100,
+    "cta_count": 100
+  },
+  "private_d1_aggregate": {
+    "lookup_count": 963,
+    "eligible_count": 100,
+    "redirect_count": 100,
+    "runtime_redirect_count": 100,
+    "production_surface_candidate_count": 100,
+    "production_surface_lookup_matches": 100,
+    "production_surface_eligible_matches": 100,
+    "production_surface_redirect_matches": 100,
+    "production_surface_runtime_redirect_matches": 100,
+    "identifiers_exposed": false,
+    "affiliate_urls_exposed": false,
+    "rows_written_by_verification_queries": 0
+  },
+  "bounded_revalidation": {
+    "batch_count": 2,
+    "selected_count": 10,
+    "valid_count": 10,
+    "disabled_count": 0,
+    "database_write_performed": true,
+    "temporary_sql_deleted": true
+  },
+  "refresh_decision": {
+    "latest_collector_candidate_count": 100,
+    "latest_candidate_runtime_redirect_matches": 83,
+    "latest_candidate_missing_runtime_redirects": 17,
+    "latest_candidate_activated": false,
+    "current_surface_retained": true,
+    "reason_code": "REVENUE_ROUTE_COVERAGE_REGRESSION_BLOCKED"
+  },
+  "publication_write_performed": false,
+  "artifact_write_performed": false,
+  "global_publication_gate": "unchanged",
+  "paid_plan_change": false
+}
