@@ -32,8 +32,10 @@ APPROVED_CANARY_CANONICAL_SHA256 = "bb65f1a2e8b437de4d1f26e224733c9341aa0d85d467
 CANARY_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-one-cta-final-user-approval-20260929.json"
 PRODUCT_CARD_SHA256 = "c7d569dc732b73e4085c9d860f1a54c73c201b974d37dda7ae15d9c5193dddf1"
 DISCOVERY_PRODUCT_CARD_SHA256 = "293f10a921359f3f29091ece45c16e9214ce9164ad53a44c3ce35d38aff76a86"
+LATEST_PRODUCT_CARD_SHA256 = "5eece329debeb14e517c20aaf6c7e2ded40488c2ff16f57dbec34afb54a2c2b4"
 PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-card-canary-user-approval-20260929.json"
 DISCOVERY_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-discovery-user-approval-20260930.json"
+LATEST_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-latest-product-user-approval-20260930.json"
 PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-discovery-live-verification-20260930.json"
 EXPECTED_COUNT = 100
 EXPECTED_ROUTE = "/items/"
@@ -87,17 +89,29 @@ def assess(
     try:
         raw_artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()
         artifact_sha256 = _canonical_sha256(artifact_bytes)
-        product_card_hashes = {PRODUCT_CARD_SHA256, DISCOVERY_PRODUCT_CARD_SHA256}
+        product_card_hashes = {
+            PRODUCT_CARD_SHA256,
+            DISCOVERY_PRODUCT_CARD_SHA256,
+            LATEST_PRODUCT_CARD_SHA256,
+        }
         if raw_artifact_sha256 in product_card_hashes or artifact_sha256 in product_card_hashes:
+            latest_candidate = (
+                raw_artifact_sha256 == LATEST_PRODUCT_CARD_SHA256
+                or artifact_sha256 == LATEST_PRODUCT_CARD_SHA256
+            )
             discovery_candidate = (
-                raw_artifact_sha256 == DISCOVERY_PRODUCT_CARD_SHA256
+                latest_candidate
+                or raw_artifact_sha256 == DISCOVERY_PRODUCT_CARD_SHA256
                 or artifact_sha256 == DISCOVERY_PRODUCT_CARD_SHA256
             )
             expected_product_card_sha256 = (
-                DISCOVERY_PRODUCT_CARD_SHA256 if discovery_candidate else PRODUCT_CARD_SHA256
+                LATEST_PRODUCT_CARD_SHA256 if latest_candidate
+                else DISCOVERY_PRODUCT_CARD_SHA256 if discovery_candidate
+                else PRODUCT_CARD_SHA256
             )
             approval_path = (
-                DISCOVERY_PRODUCT_CARD_APPROVAL_PATH if discovery_candidate
+                LATEST_PRODUCT_CARD_APPROVAL_PATH if latest_candidate
+                else DISCOVERY_PRODUCT_CARD_APPROVAL_PATH if discovery_candidate
                 else PRODUCT_CARD_APPROVAL_PATH
             )
             approval = json.loads(approval_path.read_text(encoding="utf-8"))
@@ -121,7 +135,26 @@ def assess(
                 and 'name="robots" content="noindex,nofollow"' in text
                 and "affiliateURL" not in text
                 and (
-                    not discovery_candidate
+                    not latest_candidate
+                    or (
+                        scope.get("source_sha256") == DISCOVERY_PRODUCT_CARD_SHA256
+                        and scope.get("reviewed_windows_source_sha256") == "4e5df75fd909f14896958a0ae51929592ce6f2b3931bc6c47b4a0fff52002cf2"
+                        and scope.get("reviewed_windows_candidate_sha256") == LATEST_PRODUCT_CARD_SHA256
+                        and scope.get("retained_count") == 88
+                        and scope.get("added_count") == 12
+                        and scope.get("removed_count") == 12
+                        and scope.get("candidate_runtime_redirect_matches") == EXPECTED_COUNT
+                        and scope.get("discovery_controls_preserved") is True
+                        and scope.get("robots_noindex_preserved") is True
+                        and scope.get("proximate_pr_disclosure_required") is True
+                        and text.count('<script src="discovery.js" defer></script>') == 1
+                        and text.count('id="item-search"') == 1
+                        and text.count('id="price-filter"') == 1
+                        and text.count('id="item-sort"') == 1
+                    )
+                )
+                and (
+                    not discovery_candidate or latest_candidate
                     or (
                         scope.get("source_sha256") == PRODUCT_CARD_SHA256
                         and scope.get("reviewed_windows_source_sha256") == "497495a8148e34d752bd0c237d9ea58d114d538f0faeb7bc94652d7b90a65498"
