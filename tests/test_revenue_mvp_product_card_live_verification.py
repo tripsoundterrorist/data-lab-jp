@@ -19,7 +19,11 @@ class ProductCardLiveVerificationTests(unittest.TestCase):
         self.assertEqual(production["cta_count"], 100)
         self.assertEqual(production["proximate_pr_disclosure_count"], 100)
         self.assertEqual(self.value["private_d1"]["runtime_target_count"], 100)
-        self.assertFalse(self.value["deployment"]["first_lifecycle_run_verified"])
+        deployment = self.value["deployment"]
+        self.assertTrue(deployment["first_lifecycle_run_verified"])
+        self.assertIsNone(deployment["lifecycle_cron"])
+        self.assertEqual(deployment["revalidation_status"], "PAUSED_TRANSPORT_INCOMPATIBLE")
+        self.assertEqual(deployment["first_lifecycle_run"]["restored_count"], 5)
         self.assertEqual(self.value["global_publication_gate"], "unchanged")
 
     def test_evidence_does_not_expose_private_values(self):

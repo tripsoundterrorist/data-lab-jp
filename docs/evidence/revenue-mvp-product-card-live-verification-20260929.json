@@ -1,7 +1,7 @@
 {
   "version": "0.1",
   "status": "VERIFIED_LIVE",
-  "verified_at": "2026-09-29T14:04:44Z",
+  "verified_at": "2026-09-29T14:30:00Z",
   "production": {
     "route": "/items/",
     "http_status": 200,
@@ -21,10 +21,21 @@
     "runtime_target_count": 100
   },
   "deployment": {
-    "main_commit": "217b251322c6f9dd3db5e23d4fa662cb471b9046",
-    "worker_version_id": "db179b4c-0c2c-4003-a9aa-0e083a0a7766",
-    "lifecycle_cron": "17 * * * *",
-    "first_lifecycle_run_verified": false
+    "main_commit": "deacda60d76f1d6e681cb9a2a4b3c667abd3a594",
+    "worker_version_id": "96a98656-b650-4365-a7cb-38ceaa197ae2",
+    "lifecycle_cron": null,
+    "first_lifecycle_run_verified": true,
+    "first_lifecycle_run": {
+      "checked_count": 5,
+      "valid_count": 0,
+      "disabled_count": 5,
+      "reason_code": "PROVIDER_UPSTREAM_UNAVAILABLE",
+      "worker_cron_disabled": true,
+      "local_official_api_reverified_count": 5,
+      "restored_count": 5,
+      "enabled_count_after_recovery": 100
+    },
+    "revalidation_status": "PAUSED_TRANSPORT_INCOMPATIBLE"
   },
   "global_publication_gate": "unchanged",
   "paid_plan_change": false
