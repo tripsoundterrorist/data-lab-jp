@@ -4,7 +4,7 @@
   "decision": "APPROVED_FOR_PRODUCTION",
   "user_direction": "最速で進める。収益性を最優先し、商品ごとのリンクを実装する。",
   "approved_scope": {
-    "candidate_sha256": "364b74f359abbdbf1675ff030818b6e140c7a5a9c37d36df67503612ad102137",
+    "candidate_sha256": "67ee750902e16cab3b15778e03926caee092b56b629d0d2abb5ce2fd67c85786",
     "public_route": "/items/",
     "item_count": 100,
     "image_count": 100,
