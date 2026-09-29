@@ -1,0 +1,67 @@
+{
+  "version": "0.1",
+  "status": "VERIFIED_LIVE",
+  "verified_at": "2026-09-30",
+  "production": {
+    "route": "/items/",
+    "http_status": 200,
+    "artifact_sha256": "293f10a921359f3f29091ece45c16e9214ce9164ad53a44c3ce35d38aff76a86",
+    "item_count": 100,
+    "official_image_count": 100,
+    "cta_count": 100,
+    "proximate_pr_disclosure_count": 100,
+    "representative_redirects_tested": 3,
+    "representative_redirects_passed": 3,
+    "invalid_public_id_status": 404,
+    "invalid_public_id_location_absent": true,
+    "private_affiliate_url_exposed": false,
+    "discovery_script_count": 1,
+    "search_control_count": 1,
+    "price_filter_count": 1,
+    "sort_control_count": 1,
+    "browser_search_verified": true,
+    "browser_price_filter_verified": true,
+    "browser_price_sort_verified": true
+  },
+  "private_d1": {
+    "enabled_count": 100,
+    "runtime_target_count": 100
+  },
+  "deployment": {
+    "main_commit": "cb8746ec52c242322b4a2c008d73935d21d96be3",
+    "worker_version_id": "96a98656-b650-4365-a7cb-38ceaa197ae2",
+    "lifecycle_cron": null,
+    "first_lifecycle_run_verified": true,
+    "first_lifecycle_run": {
+      "checked_count": 5,
+      "valid_count": 0,
+      "disabled_count": 5,
+      "reason_code": "PROVIDER_UPSTREAM_UNAVAILABLE",
+      "worker_cron_disabled": true,
+      "local_official_api_reverified_count": 5,
+      "restored_count": 5,
+      "enabled_count_after_recovery": 100
+    },
+    "revalidation_status": "LOCAL_SCHEDULER_ACTIVE_PENDING_FIRST_SCHEDULED_RUN",
+    "local_revalidation_canary": {
+      "checked_at": "2026-09-29T15:03:06Z",
+      "selected_count": 5,
+      "valid_count": 5,
+      "disabled_count": 0,
+      "database_write_performed": true,
+      "temporary_sql_deleted": true,
+      "enabled_count_after_canary": 100,
+      "production_smoke_checked_url_count": 14,
+      "production_smoke_failed_url_count": 0,
+      "scheduler_registered": true,
+      "scheduler_time_jst": "20:00",
+      "scheduler_batch_size": 5,
+      "scheduler_manual_smoke_last_task_result": 0,
+      "scheduler_manual_smoke_valid_count": 5,
+      "scheduler_manual_smoke_disabled_count": 0,
+      "residual_worker_cron_explicitly_removed": true
+    }
+  },
+  "global_publication_gate": "unchanged",
+  "paid_plan_change": false
+}
