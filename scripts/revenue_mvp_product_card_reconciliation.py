@@ -209,6 +209,7 @@ def main() -> int:
     parser.add_argument("--db", required=True, type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--cta-public-id", action="append", default=[])
+    parser.add_argument("--report-limit", type=int, default=10)
     args = parser.parse_args()
     try:
         source = args.source.read_bytes()
@@ -227,7 +228,7 @@ def main() -> int:
         "card_count": len(cards),
         "image_count": sum(bool(card.image_url) for card in cards),
         "output_written": args.output is not None,
-        "public_ids": [card.public_id for card in cards[:10]],
+        "public_ids": [card.public_id for card in cards[:max(0, args.report_limit)]],
     }, sort_keys=True))
     return 0
 
