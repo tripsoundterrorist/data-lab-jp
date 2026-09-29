@@ -16,23 +16,18 @@ function context({ eligible = true, limited = false, method = "GET", address = "
   return {
     value: {
       request: new Request(`https://candidate.invalid/go/${publicId}`, { method, headers: { "CF-Connecting-IP": address } }),
-      env: { DMM_API_ID: "fixture-api", DMM_AFFILIATE_ID: "fixture-affiliate", AFFILIATE_CLIENT_KEY_SECRET: "fixture-secret-with-at-least-32-characters", AFFILIATE_ITEM_LOOKUP: database, AFFILIATE_CLIENT_RATE_LIMITER: rate },
+      env: { DMM_API_ID: "fixture-api", DMM_AFFILIATE_ID: "fixture-affiliate", DMM_PREVALIDATED_CONTENT_ID: contentId, DMM_PREVALIDATED_AFFILIATE_URL: affiliateUrl, AFFILIATE_CLIENT_KEY_SECRET: "fixture-secret-with-at-least-32-characters", AFFILIATE_ITEM_LOOKUP: database, AFFILIATE_CLIENT_RATE_LIMITER: rate },
     },
     counts: () => ({ queries, limits }),
   };
 }
 
-let upstreamCalls = 0;
 const allowed = context();
-const response = await handleAffiliatePagesCandidate(allowed.value, facts, { fetcher: async () => {
-  upstreamCalls += 1;
-  return new Response(JSON.stringify({ result: { items: [{ content_id: contentId, affiliateURL: affiliateUrl }] } }), { status: 200 });
-} });
+const response = await handleAffiliatePagesCandidate(allowed.value, facts);
 assert.equal(response.status, 302);
 assert.equal(response.headers.get("Location"), affiliateUrl);
 assert.equal(response.headers.get("Cache-Control"), "no-store, max-age=0");
 assert.deepEqual(allowed.counts(), { queries: 1, limits: 1 });
-assert.equal(upstreamCalls, 1);
 
 for (const scenario of [
   { options: { eligible: false }, status: 404 },
@@ -42,13 +37,13 @@ for (const scenario of [
 ]) {
   const candidate = context(scenario.options);
   let requests = 0;
-  const blocked = await handleAffiliatePagesCandidate(candidate.value, facts, { fetcher: async () => { requests += 1; throw Error("must not fetch"); } });
+  const blocked = await handleAffiliatePagesCandidate(candidate.value, facts);
   assert.equal(blocked.status, scenario.status);
   assert.equal(blocked.headers.get("Location"), null);
   assert.equal(requests, 0);
 }
 
 const closed = context();
-const closedResponse = await handleAffiliatePagesCandidate(closed.value, { ...facts, publicationGateEligible: false }, { fetcher: async () => { throw Error("must not fetch"); } });
+const closedResponse = await handleAffiliatePagesCandidate(closed.value, { ...facts, publicationGateEligible: false });
 assert.equal(closedResponse.status, 404);
 assert.deepEqual(closed.counts(), { queries: 0, limits: 0 });

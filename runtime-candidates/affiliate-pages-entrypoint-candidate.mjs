@@ -1,7 +1,7 @@
 import { assessCloudflareCandidate } from "./cloudflare-affiliate-route.mjs";
 import { deriveAffiliateOpaqueClientKey } from "./affiliate-client-key-derivation.mjs";
 import { runPerClientAffiliateRuntimeCandidate } from "./affiliate-runtime-per-client-composition.mjs";
-import { fetchAndDeliverDmmAffiliateUrl } from "./affiliate-workers-dmm-provider.mjs";
+import { deliverPrevalidatedDmmAffiliateUrl } from "./affiliate-workers-dmm-provider.mjs";
 import { createAffiliateBlockedResponse } from "./affiliate-blocked-response-adapter.mjs";
 
 const REDIRECT_HEADERS = Object.freeze({
@@ -25,6 +25,7 @@ const SAFE_DIAGNOSTIC_REASONS = new Set([
   "ELIGIBLE_LOOKUP_INTERNAL_ERROR",
   "AFFILIATE_ITEM_NOT_ELIGIBLE",
   "PROVIDER_SECRET_BINDING_UNAVAILABLE",
+  "PROVIDER_PREVALIDATED_BINDING_UNAVAILABLE",
   "PROVIDER_UPSTREAM_UNAVAILABLE",
   "PROVIDER_RESPONSE_TOO_LARGE",
   "PROVIDER_RESPONSE_READ_FAILED",
@@ -77,7 +78,7 @@ export async function handleAffiliatePagesCandidate(
     let redirectResponse = null;
     const result = await runPerClientAffiliateRuntimeCandidate(
       request, env, releaseFacts, clientKey.opaque_client_key,
-      async (contentId) => fetchAndDeliverDmmAffiliateUrl(
+      async (contentId) => deliverPrevalidatedDmmAffiliateUrl(
         env, contentId,
         async (affiliateUrl) => {
           redirectResponse = new Response(null, {
@@ -85,7 +86,6 @@ export async function handleAffiliatePagesCandidate(
             headers: { ...REDIRECT_HEADERS, Location: affiliateUrl },
           });
         },
-        dependencies.fetcher,
       ),
     );
     if (redirectResponse instanceof Response && result?.status === "DELIVERED" && result?.delivered === true) {
