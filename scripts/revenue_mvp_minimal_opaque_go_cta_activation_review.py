@@ -17,7 +17,7 @@ READY = "READY_TO_REQUEST_EXPLICIT_ACTIVATION_REVIEW"
 BLOCKED = "ACTIVATION_REVIEW_REQUEST_BLOCKED"
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 COMPLIANCE_APPROVED_ARTIFACT_SHA256 = (
-    "f273ec05089eabd19da50e7d62dfb2f747282f53d37f9babcb7a63c79c78dcf9"
+    "a8fa335543cfe9b737494588e0ebd53409b0c5931593c141dc3fe224eb32811e"
 )
 FIELDS = frozenset({
     "contract_status", "packet_status", "renderer_status",
