@@ -4,6 +4,7 @@ import { runEligibleAffiliateItemLookup, AFFILIATE_D1_ELIGIBLE_LOOKUP_SQL as SQL
 
 const publicId = "itm_0123456789abcdef01234567";
 const contentId = "lookup-content-001";
+const affiliateUrl = "https://al.dmm.co.jp/?fixture=1";
 async function run(query, changes = {}) {
   let calls = 0;
   let received = null;
@@ -24,35 +25,43 @@ async function run(query, changes = {}) {
   return { result, calls, received, observed, sentinel };
 }
 
-const ok = await run({ success: true, results: [{ content_id: contentId }] });
+const ok = await run({ success: true, results: [{ content_id: contentId, affiliate_url: affiliateUrl }] });
 assert.equal(ok.result, ok.sentinel);
 assert.equal(ok.calls, 1);
-assert.equal(ok.received, contentId);
+assert.deepEqual(ok.received, { content_id: contentId, affiliate_url: affiliateUrl });
+assert.equal(Object.isFrozen(ok.received), true);
 assert.equal(ok.observed.sql, SQL);
 assert.equal(ok.observed.bound, publicId);
-assert.equal(SQL.startsWith("SELECT content_id FROM affiliate_runtime_eligible_lookup "), true);
+assert.equal(SQL.startsWith("SELECT content_id, affiliate_url FROM affiliate_runtime_redirect_target "), true);
 
 for (const query of [{ success: true, results: [] },
-  { success: true, results: [{ content_id: contentId }, { content_id: "other" }] }]) {
+  { success: true, results: [
+    { content_id: contentId, affiliate_url: affiliateUrl },
+    { content_id: "other", affiliate_url: affiliateUrl },
+  ] }]) {
   const actual = await run(query);
   assert.equal(actual.result.status, "BLOCKED");
   assert.equal(actual.calls, 0);
 }
 for (const query of [null, { success: false, results: [] }, { success: true, results: null },
-  { success: true, results: [{}] }, { success: true, results: [{ content_id: "bad/content" }] },
-  { success: true, results: [{ content_id: contentId, extra: true }] }]) {
+  { success: true, results: [{}] },
+  { success: true, results: [{ content_id: "bad/content", affiliate_url: affiliateUrl }] },
+  { success: true, results: [{ content_id: contentId, affiliate_url: "http://al.dmm.co.jp/unsafe" }] },
+  { success: true, results: [{ content_id: contentId, affiliate_url: "https://evil.example/" }] },
+  { success: true, results: [{ content_id: contentId, affiliate_url: affiliateUrl, extra: true }] }]) {
   const actual = await run(query);
   assert.equal(actual.result.status, "FAIL_CLOSED");
   assert.equal(actual.calls, 0);
 }
 for (const changes of [{ publicId: "../secret" }, { env: {} }, { pipeline: null }]) {
-  const actual = await run({ success: true, results: [{ content_id: contentId }] }, changes);
+  const actual = await run({ success: true, results: [{ content_id: contentId, affiliate_url: affiliateUrl }] }, changes);
   assert.equal(actual.result.status, "BLOCKED");
   assert.equal(actual.calls, 0);
 }
 for (const throwAt of ["prepare", "bind", "all", "pipeline"]) {
-  const actual = await run({ success: true, results: [{ content_id: contentId }] }, { throwAt });
+  const actual = await run({ success: true, results: [{ content_id: contentId, affiliate_url: affiliateUrl }] }, { throwAt });
   assert.equal(actual.result.status, "FAIL_CLOSED");
   const safe = JSON.stringify(actual.result);
-  assert.equal(safe.includes(publicId) || safe.includes(contentId) || safe.includes("hidden"), false);
+  assert.equal(safe.includes(publicId) || safe.includes(contentId) ||
+    safe.includes(affiliateUrl) || safe.includes("hidden"), false);
 }

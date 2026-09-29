@@ -59,7 +59,10 @@ assert.equal(ineligible.rateCalls, 1);
 assert.equal(ineligible.queries, 1);
 assert.equal(ineligible.pipelineCalls, 0);
 
-const eligible = await run({ rows: [{ content_id: "fixture-content" }] });
+const eligible = await run({ rows: [{
+  content_id: "fixture-content",
+  affiliate_url: "https://al.dmm.co.jp/?fixture=1",
+}] });
 assert.equal(eligible.result.status, "PIPELINE_SENTINEL");
 assert.equal(eligible.rateCalls, 1);
 assert.equal(eligible.queries, 1);

@@ -20,7 +20,7 @@ class AffiliateD1RuntimeAdapterTests(unittest.TestCase):
     def test_candidate_queries_only_eligible_view(self):
         source = (ROOT / "runtime-candidates" / "affiliate-d1-runtime-adapter.mjs").read_text(encoding="utf-8")
         self.assertIn("env?.AFFILIATE_ITEM_LOOKUP", source)
-        self.assertIn("FROM affiliate_runtime_eligible_lookup", source)
+        self.assertIn("FROM affiliate_runtime_redirect_target", source)
         self.assertNotIn("FROM affiliate_item_lookup", source)
         self.assertIn("WHERE public_id = ? LIMIT 2", source)
 

@@ -45,6 +45,21 @@ class AffiliateItemLookupSchemaTests(unittest.TestCase):
             "SELECT public_id, content_id FROM affiliate_runtime_eligible_lookup"
         ).fetchall()
 
+    def insert_target(self, url="https://al.dmm.co.jp/?fixture=1"):
+        self.connection.execute(
+            """
+            INSERT INTO affiliate_redirect_target (
+                public_id, content_id, affiliate_url, verified_at
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (PUBLIC_ID, CONTENT_ID, url, STAMP),
+        )
+
+    def redirect_rows(self):
+        return self.connection.execute(
+            "SELECT public_id, content_id, affiliate_url FROM affiliate_runtime_redirect_target"
+        ).fetchall()
+
     def test_schema_contains_no_item_rows(self):
         count = self.connection.execute(
             "SELECT count(*) FROM affiliate_item_lookup"
@@ -66,6 +81,30 @@ class AffiliateItemLookupSchemaTests(unittest.TestCase):
             affiliate_enabled=1,
         )
         self.assertEqual(self.eligible_rows(), [(PUBLIC_ID, CONTENT_ID)])
+
+    def test_redirect_requires_both_eligibility_and_private_target(self):
+        self.insert()
+        self.insert_target()
+        self.assertEqual(self.redirect_rows(), [])
+        self.connection.execute(
+            """
+            UPDATE affiliate_item_lookup SET
+                rights_status = 'CONDITIONALLY_APPROVED',
+                lifecycle_status = 'RESOLVED', verification_status = 'PASS',
+                affiliate_enabled = 1
+            WHERE public_id = ?
+            """,
+            (PUBLIC_ID,),
+        )
+        self.assertEqual(
+            self.redirect_rows(),
+            [(PUBLIC_ID, CONTENT_ID, "https://al.dmm.co.jp/?fixture=1")],
+        )
+
+    def test_redirect_target_rejects_non_https_url(self):
+        self.insert()
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insert_target("http://al.dmm.co.jp/unsafe")
 
     def test_enabled_row_cannot_bypass_each_required_status(self):
         changes = (
