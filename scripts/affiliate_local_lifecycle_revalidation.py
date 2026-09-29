@@ -79,6 +79,8 @@ def _wrangler(arguments: list[str], runner: Callable[..., Any] = subprocess.run)
         cwd=ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=60,
         check=False,
     )
