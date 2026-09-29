@@ -14,12 +14,12 @@ assert.deepEqual(RELEASE_FACTS, {
   rateLimitAllowed: true,
   prDisclosureAvailable: true,
 });
-assert.equal(ACTIVATION_SCOPE.candidateSha256, "67ee750902e16cab3b15778e03926caee092b56b629d0d2abb5ce2fd67c85786");
-assert.equal(ACTIVATION_SCOPE.artifactSha256, "67ee750902e16cab3b15778e03926caee092b56b629d0d2abb5ce2fd67c85786");
+assert.equal(ACTIVATION_SCOPE.candidateSha256, "ae9252fd48b59a0fc4f48b53cf92b8190a377584ae1f8fb6fe687824a369ecd5");
+assert.equal(ACTIVATION_SCOPE.artifactSha256, "ae9252fd48b59a0fc4f48b53cf92b8190a377584ae1f8fb6fe687824a369ecd5");
 assert.equal(ACTIVATION_SCOPE.sourceSha256, "564bbeaf628de624e816ff8f2b4a3824119e338d3052e8d2594a084f06ef2e85");
 assert.equal(ACTIVATION_SCOPE.publicSurface, "/items/");
 assert.equal(ACTIVATION_SCOPE.routePrefix, "/go/");
-assert.equal(ACTIVATION_SCOPE.maximumCtaCount, 4);
+assert.equal(ACTIVATION_SCOPE.maximumCtaCount, 14);
 assert.equal(ACTIVATION_SCOPE.itemCount, 100);
 assert.equal(ACTIVATION_SCOPE.relayOperationGuaranteed, false);
 assert.equal(ACTIVATION_SCOPE.affiliateOutcomeGuaranteed, false);
