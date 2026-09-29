@@ -148,22 +148,24 @@ def _quote(value: str) -> str:
 
 
 def _statements(rows: list[dict[str, str]], outcomes: list[tuple[str, str | None]], checked_at: str) -> str:
-    statements = ["BEGIN TRANSACTION;"]
+    statements: list[str] = []
     for row, (outcome, affiliate_url) in zip(rows, outcomes, strict=True):
         public_id, content_id = _quote(row["public_id"]), _quote(row["content_id"])
         checked = _quote(checked_at)
         if outcome == "VALID" and affiliate_url is not None:
+            # Fail closed if remote file execution stops part-way: target and
+            # audit are written before the final enable transition.
             statements.extend((
                 "INSERT INTO affiliate_redirect_target (public_id,content_id,affiliate_url,verified_at) "
                 f"VALUES ({public_id},{content_id},{_quote(affiliate_url)},{checked}) ON CONFLICT(public_id) "
                 "DO UPDATE SET content_id=excluded.content_id,affiliate_url=excluded.affiliate_url,"
                 "verified_at=excluded.verified_at;",
-                "UPDATE affiliate_item_lookup SET verification_status='PASS',affiliate_enabled=1,"
-                f"updated_at={checked} WHERE public_id={public_id} AND content_id={content_id} "
-                "AND rights_status='CONDITIONALLY_APPROVED' AND lifecycle_status='RESOLVED';",
                 "INSERT INTO affiliate_lifecycle_revalidation_event "
                 "(public_id,checked_at,outcome,affiliate_enabled_after,reason_code) "
                 f"VALUES ({public_id},{checked},'VALID',1,'OFFICIAL_API_EXACT_MATCH');",
+                "UPDATE affiliate_item_lookup SET verification_status='PASS',affiliate_enabled=1,"
+                f"updated_at={checked} WHERE public_id={public_id} AND content_id={content_id} "
+                "AND rights_status='CONDITIONALLY_APPROVED' AND lifecycle_status='RESOLVED';",
             ))
         else:
             reason = "OFFICIAL_API_ITEM_UNAVAILABLE" if outcome == "NOT_AVAILABLE" else "LOCAL_UPSTREAM_UNCONFIRMED"
@@ -175,7 +177,6 @@ def _statements(rows: list[dict[str, str]], outcomes: list[tuple[str, str | None
                 "(public_id,checked_at,outcome,affiliate_enabled_after,reason_code) "
                 f"VALUES ({public_id},{checked},{_quote(outcome)},0,{_quote(reason)});",
             ))
-    statements.append("COMMIT;")
     return "\n".join(statements) + "\n"
 
 
