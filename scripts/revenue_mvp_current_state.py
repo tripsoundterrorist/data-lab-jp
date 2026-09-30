@@ -34,10 +34,12 @@ PRODUCT_CARD_SHA256 = "c7d569dc732b73e4085c9d860f1a54c73c201b974d37dda7ae15d9c51
 DISCOVERY_PRODUCT_CARD_SHA256 = "293f10a921359f3f29091ece45c16e9214ce9164ad53a44c3ce35d38aff76a86"
 LATEST_PRODUCT_CARD_SHA256 = "5eece329debeb14e517c20aaf6c7e2ded40488c2ff16f57dbec34afb54a2c2b4"
 CACHE_BUSTED_PRODUCT_CARD_SHA256 = "371b27bcf0896a780d305b193341fd2e63b350cb7bf79c0b98aa0f2454ae0676"
+REFRESHED_PRODUCT_CARD_SHA256 = "21cebab8b202129658fe192055cd72b6cf3cd197765a18cc5b92378104457db1"
 PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-card-canary-user-approval-20260929.json"
 DISCOVERY_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-discovery-user-approval-20260930.json"
 LATEST_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-latest-product-user-approval-20260930.json"
 CACHE_BUSTED_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-discovery-cache-bust-user-approval-20260930.json"
+REFRESHED_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-refresh-user-approval-20260930.json"
 PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-discovery-live-verification-20260930.json"
 LATEST_PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-latest-product-live-verification-20260930.json"
 CACHE_BUSTED_PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-discovery-cache-bust-live-verification-20260930.json"
@@ -98,10 +100,16 @@ def assess(
             DISCOVERY_PRODUCT_CARD_SHA256,
             LATEST_PRODUCT_CARD_SHA256,
             CACHE_BUSTED_PRODUCT_CARD_SHA256,
+            REFRESHED_PRODUCT_CARD_SHA256,
         }
         if raw_artifact_sha256 in product_card_hashes or artifact_sha256 in product_card_hashes:
+            refreshed_candidate = (
+                raw_artifact_sha256 == REFRESHED_PRODUCT_CARD_SHA256
+                or artifact_sha256 == REFRESHED_PRODUCT_CARD_SHA256
+            )
             cache_busted_candidate = (
-                raw_artifact_sha256 == CACHE_BUSTED_PRODUCT_CARD_SHA256
+                refreshed_candidate
+                or raw_artifact_sha256 == CACHE_BUSTED_PRODUCT_CARD_SHA256
                 or artifact_sha256 == CACHE_BUSTED_PRODUCT_CARD_SHA256
             )
             latest_candidate = (
@@ -115,13 +123,15 @@ def assess(
                 or artifact_sha256 == DISCOVERY_PRODUCT_CARD_SHA256
             )
             expected_product_card_sha256 = (
-                CACHE_BUSTED_PRODUCT_CARD_SHA256 if cache_busted_candidate
+                REFRESHED_PRODUCT_CARD_SHA256 if refreshed_candidate
+                else CACHE_BUSTED_PRODUCT_CARD_SHA256 if cache_busted_candidate
                 else LATEST_PRODUCT_CARD_SHA256 if latest_candidate
                 else DISCOVERY_PRODUCT_CARD_SHA256 if discovery_candidate
                 else PRODUCT_CARD_SHA256
             )
             approval_path = (
-                CACHE_BUSTED_PRODUCT_CARD_APPROVAL_PATH if cache_busted_candidate
+                REFRESHED_PRODUCT_CARD_APPROVAL_PATH if refreshed_candidate
+                else CACHE_BUSTED_PRODUCT_CARD_APPROVAL_PATH if cache_busted_candidate
                 else LATEST_PRODUCT_CARD_APPROVAL_PATH if latest_candidate
                 else DISCOVERY_PRODUCT_CARD_APPROVAL_PATH if discovery_candidate
                 else PRODUCT_CARD_APPROVAL_PATH
@@ -147,7 +157,23 @@ def assess(
                 and 'name="robots" content="noindex,nofollow"' in text
                 and "affiliateURL" not in text
                 and (
-                    not cache_busted_candidate
+                    not refreshed_candidate
+                    or (
+                        scope.get("source_sha256") == CACHE_BUSTED_PRODUCT_CARD_SHA256
+                        and scope.get("source_database_sha256") == "cd24816b185234d4a3e05e180f3e95ca97ab3b6c98cdf105da47b8ffaf7ecb53"
+                        and scope.get("retained_count") == 92
+                        and scope.get("added_count") == 8
+                        and scope.get("removed_count") == 8
+                        and scope.get("candidate_lookup_matches") == EXPECTED_COUNT
+                        and scope.get("candidate_eligible_matches") == EXPECTED_COUNT
+                        and scope.get("candidate_redirect_matches") == EXPECTED_COUNT
+                        and scope.get("candidate_runtime_redirect_matches") == EXPECTED_COUNT
+                        and scope.get("freshly_revalidated_added_count") == 8
+                        and text.count('<script src="discovery.js?v=20260930" defer></script>') == 1
+                    )
+                )
+                and (
+                    not cache_busted_candidate or refreshed_candidate
                     or (
                         scope.get("source_sha256") == LATEST_PRODUCT_CARD_SHA256
                         and scope.get("candidate_sha256") == CACHE_BUSTED_PRODUCT_CARD_SHA256

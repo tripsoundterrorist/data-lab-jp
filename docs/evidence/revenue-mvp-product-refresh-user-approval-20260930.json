@@ -1,0 +1,32 @@
+{
+  "version": "0.1",
+  "source": "CONTROL_CENTER_USER_MESSAGE",
+  "decision": "APPROVED_FOR_PRODUCTION",
+  "approved_at": "2026-09-30",
+  "user_direction": "承認",
+  "approved_scope": {
+    "source_sha256": "371b27bcf0896a780d305b193341fd2e63b350cb7bf79c0b98aa0f2454ae0676",
+    "source_database_sha256": "cd24816b185234d4a3e05e180f3e95ca97ab3b6c98cdf105da47b8ffaf7ecb53",
+    "candidate_sha256": "21cebab8b202129658fe192055cd72b6cf3cd197765a18cc5b92378104457db1",
+    "public_route": "/items/",
+    "item_count": 100,
+    "image_count": 100,
+    "maximum_cta_count": 100,
+    "retained_count": 92,
+    "added_count": 8,
+    "removed_count": 8,
+    "candidate_lookup_matches": 100,
+    "candidate_eligible_matches": 100,
+    "candidate_redirect_matches": 100,
+    "candidate_runtime_redirect_matches": 100,
+    "freshly_revalidated_added_count": 8
+  },
+  "boundaries": {
+    "d1_additive_rows_applied": 8,
+    "affiliate_routes": "existing-runtime-only",
+    "global_publication_gate": "unchanged",
+    "robots": "noindex,nofollow",
+    "paid_plan_change": false,
+    "edge_verification_required_after_deployment": true
+  }
+}
