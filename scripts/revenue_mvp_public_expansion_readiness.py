@@ -1,0 +1,208 @@
+"""Pure readiness gate for a staged Revenue MVP public-catalog expansion."""
+
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass
+import json
+from typing import Any
+
+
+VERSION = "0.1"
+CURRENT_PUBLIC_ITEM_COUNT = 100
+NEXT_STAGE_ITEM_COUNT = 300
+READY_FOR_MANUAL_EXPANSION_REVIEW = "READY_FOR_MANUAL_EXPANSION_REVIEW"
+BLOCKED = "BLOCKED"
+FAIL_CLOSED = "FAIL_CLOSED"
+
+
+@dataclass(frozen=True)
+class ExpansionEvidence:
+    current_public_item_count: int
+    target_public_item_count: int
+    candidate_unique_item_count: int
+    eligible_item_count: int
+    image_ready_count: int
+    price_ready_count: int
+    fresh_item_count: int
+    affiliate_lookup_ready_count: int
+    affiliate_redirect_ready_count: int
+    runtime_revalidation_ready_count: int
+    existing_surface_preservation_verified: bool
+    sitemap_capacity_verified: bool
+    seo_quality_reviewed: bool
+    cloudflare_free_plan_capacity_verified: bool
+    compliance_publication_confirmed: bool
+    product_funnel_window_closed: bool
+    rollback_plan_verified: bool
+
+
+@dataclass(frozen=True)
+class ExpansionReadiness:
+    version: str
+    status: str
+    manual_expansion_review_candidate: bool
+    publication_allowed: bool
+    production_write_allowed: bool
+    deployment_allowed: bool
+    current_public_item_count: int
+    target_public_item_count: int
+    reason_codes: tuple[str, ...]
+    next_actions: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        value = asdict(self)
+        value["reason_codes"] = list(self.reason_codes)
+        value["next_actions"] = list(self.next_actions)
+        return value
+
+
+def _result(
+    status: str,
+    current_count: int,
+    target_count: int,
+    reasons: tuple[str, ...],
+    actions: tuple[str, ...],
+) -> ExpansionReadiness:
+    ready = status == READY_FOR_MANUAL_EXPANSION_REVIEW
+    return ExpansionReadiness(
+        VERSION,
+        status,
+        ready,
+        False,
+        False,
+        False,
+        current_count,
+        target_count,
+        reasons,
+        actions,
+    )
+
+
+def assess(evidence: Any) -> ExpansionReadiness:
+    if not isinstance(evidence, ExpansionEvidence):
+        return _result(
+            FAIL_CLOSED, 0, 0, ("EVIDENCE_INVALID",),
+            ("PROVIDE_TYPED_CURRENT_EVIDENCE",),
+        )
+
+    count_fields = (
+        "current_public_item_count",
+        "target_public_item_count",
+        "candidate_unique_item_count",
+        "eligible_item_count",
+        "image_ready_count",
+        "price_ready_count",
+        "fresh_item_count",
+        "affiliate_lookup_ready_count",
+        "affiliate_redirect_ready_count",
+        "runtime_revalidation_ready_count",
+    )
+    bool_fields = tuple(
+        field for field in ExpansionEvidence.__dataclass_fields__
+        if field not in count_fields
+    )
+    if any(type(getattr(evidence, field)) is not int for field in count_fields) or any(
+        type(getattr(evidence, field)) is not bool for field in bool_fields
+    ) or any(getattr(evidence, field) < 0 for field in count_fields):
+        return _result(
+            FAIL_CLOSED,
+            evidence.current_public_item_count
+            if type(evidence.current_public_item_count) is int else 0,
+            evidence.target_public_item_count
+            if type(evidence.target_public_item_count) is int else 0,
+            ("EVIDENCE_INVALID",),
+            ("PROVIDE_TYPED_CURRENT_EVIDENCE",),
+        )
+
+    reasons: set[str] = set()
+    if evidence.current_public_item_count != CURRENT_PUBLIC_ITEM_COUNT:
+        reasons.add("CURRENT_PUBLIC_SURFACE_NOT_EXACT")
+    if evidence.target_public_item_count != NEXT_STAGE_ITEM_COUNT:
+        reasons.add("TARGET_STAGE_INVALID")
+
+    exact_count_checks = {
+        "CANDIDATE_SET_NOT_EXACT": evidence.candidate_unique_item_count,
+        "ELIGIBILITY_NOT_EXACT": evidence.eligible_item_count,
+        "IMAGE_COVERAGE_NOT_EXACT": evidence.image_ready_count,
+        "PRICE_COVERAGE_NOT_EXACT": evidence.price_ready_count,
+        "FRESHNESS_NOT_EXACT": evidence.fresh_item_count,
+        "AFFILIATE_LOOKUP_NOT_EXACT": evidence.affiliate_lookup_ready_count,
+        "AFFILIATE_REDIRECT_NOT_EXACT": evidence.affiliate_redirect_ready_count,
+        "RUNTIME_REVALIDATION_NOT_EXACT": evidence.runtime_revalidation_ready_count,
+    }
+    for reason, count in exact_count_checks.items():
+        if count != evidence.target_public_item_count:
+            reasons.add(reason)
+
+    boolean_checks = {
+        "EXISTING_SURFACE_PRESERVATION_UNVERIFIED": evidence.existing_surface_preservation_verified,
+        "SITEMAP_CAPACITY_UNVERIFIED": evidence.sitemap_capacity_verified,
+        "SEO_QUALITY_UNREVIEWED": evidence.seo_quality_reviewed,
+        "CLOUDFLARE_FREE_CAPACITY_UNVERIFIED": evidence.cloudflare_free_plan_capacity_verified,
+        "COMPLIANCE_PUBLICATION_UNCONFIRMED": evidence.compliance_publication_confirmed,
+        "PRODUCT_FUNNEL_WINDOW_NOT_CLOSED": evidence.product_funnel_window_closed,
+        "ROLLBACK_PLAN_UNVERIFIED": evidence.rollback_plan_verified,
+    }
+    reasons.update(reason for reason, passed in boolean_checks.items() if passed is not True)
+
+    actions = []
+    if "CANDIDATE_SET_NOT_EXACT" in reasons or "ELIGIBILITY_NOT_EXACT" in reasons:
+        actions.append("BUILD_ISOLATED_EXACT_300_ITEM_CANDIDATE")
+    if any(
+        reason in reasons for reason in (
+            "IMAGE_COVERAGE_NOT_EXACT", "PRICE_COVERAGE_NOT_EXACT",
+            "FRESHNESS_NOT_EXACT", "AFFILIATE_LOOKUP_NOT_EXACT",
+            "AFFILIATE_REDIRECT_NOT_EXACT", "RUNTIME_REVALIDATION_NOT_EXACT",
+        )
+    ):
+        actions.append("VALIDATE_EXACT_300_ITEM_DATA_AND_AFFILIATE_LIFECYCLE")
+    if not evidence.existing_surface_preservation_verified or not evidence.rollback_plan_verified:
+        actions.append("VERIFY_EXISTING_100_ITEM_SURFACE_AND_ROLLBACK")
+    if not evidence.sitemap_capacity_verified or not evidence.seo_quality_reviewed:
+        actions.append("REVIEW_CANONICAL_SITEMAP_AND_PAGE_QUALITY")
+    if not evidence.cloudflare_free_plan_capacity_verified:
+        actions.append("VERIFY_CLOUDFLARE_FREE_PLAN_CAPACITY")
+    if not evidence.compliance_publication_confirmed or not evidence.product_funnel_window_closed:
+        actions.append("OBTAIN_MANUAL_COMPLIANCE_AND_REVENUE_REVIEW")
+
+    return _result(
+        READY_FOR_MANUAL_EXPANSION_REVIEW if not reasons else BLOCKED,
+        evidence.current_public_item_count,
+        evidence.target_public_item_count,
+        tuple(sorted(reasons)),
+        tuple(dict.fromkeys(actions)),
+    )
+
+
+def current_evidence() -> ExpansionEvidence:
+    # The local database contains more rows, but local presence alone does not
+    # prove that an exact 300-item candidate is public-eligible.
+    return ExpansionEvidence(
+        current_public_item_count=CURRENT_PUBLIC_ITEM_COUNT,
+        target_public_item_count=NEXT_STAGE_ITEM_COUNT,
+        candidate_unique_item_count=0,
+        eligible_item_count=0,
+        image_ready_count=0,
+        price_ready_count=0,
+        fresh_item_count=0,
+        affiliate_lookup_ready_count=0,
+        affiliate_redirect_ready_count=0,
+        runtime_revalidation_ready_count=0,
+        existing_surface_preservation_verified=False,
+        sitemap_capacity_verified=False,
+        seo_quality_reviewed=False,
+        cloudflare_free_plan_capacity_verified=False,
+        compliance_publication_confirmed=False,
+        product_funnel_window_closed=False,
+        rollback_plan_verified=False,
+    )
+
+
+def main() -> int:
+    result = assess(current_evidence())
+    print(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
+    return 0 if result.status in {BLOCKED, READY_FOR_MANUAL_EXPANSION_REVIEW} else 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
