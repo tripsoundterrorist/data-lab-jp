@@ -71,6 +71,15 @@ page. Compare link and non-link posts using link clicks, CTR, profile visits,
 follows, and downstream CTA outcomes where acquired. This ratio is an operating
 test target, not authority to post or change the external schedule.
 
+Before handing a draft to the owner, also validate the completed post with X's
+weighted limit. Count each URL as 23 characters because X wraps every posted URL
+with t.co; conservatively count Japanese and other non-ASCII code points as two.
+The raw length of a UTM URL must not by itself reject an otherwise valid draft,
+but a completed post above the 280 weighted limit must fail closed. The operator
+still confirms the count shown by the X mobile composer before manual posting.
+Official reference checked 2026-09-30:
+`https://help.x.com/en/using-twitter/how-to-tweet-a-link.html`.
+
 Rotate themes across time slots without associating a theme with a supposedly
 better time. Preserve this target mix where applicable:
 
