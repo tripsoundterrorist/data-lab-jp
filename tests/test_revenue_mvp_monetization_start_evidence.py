@@ -32,6 +32,12 @@ class MonetizationStartEvidenceTests(unittest.TestCase):
     def test_unobserved_results_are_not_invented(self):
         measurement = self.evidence["measurement"]
         self.assertTrue(measurement["consent_first_funnel_events_deployed"])
+        baseline_path = ROOT / measurement["ga4_baseline_evidence"]
+        baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+        self.assertEqual(baseline["status"], "BASELINE_OBSERVED")
+        self.assertEqual(baseline["summary"]["sessions"], 8)
+        self.assertIn("post_monetization_start_sessions", baseline["not_acquired"])
+        self.assertFalse(baseline["external_write_performed"])
         for key in (
             "observed_sessions",
             "observed_outbound_product_clicks",

@@ -1,0 +1,46 @@
+{
+  "version": "0.1",
+  "status": "BASELINE_OBSERVED",
+  "observed_at": "2026-09-30",
+  "source": "GA4_AUTHENTICATED_UI_READ_ONLY",
+  "property": "DATA LAB",
+  "period_label": "過去7日間",
+  "summary": {
+    "active_users": 2,
+    "event_count": 34,
+    "key_events": 0,
+    "new_users": 0,
+    "sessions": 8,
+    "sessions_channel": "Direct"
+  },
+  "page_views": [
+    {
+      "page_title": "DATA LAB | 作品データ分析",
+      "views": 6
+    },
+    {
+      "page_title": "確認時点の商品情報 | DATA LAB",
+      "views": 7
+    },
+    {
+      "page_title": "作品データ | DATA LAB",
+      "views": 0
+    }
+  ],
+  "not_acquired": [
+    "post_monetization_start_sessions",
+    "view_item_list_event_count",
+    "select_item_event_count",
+    "view_item_event_count",
+    "outbound_product_click_event_count",
+    "affiliate_conversions",
+    "affiliate_revenue"
+  ],
+  "limitations": [
+    "The rolling seven-day window includes time before monetization start.",
+    "The home summary does not expose the allowlisted funnel-event breakdown.",
+    "No key event or affiliate conversion may be inferred from total event count.",
+    "Search Console was shown as not linked to the GA4 property."
+  ],
+  "external_write_performed": false
+}
