@@ -18,6 +18,13 @@
   };
 
   const normalize = (value) => value.normalize("NFKC").toLocaleLowerCase("ja").trim();
+  const allowedPriceBands = new Set(["all", "under-1000", "1000-1999", "2000-2999", "3000-plus"]);
+  const allowedSorts = new Set(["original", "price-asc", "price-desc", "observed-desc", "observed-asc"]);
+  const incoming = new URLSearchParams(window.location?.search || "");
+  const incomingPriceBand = incoming.get("price_band");
+  const incomingSort = incoming.get("sort");
+  if (allowedPriceBands.has(incomingPriceBand)) priceFilter.value = incomingPriceBand;
+  if (allowedSorts.has(incomingSort)) sort.value = incomingSort;
   const cards = Array.from(grid.querySelectorAll(":scope > .item")).map((element, index) => {
     const priceText = element.querySelector(".price")?.textContent || "";
     const observedText = element.querySelector("time")?.textContent || "";

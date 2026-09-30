@@ -20,6 +20,8 @@ READY_FOR_MANUAL_POST = "READY_FOR_MANUAL_POST"
 BLOCKED = "BLOCKED"
 PUBLIC_PATHS = frozenset({"/", "/column-price", "/column-score"})
 ITEM_PATHS = frozenset({"/items/"})
+ITEM_SORTS = frozenset({"original", "price-asc", "price-desc", "observed-desc", "observed-asc"})
+ITEM_PRICE_BANDS = frozenset({"all", "under-1000", "1000-1999", "2000-2999", "3000-plus"})
 MANUAL_LINK_TOPICS = frozenset({
     "SNS_TO_SITE_TO_FANZA_FUNNEL",
     "SNS_ACCOUNT_REGISTRATION",
@@ -62,6 +64,8 @@ def build_candidate(
     fact_text: Any,
     landing_path: Any,
     campaign: Any,
+    landing_sort: Any = None,
+    landing_price_band: Any = None,
     public_data_available: Any = False,
     official_answer_entries: Mapping[str, AnswerDecision] | None = None,
     explicit_human_approval: Any = False,
@@ -79,6 +83,15 @@ def build_candidate(
     allowed_paths = PUBLIC_PATHS | (ITEM_PATHS if public_data_available is True else frozenset())
     if not isinstance(landing_path, str) or landing_path not in allowed_paths:
         reasons.add("LANDING_PATH_BLOCKED")
+    item_landing = landing_path in ITEM_PATHS
+    if landing_sort is not None and (
+        not item_landing or landing_sort not in ITEM_SORTS
+    ):
+        reasons.add("LANDING_SORT_BLOCKED")
+    if landing_price_band is not None and (
+        not item_landing or landing_price_band not in ITEM_PRICE_BANDS
+    ):
+        reasons.add("LANDING_PRICE_BAND_BLOCKED")
     if not isinstance(campaign, str) or re.fullmatch(r"[a-z0-9_-]{1,32}", campaign) is None:
         reasons.add("CAMPAIGN_INVALID")
     entries = current_entries() if official_answer_entries is None else official_answer_entries
@@ -94,10 +107,18 @@ def build_candidate(
 
     content_safe = not reasons.intersection({
         "BOOLEAN_INPUT_INVALID", "FACT_TEXT_INVALID", "LANDING_PATH_BLOCKED",
-        "CAMPAIGN_INVALID",
+        "CAMPAIGN_INVALID", "LANDING_SORT_BLOCKED", "LANDING_PRICE_BAND_BLOCKED",
     })
     if content_safe:
-        query = urlencode({"utm_source": "x", "utm_medium": "social", "utm_campaign": campaign})
+        query_values = {}
+        if landing_sort is not None:
+            query_values["sort"] = landing_sort
+        if landing_price_band is not None:
+            query_values["price_band"] = landing_price_band
+        query_values.update({
+            "utm_source": "x", "utm_medium": "social", "utm_campaign": campaign,
+        })
+        query = urlencode(query_values)
         text = (
             f"【PR】{fact_text.strip()}\n\n"
             f"DATA LAB独自集計・非公式\n{ORIGIN}{landing_path}?{query}"

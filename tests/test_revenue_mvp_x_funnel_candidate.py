@@ -92,6 +92,27 @@ class XFunnelCandidateTests(unittest.TestCase):
             gate.PREVIEW_ONLY,
         )
 
+    def test_item_landing_can_preselect_safe_price_discovery(self):
+        result = build(
+            landing_path="/items/", public_data_available=True,
+            landing_sort="price-asc", landing_price_band="under-1000",
+        )
+        self.assertEqual(result.status, gate.PREVIEW_ONLY)
+        self.assertIn("sort=price-asc", result.candidate_text)
+        self.assertIn("price_band=under-1000", result.candidate_text)
+
+    def test_item_landing_state_is_allowlisted_and_item_only(self):
+        self.assertEqual(
+            build(landing_sort="price-asc").status, gate.BLOCKED
+        )
+        self.assertEqual(
+            build(
+                landing_path="/items/", public_data_available=True,
+                landing_sort="rank",
+            ).status,
+            gate.BLOCKED,
+        )
+
     def test_unknown_path_and_campaign_are_blocked(self):
         self.assertEqual(build(landing_path="/items/item").status, gate.BLOCKED)
         self.assertEqual(build(campaign="bad value").status, gate.BLOCKED)

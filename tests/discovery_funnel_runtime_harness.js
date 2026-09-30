@@ -10,7 +10,7 @@ const source = fs.readFileSync(
   "utf8"
 );
 
-function run(withAnalytics) {
+function run(withAnalytics, searchParams = "") {
   const events = [];
   const listeners = {};
   const ctaListeners = {};
@@ -47,14 +47,24 @@ function run(withAnalytics) {
     addEventListener(name, handler) { listeners[name] = handler; },
   };
   const window = withAnalytics
-    ? { dataLabAnalytics: { trackEvent(name) { events.push(name); return true; } } }
-    : {};
+    ? { location: { search: searchParams }, dataLabAnalytics: { trackEvent(name) { events.push(name); return true; } } }
+    : { location: { search: searchParams } };
 
-  vm.runInNewContext(source, { document, window, Set, Array, Number, Date });
+  vm.runInNewContext(source, { document, window, Set, Array, Number, Date, URLSearchParams });
   listeners.DOMContentLoaded();
   ctaListeners.click();
-  return events;
+  return { events, price: price.value, sort: sort.value };
 }
 
-assert.deepStrictEqual(run(true), ["view_item_list", "outbound_product_click"]);
-assert.deepStrictEqual(run(false), []);
+assert.deepStrictEqual(run(true).events, ["view_item_list", "outbound_product_click"]);
+assert.deepStrictEqual(run(false).events, []);
+assert.deepStrictEqual(
+  { price: run(false, "?price_band=under-1000&sort=price-asc&utm_source=x").price,
+    sort: run(false, "?price_band=under-1000&sort=price-asc&utm_source=x").sort },
+  { price: "under-1000", sort: "price-asc" }
+);
+assert.deepStrictEqual(
+  { price: run(false, "?price_band=unsafe&sort=rank").price,
+    sort: run(false, "?price_band=unsafe&sort=rank").sort },
+  { price: "all", sort: "original" }
+);
