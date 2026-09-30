@@ -131,3 +131,18 @@ image, price, freshness, and existing-surface-preservation coverage. Missing,
 malformed, or contradictory evidence falls back to zero verified items. D1
 lookup/redirect/runtime coverage and every SEO, capacity, COMPLIANCE, funnel,
 and rollback decision remain blocked independently.
+
+`scripts/export_revenue_mvp_expansion_lookup_candidate.py` exports only the
+newest verified six-page run, not every item accumulated in the private
+database. It requires exactly 300 unique in-scope identifiers, reuses the page
+validator, pins the source database SHA-256, and writes an atomic private SQL
+candidate whose rows inherit disabled and pending D1 defaults. Export does not
+import D1, create redirect targets, enable affiliate rows, or authorize
+publication.
+
+The 2026-10-01 export produced and independently validated 300 disabled lookup
+rows at candidate SHA-256
+`d77105c1d0d81e2b79135b42c5163f1d722b55ad9806324b15ce2f3da1390434`.
+Runtime-eligible rows, redirect targets, and runtime revalidations remain zero.
+The SQL stays Git-ignored; only aggregate evidence is committed at
+`runtime/evidence/revenue-mvp-expansion-lookup-20261001.json`.

@@ -1,0 +1,17 @@
+{
+  "version": "0.1",
+  "mode": "PRIVATE_DISABLED_CANDIDATE",
+  "status": "VALIDATED",
+  "source_database_sha256": "6d1ea77411d1aa631c807ad4f76394e7aa00a3af0abdd20c920af75119d9a042",
+  "candidate_sha256": "d77105c1d0d81e2b79135b42c5163f1d722b55ad9806324b15ce2f3da1390434",
+  "row_count": 300,
+  "all_rows_disabled": true,
+  "pending_defaults_verified": true,
+  "eligible_row_count": 0,
+  "candidate_identity_verified": true,
+  "candidate_ids_exposed": false,
+  "d1_write_performed": false,
+  "redirect_target_count": 0,
+  "runtime_revalidation_count": 0,
+  "publication_allowed": false
+}
