@@ -33,10 +33,12 @@ class DiscoveryControlsTests(unittest.TestCase):
         css = (ROOT / "items" / "items.css").read_text(encoding="utf-8")
         self.assertIn(".item[hidden] { display: none; }", css)
 
-    def test_live_list_funnel_events_are_parameter_free_and_fail_soft(self):
+    def test_live_list_funnel_events_use_opaque_product_context_and_fail_soft(self):
         self.assertIn('trackFunnelEvent("view_item_list")', self.source)
-        self.assertIn('trackFunnelEvent("outbound_product_click")', self.source)
+        self.assertIn('trackFunnelEvent("outbound_product_click", {', self.source)
         self.assertIn('document.querySelectorAll(".affiliate-cta-link")', self.source)
+        self.assertIn('surface: "product_card"', self.source)
+        self.assertIn('/^\\/go\\/(itm_[0-9a-f]{24})$/', self.source)
         self.assertNotIn("dataset", self.source)
         self.assertNotIn("content_id", self.source)
 

@@ -11,6 +11,7 @@
     "view_item",
     "outbound_product_click"
   ]);
+  const ALLOWED_SURFACES = new Set(["product_card", "product_detail"]);
   let analyticsLoaded = false;
 
   function readChoice() {
@@ -87,13 +88,26 @@
     document.head.appendChild(script);
   }
 
-  function trackEvent(name) {
+  function safeProductContext(value) {
+    if (value === undefined) return null;
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const keys = Object.keys(value);
+    if (keys.length !== 2 || !keys.includes("public_id") || !keys.includes("surface")) return false;
+    if (!/^itm_[0-9a-f]{24}$/.test(value.public_id)) return false;
+    if (!ALLOWED_SURFACES.has(value.surface)) return false;
+    return { item_id: value.public_id, funnel_surface: value.surface };
+  }
+
+  function trackEvent(name, context) {
+    const parameters = safeProductContext(context);
     if (
       readChoice() !== GRANTED
       || !ALLOWED_EVENTS.has(name)
+      || parameters === false
       || typeof window.gtag !== "function"
     ) return false;
-    window.gtag("event", name);
+    if (parameters === null) window.gtag("event", name);
+    else window.gtag("event", name, parameters);
     return true;
   }
 

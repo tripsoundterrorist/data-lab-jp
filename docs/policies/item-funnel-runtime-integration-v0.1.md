@@ -17,15 +17,18 @@ data deployment, or GA4 transmission.
 - malformed index data fails closed, displays the fallback, and emits no funnel
   event.
 
-All four events remain parameter-free. Consent enforcement remains owned by
-`analytics-consent.js` and is verified separately.
+Consent enforcement remains owned by `analytics-consent.js` and is verified
+separately. Product-level context is accepted only as an opaque public ID and
+an allowlisted surface; invalid or additional context fails closed.
 
-The server-rendered production list uses the same parameter-free boundary:
+The server-rendered production list uses this bounded context boundary:
 
 - `items/discovery.js` emits `view_item_list` after `DOMContentLoaded`;
 - selecting any rendered `.affiliate-cta-link` emits
-  `outbound_product_click`;
-- no item identifier, title, URL, price, query, or referrer is attached;
+  `outbound_product_click` with the matching opaque public ID and
+  `product_card` surface;
+- no title, destination URL, price, query, referrer, or private source ID is
+  attached;
 - an absent, denied, or unavailable analytics receiver fails soft and never
   blocks the CTA navigation.
 

@@ -141,6 +141,20 @@ assert(
   accepted.window.dataLabAnalytics.trackEvent("secret_event") === false,
   "non-allowlisted event accepted"
 );
+assert(
+  accepted.window.dataLabAnalytics.trackEvent("outbound_product_click", {
+    public_id: "itm_0123456789abcdef01234567",
+    surface: "product_card"
+  }) === true,
+  "safe product context rejected"
+);
+assert(
+  accepted.window.dataLabAnalytics.trackEvent("outbound_product_click", {
+    public_id: "unsafe",
+    surface: "product_card"
+  }) === false,
+  "unsafe product context accepted"
+);
 
 const commands = accepted.window.dataLayer.map((entry) => Array.from(entry));
 assert(commands[0][0] === "consent" && commands[0][1] === "default", "default consent missing");
@@ -153,6 +167,9 @@ assert(pageView[2].page_location === "https://datalabx.jp/items/item", "query le
 assert(pageView[2].page_referrer === "", "referrer leaked");
 const viewItem = commands.find((entry) => entry[0] === "event" && entry[1] === "view_item");
 assert(viewItem.length === 2, "funnel event contains parameters");
+const outbound = commands.find((entry) => entry[0] === "event" && entry[1] === "outbound_product_click");
+assert(outbound[2].item_id === "itm_0123456789abcdef01234567", "opaque item id missing");
+assert(outbound[2].funnel_surface === "product_card", "funnel surface missing");
 
 const campaignAccepted = scenario(
   null,

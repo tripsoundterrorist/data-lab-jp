@@ -9,9 +9,9 @@
   const pageStatus = document.querySelector("#page-status");
   if (!grid || !search || !priceFilter || !sort || !resultCount || !pageStatus) return;
 
-  const trackFunnelEvent = (name) => {
+  const trackFunnelEvent = (name, context) => {
     try {
-      return window.dataLabAnalytics?.trackEvent(name) === true;
+      return window.dataLabAnalytics?.trackEvent(name, context) === true;
     } catch (_) {
       return false;
     }
@@ -75,7 +75,14 @@
   priceFilter.addEventListener("change", update);
   sort.addEventListener("change", update);
   document.querySelectorAll(".affiliate-cta-link").forEach((link) => {
-    link.addEventListener("click", () => trackFunnelEvent("outbound_product_click"));
+    link.addEventListener("click", () => {
+      const match = String(link.getAttribute("href") || "").match(/^\/go\/(itm_[0-9a-f]{24})$/);
+      if (!match) return;
+      trackFunnelEvent("outbound_product_click", {
+        public_id: match[1],
+        surface: "product_card",
+      });
+    });
   });
   document.querySelectorAll(".card-image").forEach((image) => {
     image.addEventListener("error", () => {

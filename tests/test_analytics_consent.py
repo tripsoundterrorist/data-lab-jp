@@ -83,7 +83,7 @@ class AnalyticsConsentTests(unittest.TestCase):
         self.assertIn("localStorage", privacy)
         self.assertIn("アクセス解析設定", privacy)
 
-    def test_funnel_events_are_strictly_allowlisted_and_parameter_free(self):
+    def test_funnel_events_and_product_context_are_strictly_allowlisted(self):
         for event in (
             "view_item_list", "select_item", "view_item",
             "outbound_product_click",
@@ -91,7 +91,10 @@ class AnalyticsConsentTests(unittest.TestCase):
             self.assertIn(f'"{event}"', self.script)
         self.assertIn("!ALLOWED_EVENTS.has(name)", self.script)
         self.assertIn('window.gtag("event", name);', self.script)
-        self.assertNotIn('window.gtag("event", name,', self.script)
+        self.assertIn('window.gtag("event", name, parameters);', self.script)
+        self.assertIn('!/^itm_[0-9a-f]{24}$/.test(value.public_id)', self.script)
+        self.assertIn('ALLOWED_SURFACES.has(value.surface)', self.script)
+        self.assertNotIn("item_name", self.script)
 
     def test_event_tracking_requires_current_granted_consent(self):
         self.assertIn("readChoice() !== GRANTED", self.script)

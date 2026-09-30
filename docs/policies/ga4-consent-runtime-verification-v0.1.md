@@ -4,7 +4,7 @@
 
 DATA LAB already has a consent-first GA4 bootstrap using measurement ID
 `G-ZPBQJ6137L`, a localStorage choice, advertising signals denied, manual
-page-view dispatch, and four parameter-free funnel events.
+page-view dispatch, and four allowlisted funnel events.
 
 ## Runtime verification
 
@@ -21,7 +21,10 @@ against an inert DOM. It does not load any network resource. The harness proves:
 - explicit grant loads exactly the configured Google script;
 - consent defaults are denied before the granted update;
 - only allowlisted funnel events are accepted;
-- funnel events carry no product parameters;
+- product context is limited to an opaque `itm_` public ID and an allowlisted
+  `product_card` or `product_detail` surface; malformed or additional fields
+  fail closed, and product titles, destination URLs, prices, and source IDs are
+  never forwarded;
 - page view strips query, fragment, and referrer;
 - revocation persists denial and reloads after prior loading.
 

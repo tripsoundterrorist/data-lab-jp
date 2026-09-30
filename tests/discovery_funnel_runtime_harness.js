@@ -30,6 +30,7 @@ function run(withAnalytics, searchParams = "", grantAfterLoad = false) {
   const resultCount = { textContent: "" };
   const pageStatus = { textContent: "" };
   const cta = {
+    getAttribute(name) { return name === "href" ? "/go/itm_0123456789abcdef01234567" : null; },
     addEventListener(name, handler) { ctaListeners[name] = handler; },
   };
   const wrapper = { append(value) { appended.push(value); } };
@@ -59,13 +60,13 @@ function run(withAnalytics, searchParams = "", grantAfterLoad = false) {
     addEventListener(name, handler) { listeners[name] = handler; },
   };
   const window = withAnalytics
-    ? { location: { search: searchParams }, dataLabAnalytics: { trackEvent(name) { events.push(name); return true; } } }
+    ? { location: { search: searchParams }, dataLabAnalytics: { trackEvent(name, context) { events.push({ name, context }); return true; } } }
     : { location: { search: searchParams } };
 
   vm.runInNewContext(source, { document, window, Set, Array, Number, Date, URLSearchParams });
   listeners.DOMContentLoaded();
   if (grantAfterLoad) {
-    window.dataLabAnalytics = { trackEvent(name) { events.push(name); return true; } };
+    window.dataLabAnalytics = { trackEvent(name, context) { events.push({ name, context }); return true; } };
     listeners.dataLabAnalyticsReady();
     listeners.dataLabAnalyticsReady();
   }
@@ -81,12 +82,20 @@ function run(withAnalytics, searchParams = "", grantAfterLoad = false) {
   };
 }
 
-assert.deepStrictEqual(run(true).events, ["view_item_list", "outbound_product_click"]);
+const immediate = run(true).events;
+assert.strictEqual(immediate.length, 2);
+assert.strictEqual(immediate[0].name, "view_item_list");
+assert.strictEqual(immediate[0].context, undefined);
+assert.strictEqual(immediate[1].name, "outbound_product_click");
+assert.strictEqual(immediate[1].context.public_id, "itm_0123456789abcdef01234567");
+assert.strictEqual(immediate[1].context.surface, "product_card");
 assert.deepStrictEqual(run(false).events, []);
-assert.deepStrictEqual(
-  run(false, "", true).events,
-  ["view_item_list", "outbound_product_click"]
-);
+const delayed = run(false, "", true).events;
+assert.strictEqual(delayed.length, 2);
+assert.strictEqual(delayed[0].name, "view_item_list");
+assert.strictEqual(delayed[1].name, "outbound_product_click");
+assert.strictEqual(delayed[1].context.public_id, "itm_0123456789abcdef01234567");
+assert.strictEqual(delayed[1].context.surface, "product_card");
 assert.deepStrictEqual(
   { price: run(false, "?price_band=under-1000&sort=price-asc&utm_source=x").price,
     sort: run(false, "?price_band=under-1000&sort=price-asc&utm_source=x").sort },
