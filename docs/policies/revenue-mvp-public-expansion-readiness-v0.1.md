@@ -30,3 +30,11 @@ only when its newest snapshot has a snapshot-bound title, official DMM image,
 price, and validated affiliate lifecycle observation. Fresh coverage also
 requires that snapshot to be no more than 48 hours old. Aggregate coverage does
 not authorize an exact selection or publication.
+
+The current date collection policy is two requests of 50 items (100 observations
+per run). Reaching a 300-item observation window would require six requests at
+the same page size. `scripts/revenue_mvp_expansion_collector_plan.py` records
+that difference without calling the API or writing a database. The plan remains
+blocked until a disposable database, backup/restore, request budget, rate-limit
+safety, and overlap/duplicate validation are proven. The existing two-request
+daily schedule must remain unchanged while this isolated plan is reviewed.
