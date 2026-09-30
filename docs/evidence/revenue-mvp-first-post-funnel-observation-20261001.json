@@ -1,0 +1,49 @@
+{
+  "version": "0.1",
+  "status": "FIRST_POST_LAUNCH_CLICK_SIGNAL_NO_REVENUE_YET",
+  "observed_at": "2026-10-01",
+  "source_post": "https://x.com/datalab_jp/status/2105306290587419100",
+  "dmm_affiliate": {
+    "source": "DMM_AFFILIATE_AUTHENTICATED_UI_READ_ONLY",
+    "report_period": "2026-09-30",
+    "clicks": 1,
+    "reward_count": 0,
+    "service_new_reward_yen": 0,
+    "reward_yen": 0
+  },
+  "ga4": {
+    "source": "GA4_AUTHENTICATED_UI_READ_ONLY",
+    "report_period": "PAST_7_DAYS_AS_DISPLAYED_2026-10-01",
+    "active_users": 2,
+    "event_count": 43,
+    "key_events": 0,
+    "realtime_active_users_last_30_minutes": 0,
+    "page_views": {
+      "DATA LAB | 作品データ分析": 7,
+      "確認時点の商品情報 | DATA LAB": 8,
+      "DATA LABが目指すデータスコアの考え方 | DATA LAB": 1,
+      "作品データ | DATA LAB": 0
+    },
+    "session_channels": {
+      "Direct": 9,
+      "Unassigned": 1
+    }
+  },
+  "automation_health": {
+    "checked_at": "2026-10-01",
+    "affiliate_revalidation_last_result": 0,
+    "affiliate_revalidation_next_run_jst": "2026-10-01T20:00:00+09:00",
+    "collector_last_result": 0,
+    "backup_last_result": 0,
+    "stale_check_last_result": 0
+  },
+  "interpretation": [
+    "A DMM click exists in the first closed reporting day after monetization launch.",
+    "The click cannot be attributed to the X post from the available DMM and GA4 views.",
+    "No conversion or revenue has been observed yet.",
+    "The sample is too small for funnel or content optimization decisions."
+  ],
+  "next_action": "CONTINUE_UNCHANGED_FUNNEL_OBSERVATION_UNTIL_A_LARGER_CLOSED_WINDOW",
+  "production_write_performed": false,
+  "external_write_performed": false
+}
