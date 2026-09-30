@@ -44,3 +44,17 @@ pre-write page contract: exactly six 50-item pages at offsets 1, 51, 101, 151,
 201, and 251, with exactly 300 unique non-empty content IDs. Any short page,
 offset drift, malformed identifier, or duplicate across pages blocks database
 writes. This validator is not connected to the live collector in v0.1.
+
+`scripts/revenue_mvp_expansion_disposable_db_rehearsal.py` verifies the database
+isolation boundary without an API request. It creates a temporary SQLite backup,
+restores that copy into a second temporary database, compares logical table
+digests and counts, verifies integrity and foreign keys, confirms the source
+file identity did not change, and removes both temporary files automatically.
+An active native collection run blocks the rehearsal.
+
+The 2026-10-01 rehearsal against database SHA-256
+`cd24816b185234d4a3e05e180f3e95ca97ab3b6c98cdf105da47b8ffaf7ecb53`
+verified 5 tables, 1,109 items, 5,244 snapshots, and 55 collection runs. No
+temporary files were retained and the source identity was unchanged. This
+evidence satisfies only the isolated database and backup/restore prerequisites;
+it does not approve an API request or collection run.

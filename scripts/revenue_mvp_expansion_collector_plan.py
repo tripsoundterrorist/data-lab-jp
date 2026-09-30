@@ -134,11 +134,11 @@ def current_evidence() -> ExpansionCollectorEvidence:
     return ExpansionCollectorEvidence(
         target_count=TARGET_COUNT,
         fresh_eligible_count=108,
-        isolated_database_verified=False,
+        isolated_database_verified=True,
         request_budget_confirmed=False,
         rate_limit_safety_confirmed=False,
         overlap_and_uniqueness_validation_ready=False,
-        backup_and_restore_verified=False,
+        backup_and_restore_verified=True,
         production_schedule_unchanged=True,
     )
 

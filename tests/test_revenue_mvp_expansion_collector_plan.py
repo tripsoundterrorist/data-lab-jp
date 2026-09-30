@@ -35,6 +35,8 @@ class ExpansionCollectorPlanTests(unittest.TestCase):
         self.assertFalse(result.production_schedule_change_allowed)
         self.assertFalse(result.publication_allowed)
         self.assertIn("CURRENT_REQUEST_BUDGET_EXCEEDED", result.reason_codes)
+        self.assertNotIn("ISOLATED_DATABASE_UNVERIFIED", result.reason_codes)
+        self.assertNotIn("BACKUP_RESTORE_UNVERIFIED", result.reason_codes)
 
     def test_request_math_and_spacing_are_bounded(self):
         result = subject.assess(subject.current_evidence())
