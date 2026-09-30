@@ -106,3 +106,11 @@ private root, re-runs the storage gate, backs up an existing collection-only
 primary before replacement, atomically moves the candidate into place, verifies
 the retained identity, and rotates only its dedicated backup directory to seven
 generations. It never writes the production database or authorizes publication.
+
+The isolated collector accepts `--retain-collection-only` as an explicit opt-in.
+Without it, the disposable database is always deleted. With it, the harness
+accepts only the repository's Git-ignored `runtime/private/` root, copies the
+fully validated disposable database to a random staged file, invokes the atomic
+storage commit, and removes any uncommitted stage in `finally`. A retention
+failure blocks the run receipt and never falls back to publication or the
+production database.

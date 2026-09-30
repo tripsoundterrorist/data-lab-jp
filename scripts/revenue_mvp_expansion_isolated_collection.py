@@ -11,13 +11,16 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import shutil
 import sqlite3
 import sys
 import tempfile
 from typing import Any
+import uuid
 
 import revenue_mvp_expansion_page_validator as page_validator
 import revenue_mvp_public_expansion_coverage as coverage
+import revenue_mvp_expansion_storage_commit as storage_commit
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,6 +44,8 @@ class IsolatedCollectionReceipt:
     base_eligible_count: int
     fresh_base_eligible_count: int
     target_gap: int
+    collection_only_storage_committed: bool
+    retained_sha256: str | None
     temporary_database_retained: bool
     production_database_write_performed: bool
     publication_allowed: bool
@@ -55,7 +60,7 @@ class IsolatedCollectionReceipt:
 def _blocked(reason: str, source_sha256: str | None = None) -> IsolatedCollectionReceipt:
     return IsolatedCollectionReceipt(
         VERSION, BLOCKED, source_sha256, False, 0, 0, 0, 0, None, 0, 0,
-        300, False, False, False, (reason,),
+        300, False, None, False, False, False, (reason,),
     )
 
 
@@ -135,12 +140,28 @@ def _latest_run(database: Path) -> tuple[sqlite3.Row, tuple[page_validator.PageO
     return run, pages
 
 
-def assess(source: Path, env_path: Path, *, evaluated_at: datetime) -> IsolatedCollectionReceipt:
+def assess(
+    source: Path,
+    env_path: Path,
+    *,
+    evaluated_at: datetime,
+    retain_private_root: Path | None = None,
+) -> IsolatedCollectionReceipt:
     before_sha: str | None = None
+    staged_retention: Path | None = None
     try:
         if (
             evaluated_at.tzinfo is None or source.is_symlink() or env_path.is_symlink()
             or not source.is_file() or not env_path.is_file()
+            or (
+                retain_private_root is not None
+                and (
+                    retain_private_root.is_symlink()
+                    or not retain_private_root.is_dir()
+                    or retain_private_root.resolve()
+                    != (ROOT / "runtime" / "private").resolve()
+                )
+            )
         ):
             return _blocked("INPUT_INVALID")
         before_sha = _sha256(source)
@@ -172,12 +193,32 @@ def assess(source: Path, env_path: Path, *, evaluated_at: datetime) -> IsolatedC
             covered = coverage.assess(disposable, evaluated_at=coverage_evaluated_at)
             if covered.status == coverage.FAIL_CLOSED:
                 return _blocked("COVERAGE_AUDIT_FAILED", before_sha)
+            storage_committed = False
+            retained_sha256 = None
+            if retain_private_root is not None:
+                staged_retention = retain_private_root / (
+                    f".expansion-candidate-{uuid.uuid4().hex}.db"
+                )
+                shutil.copyfile(disposable, staged_retention)
+                staged_sha = _sha256(staged_retention)
+                committed = storage_commit.commit(
+                    staged_retention,
+                    source,
+                    retain_private_root,
+                    expected_candidate_sha256=staged_sha,
+                    committed_at=datetime.now(timezone.utc),
+                )
+                if committed.status != storage_commit.COMMITTED:
+                    return _blocked("COLLECTION_ONLY_STORAGE_COMMIT_FAILED", before_sha)
+                storage_committed = True
+                retained_sha256 = committed.retained_sha256
             receipt = IsolatedCollectionReceipt(
                 VERSION, VERIFIED, before_sha, True, run["api_calls"],
                 run["pages_fetched"], run["processed_items"],
                 run["duplicate_content_ids_across_pages"], page_check.status,
                 covered.base_eligible_count, covered.fresh_base_eligible_count,
-                covered.target_gap, False, False, False,
+                covered.target_gap, storage_committed, retained_sha256,
+                False, False, False,
                 ("DISPOSABLE_DATABASE_ONLY", "EXPLICIT_PUBLICATION_REVIEW_REQUIRED"),
             )
         if _sha256(source) != before_sha:
@@ -185,6 +226,12 @@ def assess(source: Path, env_path: Path, *, evaluated_at: datetime) -> IsolatedC
         return receipt
     except (OSError, sqlite3.Error, ValueError, RuntimeError, ImportError):
         return _blocked("ISOLATED_COLLECTION_FAILED", before_sha)
+    finally:
+        if staged_retention is not None and staged_retention.exists():
+            try:
+                staged_retention.unlink()
+            except OSError:
+                pass
 
 
 def _timestamp(value: str) -> datetime:
@@ -199,8 +246,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--source-db", required=True, type=Path)
     parser.add_argument("--env-file", required=True, type=Path)
     parser.add_argument("--evaluated-at", required=True, type=_timestamp)
+    parser.add_argument("--retain-collection-only", action="store_true")
     args = parser.parse_args(argv)
-    result = assess(args.source_db, args.env_file, evaluated_at=args.evaluated_at)
+    result = assess(
+        args.source_db,
+        args.env_file,
+        evaluated_at=args.evaluated_at,
+        retain_private_root=(ROOT / "runtime" / "private")
+        if args.retain_collection_only else None,
+    )
     print(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
     return 0 if result.status == VERIFIED else 2
 

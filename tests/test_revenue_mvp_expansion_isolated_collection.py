@@ -20,6 +20,8 @@ class IsolatedCollectionTests(unittest.TestCase):
         self.assertEqual(result.api_calls, 0)
         self.assertFalse(result.production_database_write_performed)
         self.assertFalse(result.publication_allowed)
+        self.assertFalse(result.collection_only_storage_committed)
+        self.assertIsNone(result.retained_sha256)
 
     def test_naive_time_blocks_before_loading_collector(self):
         with mock.patch.object(subject, "_load_collector") as loader:
@@ -36,6 +38,19 @@ class IsolatedCollectionTests(unittest.TestCase):
         self.assertEqual(subject._sha256(source), before)
         self.assertFalse(result.temporary_database_retained)
         self.assertFalse(result.production_database_write_performed)
+
+    def test_invalid_retention_root_blocks_before_collector_load(self):
+        with mock.patch.object(subject, "_load_collector") as loader:
+            result = subject.assess(
+                ROOT / "data" / "data-lab.db",
+                ROOT / ".env",
+                evaluated_at=NOW,
+                retain_private_root=ROOT / "data",
+            )
+        # The input database copy is allowed, but an actual collector must not
+        # run when the retention destination is outside runtime/private.
+        self.assertEqual(result.status, subject.BLOCKED)
+        loader.assert_not_called()
 
 
 if __name__ == "__main__":
