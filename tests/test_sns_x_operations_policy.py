@@ -19,7 +19,7 @@ class SnsXOperationsPolicyTests(unittest.TestCase):
             "AUTOMATED_FACT_POSTING",
         ):
             self.assertIn(topic, self.content)
-        self.assertIn("X remains `PREVIEW_ONLY`", self.content)
+        self.assertIn("remain preview-only until explicit human approval", self.content)
         self.assertIn("performs no X post", self.content)
 
     def test_external_schedule_is_documented_without_registration(self):

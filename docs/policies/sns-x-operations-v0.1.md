@@ -8,12 +8,16 @@ the source of truth. The currently verified public category is **FANZA動画**.
 Ideas, Issues, collection-only work, unpublished code, and unverified categories
 must not be described as available.
 
-The account-registration condition `SNS_ACCOUNT_REGISTRATION` is verified.
-`SNS_TO_SITE_TO_FANZA_FUNNEL`, `SNS_PRODUCT_MEDIA_USE`, and
-`AUTOMATED_FACT_POSTING` remain unverified. Therefore X remains `PREVIEW_ONLY`.
-Registration approval alone does not authorize posting, media, affiliate routes,
-automation, or any Publication Gate change. The separate Lifecycle / Sort answer
-also remains pending and does not open the Web Revenue MVP Publication Gate.
+The account-registration condition `SNS_ACCOUNT_REGISTRATION` is verified. The
+official response also confirms that `SNS_TO_SITE_TO_FANZA_FUNNEL` linking from
+X to the published DATA LAB
+site is allowed; an intermediate URL is not prohibited, although its operation
+or attribution is not guaranteed. Therefore a verified text-only draft with a
+`datalabx.jp` landing page may become `READY_FOR_MANUAL_POST` only after explicit
+human approval. `SNS_PRODUCT_MEDIA_USE` and `AUTOMATED_FACT_POSTING` remain
+unverified. Text drafts remain preview-only until explicit human approval. This
+does not authorize product media, automatic posting, direct
+affiliate links from X, or any Publication Gate change.
 
 ## Current X presentation
 
@@ -57,8 +61,15 @@ unsupported claims, urgency, scarcity, misleading popularity, clickbait, or
 unrelated links. CTA wording must be COMPLIANCE-verified.
 
 Any post containing an advertising or affiliate path must state `【PR】` clearly
-in the post body. This rule does not grant permission to use such a path while
-the SNS funnel condition remains unverified.
+in the post body. A DATA LAB page containing affiliate CTAs is treated as an
+advertising path for this conservative manual-post policy.
+
+For the current acquisition test, target links in 60--70% of drafts and preserve
+30--40% as link-free trust or explanation posts. Link to the most specific
+published page that supports the stated fact; do not send every post to the home
+page. Compare link and non-link posts using link clicks, CTR, profile visits,
+follows, and downstream CTA outcomes where acquired. This ratio is an operating
+test target, not authority to post or change the external schedule.
 
 Rotate themes across time slots without associating a theme with a supposedly
 better time. Preserve this target mix where applicable:

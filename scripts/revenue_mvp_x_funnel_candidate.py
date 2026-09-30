@@ -18,8 +18,13 @@ ORIGIN = "https://datalabx.jp"
 PREVIEW_ONLY = "PREVIEW_ONLY"
 READY_FOR_MANUAL_POST = "READY_FOR_MANUAL_POST"
 BLOCKED = "BLOCKED"
-PUBLIC_PATHS = frozenset({"/", "/column-price", "/column-ranking", "/column-score"})
+PUBLIC_PATHS = frozenset({"/", "/column-price", "/column-score"})
 ITEM_PATHS = frozenset({"/items/"})
+MANUAL_LINK_TOPICS = frozenset({
+    "SNS_TO_SITE_TO_FANZA_FUNNEL",
+    "SNS_ACCOUNT_REGISTRATION",
+    "PR_AD_AFFILIATE_DISCLOSURE",
+})
 FORBIDDEN = re.compile(
     r"(?:https?://|www\.|@|#|残りわずか|今だけ|急げ|絶対|公式ランキング|No\.?1)",
     re.IGNORECASE,
@@ -43,6 +48,13 @@ class XCandidateResult:
         value = asdict(self)
         value["reason_codes"] = list(self.reason_codes)
         return value
+
+
+def _resolved(decision: AnswerDecision | None) -> bool:
+    return decision is not None and (
+        decision.status == "ALLOWED"
+        or (decision.status == "CONDITIONALLY_ALLOWED" and decision.conditions_verified)
+    )
 
 
 def build_candidate(
@@ -71,7 +83,13 @@ def build_candidate(
         reasons.add("CAMPAIGN_INVALID")
     entries = current_entries() if official_answer_entries is None else official_answer_entries
     answers = assess_answer_matrix(entries)
-    if not answers.sns_operation_candidate:
+    manual_link_conditions_verified = (
+        not {"MALFORMED_INPUT", "UNKNOWN_TOPIC", "INVALID_DECISION",
+             "INVALID_CONDITION_STATE", "CONTRADICTORY_CONDITION_STATE"}
+        .intersection(answers.reason_codes)
+        and all(_resolved(entries.get(topic)) for topic in MANUAL_LINK_TOPICS)
+    )
+    if not manual_link_conditions_verified:
         reasons.add("SNS_CONDITIONS_NOT_VERIFIED")
 
     content_safe = not reasons.intersection({
@@ -80,14 +98,17 @@ def build_candidate(
     })
     if content_safe:
         query = urlencode({"utm_source": "x", "utm_medium": "social", "utm_campaign": campaign})
-        text = f"{fact_text.strip()}\n\nDATA LAB独自集計・非公式\n{ORIGIN}{landing_path}?{query}"
+        text = (
+            f"【PR】{fact_text.strip()}\n\n"
+            f"DATA LAB独自集計・非公式\n{ORIGIN}{landing_path}?{query}"
+        )
         if len(text) > 280:
             text = None
             reasons.add("POST_LENGTH_EXCEEDED")
             content_safe = False
 
     manual_candidate = (
-        content_safe and answers.sns_operation_candidate
+        content_safe and manual_link_conditions_verified
         and explicit_human_approval is True
     )
     status = (
@@ -97,7 +118,11 @@ def build_candidate(
     )
     return XCandidateResult(
         VERSION, status, text, True, manual_candidate, False, False, False,
-        False, tuple(sorted(reasons)) or ("MANUAL_POST_CANDIDATE_READY",),
+        False, tuple(sorted(reasons)) or (
+            ("MANUAL_POST_CANDIDATE_READY",)
+            if manual_candidate
+            else ("EXPLICIT_HUMAN_APPROVAL_REQUIRED",)
+        ),
     )
 
 
