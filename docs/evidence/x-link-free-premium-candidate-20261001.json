@@ -1,0 +1,32 @@
+{
+  "version": "0.1",
+  "status": "PREVIEW_ONLY",
+  "observed_at": "2026-10-01T02:17:42+09:00",
+  "candidate_text": "DATA LABでは、FANZA動画100作品の情報を確認時点ごとに記録しています。取得できない値は推測で補わず、未取得として扱います。",
+  "weighted_length": 120,
+  "theme": "site_operation",
+  "source_ids": [
+    "github:scripts/revenue_mvp_current_state.py",
+    "github:docs/policies/sns-x-operations-v0.1.md"
+  ],
+  "verified_current_state": {
+    "status": "REVENUE_SURFACE_PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE",
+    "live_item_count": 100,
+    "limited_surface_live": true,
+    "next_action": "MONITOR_DAILY_REVALIDATION_AND_REVENUE_FUNNEL"
+  },
+  "manual_review_required": true,
+  "manual_post_candidate": false,
+  "posting_performed": false,
+  "automatic_post_allowed": false,
+  "link_included": false,
+  "affiliate_promotion_allowed": false,
+  "reason_codes": [
+    "EXPLICIT_HUMAN_APPROVAL_REQUIRED"
+  ],
+  "notes": [
+    "The candidate contains no URL, PR label, affiliate wording, product CTA, or product-specific claim.",
+    "Premium does not change the COMPLIANCE boundary.",
+    "No post or external send was performed."
+  ]
+}
