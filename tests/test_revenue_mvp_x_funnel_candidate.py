@@ -24,12 +24,28 @@ def build(**changes):
 
 
 class XFunnelCandidateTests(unittest.TestCase):
-    def test_current_state_is_preview_only(self):
+    def test_current_state_is_preview_only_until_human_approval(self):
         result = build()
         self.assertEqual(result.status, gate.PREVIEW_ONLY)
         self.assertFalse(result.manual_post_candidate)
-        self.assertIn("SNS_CONDITIONS_NOT_VERIFIED", result.reason_codes)
+        self.assertNotIn("SNS_CONDITIONS_NOT_VERIFIED", result.reason_codes)
         self.assertNotIn("SNS_OFFICIAL_ANSWERS_PENDING", result.reason_codes)
+
+    def test_current_answers_and_human_approval_create_manual_candidate(self):
+        result = build(explicit_human_approval=True)
+        self.assertEqual(result.status, gate.READY_FOR_MANUAL_POST)
+        self.assertTrue(result.manual_post_candidate)
+
+    def test_unverified_site_funnel_stays_blocked(self):
+        entries = dict(matrix.current_entries())
+        entries["SNS_TO_SITE_TO_FANZA_FUNNEL"] = matrix.AnswerDecision(
+            matrix.CONDITIONALLY_ALLOWED
+        )
+        result = build(
+            official_answer_entries=entries, explicit_human_approval=True
+        )
+        self.assertEqual(result.status, gate.PREVIEW_ONLY)
+        self.assertIn("SNS_CONDITIONS_NOT_VERIFIED", result.reason_codes)
 
     def test_complete_answers_still_require_human_approval(self):
         result = build(official_answer_entries=answers())
@@ -51,8 +67,18 @@ class XFunnelCandidateTests(unittest.TestCase):
 
     def test_disclosure_is_always_appended(self):
         text = build().candidate_text
+        self.assertTrue(text.startswith("【PR】"))
         self.assertIn("独自集計", text)
         self.assertIn("非公式", text)
+
+    def test_preview_and_approved_reason_codes_are_distinct(self):
+        self.assertEqual(
+            build().reason_codes, ("EXPLICIT_HUMAN_APPROVAL_REQUIRED",)
+        )
+        self.assertEqual(
+            build(explicit_human_approval=True).reason_codes,
+            ("MANUAL_POST_CANDIDATE_READY",),
+        )
 
     def test_direct_urls_mentions_hashtags_and_urgency_are_blocked(self):
         for value in ("https://example.invalid", "@user", "#tag", "今だけ", "公式ランキング"):
@@ -64,6 +90,27 @@ class XFunnelCandidateTests(unittest.TestCase):
         self.assertEqual(
             build(landing_path="/items/", public_data_available=True).status,
             gate.PREVIEW_ONLY,
+        )
+
+    def test_item_landing_can_preselect_safe_price_discovery(self):
+        result = build(
+            landing_path="/items/", public_data_available=True,
+            landing_sort="price-asc", landing_price_band="under-1000",
+        )
+        self.assertEqual(result.status, gate.PREVIEW_ONLY)
+        self.assertIn("sort=price-asc", result.candidate_text)
+        self.assertIn("price_band=under-1000", result.candidate_text)
+
+    def test_item_landing_state_is_allowlisted_and_item_only(self):
+        self.assertEqual(
+            build(landing_sort="price-asc").status, gate.BLOCKED
+        )
+        self.assertEqual(
+            build(
+                landing_path="/items/", public_data_available=True,
+                landing_sort="rank",
+            ).status,
+            gate.BLOCKED,
         )
 
     def test_unknown_path_and_campaign_are_blocked(self):

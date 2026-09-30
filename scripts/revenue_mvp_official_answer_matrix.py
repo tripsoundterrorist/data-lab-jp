@@ -8,7 +8,7 @@ from typing import Any, Mapping
 from types import MappingProxyType
 
 
-MATRIX_VERSION = "0.3"
+MATRIX_VERSION = "0.4"
 ALLOWED = "ALLOWED"
 CONDITIONALLY_ALLOWED = "CONDITIONALLY_ALLOWED"
 UNKNOWN = "UNKNOWN"
@@ -62,7 +62,9 @@ CURRENT_ENTRIES: Mapping[str, AnswerDecision] = MappingProxyType({
     "DISCONTINUED_ITEM_HANDLING": AnswerDecision(
         CONDITIONALLY_ALLOWED, conditions_verified=True
     ),
-    "SNS_TO_SITE_TO_FANZA_FUNNEL": AnswerDecision(CONDITIONALLY_ALLOWED),
+    "SNS_TO_SITE_TO_FANZA_FUNNEL": AnswerDecision(
+        CONDITIONALLY_ALLOWED, conditions_verified=True
+    ),
     "SNS_ACCOUNT_REGISTRATION": AnswerDecision(
         CONDITIONALLY_ALLOWED, conditions_verified=True
     ),

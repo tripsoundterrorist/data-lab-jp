@@ -29,7 +29,7 @@ class RevenueMvpOfficialAnswerMatrixTests(unittest.TestCase):
             9,
         )
         self.assertEqual(
-            sum(value.conditions_verified for value in entries.values()), 6
+            sum(value.conditions_verified for value in entries.values()), 7
         )
         self.assertTrue(
             entries["PRODUCTION_DOMAIN_CHANGE"].conditions_verified
@@ -106,7 +106,6 @@ class RevenueMvpOfficialAnswerMatrixTests(unittest.TestCase):
         self.assertEqual(
             result["blocking_topic_ids"],
             [
-                "SNS_TO_SITE_TO_FANZA_FUNNEL",
                 "SNS_PRODUCT_MEDIA_USE",
                 "AUTOMATED_FACT_POSTING",
             ],

@@ -21,6 +21,7 @@ class DiscoveryControlsTests(unittest.TestCase):
             "#item-search", "#price-filter", "#item-sort", "under-1000",
             "1000-1999", "2000-2999", "3000-plus", "price-asc",
             "price-desc", "observed-desc", "observed-asc", "left.index - right.index",
+            "URLSearchParams", 'incoming.get("price_band")', 'incoming.get("sort")',
         ):
             self.assertIn(required, self.source)
 
