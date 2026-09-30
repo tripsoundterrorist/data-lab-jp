@@ -131,5 +131,27 @@ class XFunnelCandidateTests(unittest.TestCase):
         self.assertEqual(build(public_data_available=1).status, gate.BLOCKED)
         self.assertEqual(build(explicit_human_approval=1).status, gate.BLOCKED)
 
-    def test_output_is_within_x_character_limit(self):
-        self.assertLessEqual(len(build().candidate_text), 280)
+    def test_output_is_within_x_weighted_character_limit(self):
+        result = build()
+        self.assertLessEqual(result.weighted_length, gate.X_MAX_WEIGHTED_LENGTH)
+        self.assertEqual(result.weighted_length, gate.x_weighted_length(result.candidate_text))
+
+    def test_long_tracking_url_counts_as_t_co_length(self):
+        result = build(
+            landing_path="/items/", public_data_available=True,
+            landing_sort="price-asc", landing_price_band="under-1000",
+            campaign="price_under_1000_20260930",
+        )
+        self.assertEqual(result.status, gate.PREVIEW_ONLY)
+        self.assertGreater(len(result.candidate_text), result.weighted_length)
+        self.assertEqual(result.candidate_text.count("https://"), 1)
+
+    def test_excessive_weighted_copy_fails_closed(self):
+        result = build(fact_text="確" * 140)
+        self.assertEqual(result.status, gate.BLOCKED)
+        self.assertIsNone(result.candidate_text)
+        self.assertGreater(result.weighted_length, gate.X_MAX_WEIGHTED_LENGTH)
+        self.assertIn("POST_LENGTH_EXCEEDED", result.reason_codes)
+
+    def test_weighted_counter_uses_23_for_each_url(self):
+        self.assertEqual(gate.x_weighted_length("A https://example.com/very/long/path B"), 27)

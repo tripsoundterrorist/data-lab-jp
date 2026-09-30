@@ -31,6 +31,9 @@ FORBIDDEN = re.compile(
     r"(?:https?://|www\.|@|#|残りわずか|今だけ|急げ|絶対|公式ランキング|No\.?1)",
     re.IGNORECASE,
 )
+URL_TOKEN = re.compile(r"https?://[^\s]+", re.IGNORECASE)
+X_MAX_WEIGHTED_LENGTH = 280
+X_SHORTENED_URL_LENGTH = 23
 
 
 @dataclass(frozen=True)
@@ -38,6 +41,7 @@ class XCandidateResult:
     version: str
     status: str
     candidate_text: str | None
+    weighted_length: int | None
     manual_review_required: bool
     manual_post_candidate: bool
     posting_performed: bool
@@ -59,6 +63,18 @@ def _resolved(decision: AnswerDecision | None) -> bool:
     )
 
 
+def x_weighted_length(value: str) -> int:
+    """Conservatively mirror X counting: CJK/non-ASCII=2, each URL=23."""
+
+    total = 0
+    cursor = 0
+    for match in URL_TOKEN.finditer(value):
+        total += sum(1 if ord(char) <= 0x7F else 2 for char in value[cursor:match.start()])
+        total += X_SHORTENED_URL_LENGTH
+        cursor = match.end()
+    return total + sum(1 if ord(char) <= 0x7F else 2 for char in value[cursor:])
+
+
 def build_candidate(
     *,
     fact_text: Any,
@@ -72,6 +88,7 @@ def build_candidate(
 ) -> XCandidateResult:
     reasons: set[str] = set()
     text: str | None = None
+    weighted_length: int | None = None
     if type(public_data_available) is not bool or type(explicit_human_approval) is not bool:
         reasons.add("BOOLEAN_INPUT_INVALID")
     if (
@@ -123,7 +140,8 @@ def build_candidate(
             f"【PR】{fact_text.strip()}\n\n"
             f"DATA LAB独自集計・非公式\n{ORIGIN}{landing_path}?{query}"
         )
-        if len(text) > 280:
+        weighted_length = x_weighted_length(text)
+        if weighted_length > X_MAX_WEIGHTED_LENGTH:
             text = None
             reasons.add("POST_LENGTH_EXCEEDED")
             content_safe = False
@@ -138,7 +156,7 @@ def build_candidate(
         else BLOCKED
     )
     return XCandidateResult(
-        VERSION, status, text, True, manual_candidate, False, False, False,
+        VERSION, status, text, weighted_length, True, manual_candidate, False, False, False,
         False, tuple(sorted(reasons)) or (
             ("MANUAL_POST_CANDIDATE_READY",)
             if manual_candidate
