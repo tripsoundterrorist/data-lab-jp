@@ -226,6 +226,7 @@ def assess(
             deployment = live.get("deployment", {}) if type(live) is dict else {}
             first_run = deployment.get("first_lifecycle_run", {}) if type(deployment) is dict else {}
             local_canary = deployment.get("local_revalidation_canary", {}) if type(deployment) is dict else {}
+            automatic_run = deployment.get("first_automatic_local_revalidation_run", {}) if type(deployment) is dict else {}
             production_verified = (
                 type(live) is dict
                 and live.get("version") == VERSION
@@ -281,6 +282,13 @@ def assess(
                 and private_d1.get("scoped_revalidation_selected") == 8
                 and private_d1.get("scoped_revalidation_valid") == 8
                 and private_d1.get("scoped_revalidation_disabled") == 0
+                and automatic_run.get("scheduled_at_jst") == "2026-09-30T20:00:00+09:00"
+                and automatic_run.get("selected_count") == 5
+                and automatic_run.get("valid_count") == 5
+                and automatic_run.get("disabled_count") == 0
+                and automatic_run.get("database_write_performed") is True
+                and automatic_run.get("temporary_sql_deleted") is True
+                and automatic_run.get("task_last_result") == 0
             )
             prior_live_verified = (
                 not latest_candidate
@@ -325,6 +333,7 @@ def assess(
                         "EIGHT_NEW_ROUTES_SCOPED_REVALIDATION_PASSED",
                         "INVALID_PUBLIC_ID_FAIL_CLOSED_VERIFIED",
                         "LOCAL_REVALIDATION_SCHEDULER_ACTIVE_AT_20_00_JST",
+                        "FIRST_AUTOMATIC_LOCAL_REVALIDATION_FIVE_OF_FIVE_VALID",
                         "GLOBAL_PUBLICATION_GATE_UNCHANGED",
                     )
                     if refreshed_candidate
@@ -361,7 +370,10 @@ def assess(
                     "UNORDERED_REDUCED_SURFACE_PRODUCT_CARD_LIVE", EXPECTED_ROUTE,
                     EXPECTED_COUNT, True, True, True,
                     private_d1.get("enabled_count"), True, True,
-                    False, False, "VERIFY_FIRST_AUTOMATIC_LOCAL_REVALIDATION_RUN",
+                    False, False,
+                    "MONITOR_DAILY_REVALIDATION_AND_REVENUE_FUNNEL"
+                    if refreshed_candidate
+                    else "VERIFY_FIRST_AUTOMATIC_LOCAL_REVALIDATION_RUN",
                     live_reason_codes,
                 )
             return CurrentRevenueState(

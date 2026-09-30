@@ -33,7 +33,18 @@
     "main_commit": "37c493b7a4650a219d96ca865277cd0a328f8ffb",
     "worker_version_id": "96a98656-b650-4365-a7cb-38ceaa197ae2",
     "lifecycle_cron": null,
-    "revalidation_status": "LOCAL_SCHEDULER_ACTIVE"
+    "revalidation_status": "LOCAL_SCHEDULER_ACTIVE",
+    "first_automatic_local_revalidation_run": {
+      "scheduled_at_jst": "2026-09-30T20:00:00+09:00",
+      "checked_at": "2026-09-30T11:00:05Z",
+      "selected_count": 5,
+      "valid_count": 5,
+      "disabled_count": 0,
+      "database_write_performed": true,
+      "temporary_sql_deleted": true,
+      "task_last_result": 0,
+      "next_run_jst": "2026-10-01T20:00:00+09:00"
+    }
   },
   "global_publication_gate": "unchanged",
   "paid_plan_change": false

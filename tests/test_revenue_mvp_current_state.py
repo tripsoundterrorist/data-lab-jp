@@ -43,7 +43,7 @@ class CurrentRevenueStateTests(unittest.TestCase):
         self.assertTrue(result.cta_allowed)
         self.assertTrue(result.affiliate_integration_allowed)
         self.assertFalse(result.production_write_allowed)
-        self.assertEqual(result.next_action, "VERIFY_FIRST_AUTOMATIC_LOCAL_REVALIDATION_RUN")
+        self.assertEqual(result.next_action, "MONITOR_DAILY_REVALIDATION_AND_REVENUE_FUNNEL")
         self.assertEqual(result.affiliate_d1_enabled_row_count, 100)
 
     def test_artifact_mismatch_fails_closed(self):
