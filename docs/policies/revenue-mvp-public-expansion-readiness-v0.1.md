@@ -66,3 +66,10 @@ failure on HTTP/network errors, no retry marker, and response validation before
 the database-write phase. Passing this audit confirms the reusable stop and
 spacing behavior only; the expanded six-request budget remains separately
 blocked.
+
+`scripts/revenue_mvp_expansion_isolated_collection.py` is the only approved
+harness for a one-time six-request test. It opens the source only to create a
+temporary SQLite backup, points the existing collector at that disposable
+database, suppresses collector output, validates the exact six-page contract,
+reports aggregate coverage only, verifies the source file identity, and removes
+the temporary database. It never publishes or changes the production schedule.
