@@ -22,3 +22,11 @@ approved.
 Expansion work is P1 behind P0 revenue measurement. If Cloudflare Free capacity
 cannot be verified, work stops and any paid requirement must be reported before
 the plan changes.
+
+`scripts/revenue_mvp_public_expansion_coverage.py` is the preceding read-only
+aggregate audit. It reports coverage counts and the gap to 300 without exposing
+candidate identifiers or selecting products. A row is counted as base-eligible
+only when its newest snapshot has a snapshot-bound title, official DMM image,
+price, and validated affiliate lifecycle observation. Fresh coverage also
+requires that snapshot to be no more than 48 hours old. Aggregate coverage does
+not authorize an exact selection or publication.
