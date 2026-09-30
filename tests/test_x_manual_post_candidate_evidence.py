@@ -13,7 +13,7 @@ class XManualPostCandidateEvidenceTests(unittest.TestCase):
         cls.evidence = json.loads(EVIDENCE.read_text(encoding="utf-8"))
 
     def test_candidate_remains_manual_and_fail_closed(self):
-        self.assertEqual(self.evidence["status"], "AWAITING_MANUAL_APPROVAL")
+        self.assertEqual(self.evidence["status"], "POSTED_WITH_TEXT_VARIATION")
         validation = self.evidence["validation"]
         self.assertTrue(validation["pr_disclosure_present"])
         self.assertFalse(validation["product_media_used"])
@@ -31,12 +31,20 @@ class XManualPostCandidateEvidenceTests(unittest.TestCase):
         self.assertEqual(validation["verified_public_item_count"], 100)
         self.assertIn("utm_source=x", self.evidence["post_text"])
         self.assertIn("【PR】", self.evidence["post_text"])
-        self.assertTrue(
-            all(
-                value == "NOT_ACQUIRED"
-                for value in self.evidence["measurement_after_manual_post"].values()
-            )
-        )
+        measurement = self.evidence["measurement_after_manual_post"]
+        self.assertEqual(measurement["public_views_at_first_observation"], 3)
+        self.assertFalse(measurement["text_matches_candidate"])
+        self.assertEqual(measurement["text_variation"], "UNINTENDED_PREFIX_PRESENT")
+        for key in (
+            "impressions",
+            "link_clicks",
+            "ga4_sessions",
+            "ga4_outbound_product_clicks",
+            "dmm_click_delta",
+            "affiliate_conversions",
+            "affiliate_revenue_yen",
+        ):
+            self.assertEqual(measurement[key], "NOT_ACQUIRED")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 {
   "version": "0.1",
-  "status": "AWAITING_MANUAL_APPROVAL",
+  "status": "POSTED_WITH_TEXT_VARIATION",
   "created_at": "2026-09-30",
   "account": "@datalab_jp",
   "theme": "site_update",
@@ -22,8 +22,12 @@
     "automatic_posting_authorized": false
   },
   "measurement_after_manual_post": {
-    "x_post_url_or_id": "NOT_ACQUIRED",
-    "posted_at_jst": "NOT_ACQUIRED",
+    "x_post_url_or_id": "https://x.com/datalab_jp/status/2105306290587419100",
+    "posted_at_jst": "2026-09-30T23:38:29+09:00",
+    "observed_post_text": "文：\n\n【PR】DATA LABでは、FANZA動画100作品の商品情報を掲載中。作品ごとに公式商品ページへのリンクを確認できます。DATA LAB独自集計・非公式。",
+    "text_matches_candidate": false,
+    "text_variation": "UNINTENDED_PREFIX_PRESENT",
+    "public_views_at_first_observation": 3,
     "impressions": "NOT_ACQUIRED",
     "link_clicks": "NOT_ACQUIRED",
     "ga4_sessions": "NOT_ACQUIRED",
@@ -32,5 +36,6 @@
     "affiliate_conversions": "NOT_ACQUIRED",
     "affiliate_revenue_yen": "NOT_ACQUIRED"
   },
+  "first_observed_at": "2026-09-30T23:39:00+09:00",
   "external_write_performed": false
 }
