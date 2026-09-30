@@ -13,7 +13,7 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-function scenario(initialChoice) {
+function scenario(initialChoice, search = "?id=secret") {
   const storage = new Map();
   if (initialChoice !== null) {
     storage.set("datalabx.analytics-consent.v1", initialChoice);
@@ -72,7 +72,7 @@ function scenario(initialChoice) {
     location: {
       origin: "https://datalabx.jp",
       pathname: "/items/item",
-      search: "?id=secret",
+      search,
       hash: "#secret",
       reload() { reloadCount += 1; }
     },
@@ -82,7 +82,7 @@ function scenario(initialChoice) {
     }
   };
 
-  vm.runInNewContext(script, { window, document, console });
+  vm.runInNewContext(script, { window, document, console, URLSearchParams });
   domListeners.get("DOMContentLoaded")();
 
   return {
@@ -145,6 +145,31 @@ assert(pageView[2].page_location === "https://datalabx.jp/items/item", "query le
 assert(pageView[2].page_referrer === "", "referrer leaked");
 const viewItem = commands.find((entry) => entry[0] === "event" && entry[1] === "view_item");
 assert(viewItem.length === 2, "funnel event contains parameters");
+
+const campaignAccepted = scenario(
+  null,
+  "?sort=price-asc&price_band=under-1000&utm_source=x&utm_medium=social&utm_campaign=price_under_1000"
+);
+campaignAccepted.bodyChildren[0].querySelector(".analytics-consent__accept").trigger("click");
+const campaignConfig = campaignAccepted.window.dataLayer
+  .map((entry) => Array.from(entry))
+  .find((entry) => entry[0] === "config");
+assert(campaignConfig[2].campaign_source === "x", "X source missing");
+assert(campaignConfig[2].campaign_medium === "social", "social medium missing");
+assert(campaignConfig[2].campaign_name === "price_under_1000", "campaign missing");
+
+for (const unsafeSearch of [
+  "?utm_source=other&utm_medium=social&utm_campaign=price_under_1000",
+  "?utm_source=x&utm_source=x&utm_medium=social&utm_campaign=duplicate",
+  "?utm_source=x&utm_medium=social&utm_campaign=unsafe%20value"
+]) {
+  const unsafe = scenario(null, unsafeSearch);
+  unsafe.bodyChildren[0].querySelector(".analytics-consent__accept").trigger("click");
+  const config = unsafe.window.dataLayer.map((entry) => Array.from(entry))
+    .find((entry) => entry[0] === "config");
+  assert(typeof config[2].campaign_source === "undefined", "unsafe campaign accepted");
+  assert(typeof config[2].campaign_name === "undefined", "unsafe campaign name accepted");
+}
 
 const revoked = scenario("granted");
 const revokedPanel = revoked.bodyChildren[0];

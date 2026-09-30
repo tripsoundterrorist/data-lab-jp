@@ -106,8 +106,19 @@ class AnalyticsConsentTests(unittest.TestCase):
         )
         self.assertIn("page_path: window.location.pathname", self.script)
         self.assertIn('page_referrer: ""', self.script)
-        self.assertNotIn("window.location.search", self.script)
+        self.assertIn("window.location.search", self.script)
         self.assertNotIn("window.location.hash", self.script)
+
+    def test_only_strict_x_campaign_parameters_are_forwarded(self):
+        for value in (
+            'source[0] !== "x"', 'medium[0] !== "social"',
+            'campaign_source: "x"', 'campaign_medium: "social"',
+            "campaign_name: campaign[0]",
+        ):
+            self.assertIn(value, self.script)
+        self.assertIn('source.length !== 1', self.script)
+        self.assertIn('campaign.length !== 1', self.script)
+        self.assertNotIn("page_location: window.location.href", self.script)
 
 
 if __name__ == "__main__":
