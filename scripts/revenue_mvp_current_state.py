@@ -40,6 +40,7 @@ LATEST_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-la
 CACHE_BUSTED_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-discovery-cache-bust-user-approval-20260930.json"
 PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-discovery-live-verification-20260930.json"
 LATEST_PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-latest-product-live-verification-20260930.json"
+CACHE_BUSTED_PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-discovery-cache-bust-live-verification-20260930.json"
 EXPECTED_COUNT = 100
 EXPECTED_ROUTE = "/items/"
 
@@ -223,7 +224,11 @@ def assess(
             latest_live_verified = (
                 latest_candidate
                 and production_verified
-                and deployment.get("main_commit") == "6a05bf24f3a90d8133ffd6041348462a608a79b1"
+                and deployment.get("main_commit") == (
+                    "114b7330413843a7e3b358ce779ccb00d8020e4e"
+                    if cache_busted_candidate
+                    else "6a05bf24f3a90d8133ffd6041348462a608a79b1"
+                )
                 and deployment.get("revalidation_status") == "LOCAL_SCHEDULER_ACTIVE"
                 and private_d1.get("enabled_count") == 112
                 and private_d1.get("runtime_target_count") == 112
@@ -420,7 +425,9 @@ def current_state() -> CurrentRevenueState:
             _canonical_sha256(artifact),
         }
         live_evidence_path = (
-            LATEST_PRODUCT_CARD_LIVE_EVIDENCE_PATH
+            CACHE_BUSTED_PRODUCT_CARD_LIVE_EVIDENCE_PATH
+            if CACHE_BUSTED_PRODUCT_CARD_SHA256 in artifact_hashes
+            else LATEST_PRODUCT_CARD_LIVE_EVIDENCE_PATH
             if LATEST_PRODUCT_CARD_SHA256 in artifact_hashes
             else PRODUCT_CARD_LIVE_EVIDENCE_PATH
         )
