@@ -31,6 +31,28 @@
     }
   }
 
+  function xCampaignConfig() {
+    try {
+      const params = new URLSearchParams(window.location.search || "");
+      const source = params.getAll("utm_source");
+      const medium = params.getAll("utm_medium");
+      const campaign = params.getAll("utm_campaign");
+      if (
+        source.length !== 1 || source[0] !== "x"
+        || medium.length !== 1 || medium[0] !== "social"
+        || campaign.length !== 1
+        || !/^[a-z0-9_-]{1,32}$/.test(campaign[0])
+      ) return {};
+      return {
+        campaign_source: "x",
+        campaign_medium: "social",
+        campaign_name: campaign[0]
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
   function loadAnalytics() {
     if (analyticsLoaded || readChoice() !== GRANTED) return;
     analyticsLoaded = true;
@@ -48,7 +70,8 @@
     window.gtag("config", MEASUREMENT_ID, {
       allow_google_signals: false,
       allow_ad_personalization_signals: false,
-      send_page_view: false
+      send_page_view: false,
+      ...xCampaignConfig()
     });
     window.gtag("event", "page_view", {
       page_location: window.location.origin + window.location.pathname,

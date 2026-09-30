@@ -13,6 +13,9 @@ against an inert DOM. It does not load any network resource. The harness proves:
 
 - no Google script, `gtag`, or `dataLayer` exists before a choice;
 - persisted denial does not load analytics or accept events;
+- after consent, only the exact allowlisted X campaign tuple (`x`, `social`,
+  and one lowercase campaign identifier) may populate GA4 campaign fields;
+- arbitrary, malformed, duplicated, or non-X query parameters are not forwarded;
 - explicit grant loads exactly the configured Google script;
 - consent defaults are denied before the granted update;
 - only allowlisted funnel events are accepted;
