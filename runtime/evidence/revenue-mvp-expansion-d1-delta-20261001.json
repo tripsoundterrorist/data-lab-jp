@@ -1,0 +1,25 @@
+{
+  "version": "0.1",
+  "status": "SCOPED_DISABLED_DELTA_READY",
+  "remote_sha256": "aa4027f3e222f463d7f6015d01dc3c237354274b67433107e3a017b0590d97b9",
+  "candidate_sha256": "d77105c1d0d81e2b79135b42c5163f1d722b55ad9806324b15ce2f3da1390434",
+  "delta_sha256": "3519b270dd7375080d5311df23277fca5409b9bd5682e52045c8ead5429035d4",
+  "remote_row_count": 1109,
+  "candidate_row_count": 300,
+  "exact_match_count": 122,
+  "delta_row_count": 178,
+  "final_row_count": 1287,
+  "mapping_conflict_count": 0,
+  "existing_rows_unchanged": true,
+  "new_rows_disabled_and_pending": true,
+  "runtime_eligibility_unchanged": true,
+  "delta_stored_private": true,
+  "production_write_performed": false,
+  "publication_allowed": false,
+  "reason_codes": [
+    "EXISTING_ROWS_PRESERVED",
+    "NEW_ROWS_DISABLED_AND_PENDING",
+    "RUNTIME_ELIGIBILITY_UNCHANGED",
+    "D1_WRITE_NOT_AUTHORIZED"
+  ]
+}

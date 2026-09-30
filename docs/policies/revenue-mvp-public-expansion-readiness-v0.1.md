@@ -160,3 +160,12 @@ runtime coverage for 99. The safe next artifact is therefore an insert-only,
 disabled 178-row delta; replacing or deleting the other 987 remote mappings is
 not permitted. Aggregate evidence is recorded at
 `runtime/evidence/revenue-mvp-expansion-d1-overlap-20261001.json`.
+
+`scripts/revenue_mvp_expansion_d1_delta.py` now produces that exact scoped delta
+only from hash-pinned inputs. Its in-memory preflight preserves all 1,109
+existing rows, adds exactly 178 default-disabled and pending rows, reaches 1,287
+rows, and leaves runtime eligibility unchanged. The generated SQL remains in
+Git-ignored private storage and has not been applied to D1. Its aggregate
+receipt is recorded at
+`runtime/evidence/revenue-mvp-expansion-d1-delta-20261001.json`. A separate
+approval and final remote-identity recheck are required before any D1 write.
