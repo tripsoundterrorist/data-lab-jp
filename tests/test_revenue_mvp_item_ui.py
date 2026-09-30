@@ -95,11 +95,11 @@ class RevenueMvpItemUiTests(unittest.TestCase):
 
     def test_funnel_events_run_only_after_public_data_validation(self):
         self.assertGreater(
-            self.script.index('trackFunnelEvent("view_item_list")'),
+            self.script.index('currentViewEvent = "view_item_list"'),
             self.script.index("validateManifest(manifest)"),
         )
         self.assertGreater(
-            self.script.index('trackFunnelEvent("view_item")'),
+            self.script.index('currentViewEvent = "view_item"'),
             self.script.rindex("validateManifest(manifest)"),
         )
         self.assertIn('trackFunnelEvent("select_item")', self.script)
@@ -109,7 +109,8 @@ class RevenueMvpItemUiTests(unittest.TestCase):
         calls = re.findall(r'trackFunnelEvent\(([^)]*)\)', self.script)
         self.assertTrue(calls)
         self.assertTrue(all(
-            arguments == "name" or re.fullmatch(r'"[a-z_]+"', arguments)
+            arguments in {"name", "currentViewEvent"}
+            or re.fullmatch(r'"[a-z_]+"', arguments)
             for arguments in calls
         ))
 

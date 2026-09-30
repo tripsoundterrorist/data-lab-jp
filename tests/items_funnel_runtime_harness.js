@@ -152,6 +152,7 @@ function manifest() {
 }
 
 function documentFixture(page) {
+  const listeners = new Map();
   const elements = new Map();
   const ids = [
     "data-fallback", "data-content", "detail-root", "publication-status",
@@ -173,13 +174,19 @@ function documentFixture(page) {
     getElementById: (id) => elements.get(id) || null,
     querySelector: (selector) => selector === "footer" ? footer : null,
     addEventListener: (name, callback) => {
+      const callbacks = listeners.get(name) || [];
+      callbacks.push(callback);
+      listeners.set(name, callbacks);
       if (name === "DOMContentLoaded") callback();
+    },
+    trigger: (name) => {
+      for (const callback of listeners.get(name) || []) callback();
     },
     elements,
   };
 }
 
-async function runScenario(page, valid = true) {
+async function runScenario(page, valid = true, grantAfterLoad = false) {
   const events = [];
   const document = documentFixture(page);
   const location = {
@@ -203,7 +210,7 @@ async function runScenario(page, valid = true) {
   ]);
   const window = {
     location,
-    dataLabAnalytics: {
+    dataLabAnalytics: grantAfterLoad ? undefined : {
       trackEvent(name) {
         events.push(name);
         return true;
@@ -232,6 +239,13 @@ async function runScenario(page, valid = true) {
     console,
   }, { filename: "items/items.js" });
   await new Promise((resolve) => setTimeout(resolve, 20));
+  if (grantAfterLoad) {
+    window.dataLabAnalytics = {
+      trackEvent(name) { events.push(name); return true; },
+    };
+    document.trigger("dataLabAnalyticsReady");
+    document.trigger("dataLabAnalyticsReady");
+  }
   return { document, events };
 }
 
@@ -249,6 +263,11 @@ async function runScenario(page, valid = true) {
   assert.strictEqual(officialLinks.length, 1);
   officialLinks[0].trigger("click");
   assert.deepStrictEqual(detail.events, ["view_item", "outbound_product_click"]);
+
+  const delayedIndex = await runScenario("index", true, true);
+  assert.deepStrictEqual(delayedIndex.events, ["view_item_list"]);
+  const delayedDetail = await runScenario("detail", true, true);
+  assert.deepStrictEqual(delayedDetail.events, ["view_item"]);
 
   const invalid = await runScenario("index", false);
   assert.deepStrictEqual(invalid.events, []);

@@ -24,11 +24,22 @@ function renderAffiliateCta(document, host, publicId) {
 
 function trackFunnelEvent(name) {
   try {
-    window.dataLabAnalytics?.trackEvent(name);
+    return window.dataLabAnalytics?.trackEvent(name) === true;
   } catch (_) {
     // Measurement must never break the product experience.
+    return false;
   }
 }
+
+let currentViewEvent = null;
+let currentViewTracked = false;
+
+function trackCurrentView() {
+  if (currentViewTracked || currentViewEvent === null) return;
+  currentViewTracked = trackFunnelEvent(currentViewEvent);
+}
+
+document.addEventListener("dataLabAnalyticsReady", trackCurrentView);
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -292,7 +303,8 @@ async function initializeIndex() {
   document.getElementById("next-page").addEventListener("click", () => { state.page += 1; renderPage(); });
   showData();
   applyFilters();
-  trackFunnelEvent("view_item_list");
+  currentViewEvent = "view_item_list";
+  trackCurrentView();
 }
 
 function definitionList(entries) {
@@ -443,7 +455,8 @@ async function initializeDetail() {
     || detail.item?.public_id !== id || !validateDetailItem(detail.item)) throw new Error("PUBLIC_DATA_INVALID");
   renderDetail(detail.item);
   showData();
-  trackFunnelEvent("view_item");
+  currentViewEvent = "view_item";
+  trackCurrentView();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
