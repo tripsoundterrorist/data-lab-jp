@@ -99,3 +99,10 @@ raw payload or sensitive-name columns, and end in one verified six-page,
 300-item run. Retention is limited to seven validated generations. The gate
 forbids publication, sitemap, and D1 connections and never exposes candidate
 identifiers.
+
+`scripts/revenue_mvp_expansion_storage_commit.py` provides the gated atomic
+commit step. It accepts only a hash-pinned staged database already inside the
+private root, re-runs the storage gate, backs up an existing collection-only
+primary before replacement, atomically moves the candidate into place, verifies
+the retained identity, and rotates only its dedicated backup directory to seven
+generations. It never writes the production database or authorizes publication.
