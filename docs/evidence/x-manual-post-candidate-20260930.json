@@ -1,0 +1,36 @@
+{
+  "version": "0.1",
+  "status": "AWAITING_MANUAL_APPROVAL",
+  "created_at": "2026-09-30",
+  "account": "@datalab_jp",
+  "theme": "site_update",
+  "post_text": "【PR】DATA LABでは、FANZA動画100作品の商品情報を掲載中。作品ごとに公式商品ページへのリンクを確認できます。DATA LAB独自集計・非公式。\nhttps://datalabx.jp/items/?utm_source=x&utm_medium=social&utm_campaign=revenue_mvp_launch_20260930",
+  "landing_page": "https://datalabx.jp/items/",
+  "utm": {
+    "source": "x",
+    "medium": "social",
+    "campaign": "revenue_mvp_launch_20260930"
+  },
+  "validation": {
+    "non_url_raw_characters": 80,
+    "x_weighted_length_estimate": 156,
+    "x_weighted_limit": 280,
+    "pr_disclosure_present": true,
+    "verified_public_item_count": 100,
+    "product_media_used": false,
+    "direct_affiliate_link_used": false,
+    "automatic_posting_authorized": false
+  },
+  "measurement_after_manual_post": {
+    "x_post_url_or_id": "NOT_ACQUIRED",
+    "posted_at_jst": "NOT_ACQUIRED",
+    "impressions": "NOT_ACQUIRED",
+    "link_clicks": "NOT_ACQUIRED",
+    "ga4_sessions": "NOT_ACQUIRED",
+    "ga4_outbound_product_clicks": "NOT_ACQUIRED",
+    "dmm_click_delta": "NOT_ACQUIRED",
+    "affiliate_conversions": "NOT_ACQUIRED",
+    "affiliate_revenue_yen": "NOT_ACQUIRED"
+  },
+  "external_write_performed": false
+}
