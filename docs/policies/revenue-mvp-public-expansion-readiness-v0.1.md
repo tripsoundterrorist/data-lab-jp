@@ -91,3 +91,11 @@ requests at fixed offsets with one-second spacing, stop-on-error, and zero
 retries. It is valid only for an isolated candidate run and is deliberately not
 production-collection eligible. The active daily date policy remains two
 requests and 100 observations.
+
+`scripts/revenue_mvp_expansion_storage_gate.py` defines the next collection-only
+retention boundary. A candidate database must remain below the Git-ignored
+`runtime/private/` root, be distinct from the production database, contain no
+raw payload or sensitive-name columns, and end in one verified six-page,
+300-item run. Retention is limited to seven validated generations. The gate
+forbids publication, sitemap, and D1 connections and never exposes candidate
+identifiers.
