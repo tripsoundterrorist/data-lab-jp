@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from collection_policy import (  # noqa: E402
     PolicyStatus,
     ProductionEligibilityGates,
+    date_expansion_candidate_policy,
     date_policy,
     evaluate_collection_policy,
     rank_candidate_policy,
@@ -41,6 +42,23 @@ class CollectionPolicyTests(unittest.TestCase):
         self.assertTrue(policy.experimental)
         self.assertEqual(result.candidate_total_items, 200)
         self.assertFalse(result.production_collection_eligible)
+
+    def test_b2_date_expansion_is_valid_manual_and_not_production_eligible(self) -> None:
+        policy = date_expansion_candidate_policy()
+        result = evaluate_collection_policy(policy)
+        self.assertTrue(result.valid)
+        self.assertEqual(result.request_count, 6)
+        self.assertEqual(result.candidate_total_items, 300)
+        self.assertEqual(policy.cadence.value, "MANUAL")
+        self.assertFalse(policy.enabled)
+        self.assertFalse(policy.publication_use_allowed)
+        self.assertFalse(result.production_collection_eligible)
+
+    def test_b3_date_expansion_shape_change_fails_closed(self) -> None:
+        self.assert_invalid(
+            replace(date_expansion_candidate_policy(), offsets=(1, 51)),
+            "INVALID_DATE_EXPANSION_SHAPE",
+        )
 
     def test_c_review_one_page_candidate(self) -> None:
         result = evaluate_collection_policy(review_candidate_policy())

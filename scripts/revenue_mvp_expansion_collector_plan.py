@@ -83,6 +83,8 @@ def assess(evidence: Any) -> ExpansionCollectorPlan:
 
     policy = collection_policy.date_policy()
     evaluated = collection_policy.evaluate_collection_policy(policy)
+    expansion_policy = collection_policy.date_expansion_candidate_policy()
+    expansion_evaluated = collection_policy.evaluate_collection_policy(expansion_policy)
     proposed_requests = math.ceil(evidence.target_count / HITS)
     reasons: set[str] = set()
     if evidence.target_count != TARGET_COUNT:
@@ -93,8 +95,14 @@ def assess(evidence: Any) -> ExpansionCollectorPlan:
         reasons.add("CURRENT_DATE_POLICY_BASELINE_CHANGED")
     if proposed_requests != PROPOSED_REQUEST_COUNT:
         reasons.add("PROPOSED_REQUEST_COUNT_INVALID")
-    if proposed_requests > policy.max_requests_per_run:
-        reasons.add("CURRENT_REQUEST_BUDGET_EXCEEDED")
+    if (
+        not expansion_evaluated.valid
+        or expansion_evaluated.request_count != PROPOSED_REQUEST_COUNT
+        or expansion_evaluated.candidate_total_items != TARGET_COUNT
+        or expansion_policy.enabled is not False
+        or expansion_policy.publication_use_allowed is not False
+    ):
+        reasons.add("ISOLATED_EXPANSION_POLICY_INVALID")
 
     checks = {
         "ISOLATED_DATABASE_UNVERIFIED": evidence.isolated_database_verified,
@@ -109,7 +117,7 @@ def assess(evidence: Any) -> ExpansionCollectorPlan:
     actions = []
     if not evidence.isolated_database_verified or not evidence.backup_and_restore_verified:
         actions.append("PREPARE_DISPOSABLE_DATABASE_COPY_AND_RESTORE_CHECK")
-    if not evidence.request_budget_confirmed or proposed_requests > policy.max_requests_per_run:
+    if not evidence.request_budget_confirmed or "ISOLATED_EXPANSION_POLICY_INVALID" in reasons:
         actions.append("REVIEW_SIX_REQUEST_ISOLATED_DATE_COLLECTION_BUDGET")
     if not evidence.rate_limit_safety_confirmed:
         actions.append("VERIFY_STOP_ON_ERROR_ZERO_RETRY_AND_REQUEST_SPACING")

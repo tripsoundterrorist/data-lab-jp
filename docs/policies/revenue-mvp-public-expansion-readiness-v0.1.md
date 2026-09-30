@@ -84,3 +84,10 @@ and the disposable database was removed. Its freshness count is not accepted:
 the supplied evaluation timestamp preceded snapshots created during the run,
 causing a negative-age rejection. The harness now evaluates freshness after
 collection completion. No second API run was performed for this correction.
+
+`date_expansion_candidate_policy()` now records the proven request shape as an
+explicitly manual, disabled, experimental, non-publication policy: six 50-item
+requests at fixed offsets with one-second spacing, stop-on-error, and zero
+retries. It is valid only for an isolated candidate run and is deliberately not
+production-collection eligible. The active daily date policy remains two
+requests and 100 observations.

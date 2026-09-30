@@ -24,9 +24,9 @@ def evidence(**changes):
 
 
 class ExpansionCollectorPlanTests(unittest.TestCase):
-    def test_current_plan_is_blocked_and_non_executing(self):
+    def test_current_plan_is_ready_for_explicit_isolated_approval_only(self):
         result = subject.assess(subject.current_evidence())
-        self.assertEqual(result.status, subject.BLOCKED)
+        self.assertEqual(result.status, subject.READY)
         self.assertEqual(result.current_policy_item_count, 100)
         self.assertEqual(result.proposed_request_count, 6)
         self.assertEqual(result.fresh_eligible_gap, 192)
@@ -34,7 +34,7 @@ class ExpansionCollectorPlanTests(unittest.TestCase):
         self.assertFalse(result.database_write_allowed)
         self.assertFalse(result.production_schedule_change_allowed)
         self.assertFalse(result.publication_allowed)
-        self.assertIn("CURRENT_REQUEST_BUDGET_EXCEEDED", result.reason_codes)
+        self.assertEqual(result.status, subject.READY)
         self.assertNotIn("ISOLATED_DATABASE_UNVERIFIED", result.reason_codes)
         self.assertNotIn("BACKUP_RESTORE_UNVERIFIED", result.reason_codes)
         self.assertNotIn("RATE_LIMIT_SAFETY_UNCONFIRMED", result.reason_codes)
@@ -47,7 +47,7 @@ class ExpansionCollectorPlanTests(unittest.TestCase):
         self.assertEqual(result.minimum_request_spacing_seconds, 1.0)
         self.assertEqual(result.estimated_minimum_request_span_seconds, 5.0)
 
-    def test_complete_evidence_still_requires_policy_budget_change(self):
+    def test_complete_evidence_reaches_manual_isolated_approval_only(self):
         result = subject.assess(evidence(
             isolated_database_verified=True,
             request_budget_confirmed=True,
@@ -55,8 +55,8 @@ class ExpansionCollectorPlanTests(unittest.TestCase):
             overlap_and_uniqueness_validation_ready=True,
             backup_and_restore_verified=True,
         ))
-        self.assertEqual(result.status, subject.BLOCKED)
-        self.assertEqual(result.reason_codes, ("CURRENT_REQUEST_BUDGET_EXCEEDED",))
+        self.assertEqual(result.status, subject.READY)
+        self.assertEqual(result.reason_codes, ())
         self.assertTrue(result.explicit_approval_required)
         self.assertFalse(result.api_request_allowed)
 

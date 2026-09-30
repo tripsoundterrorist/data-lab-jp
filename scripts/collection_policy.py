@@ -130,6 +130,41 @@ def date_policy() -> CollectionPolicy:
     )
 
 
+def date_expansion_candidate_policy() -> CollectionPolicy:
+    """Describe the isolated 300-item date-sorted observation candidate."""
+
+    return CollectionPolicy(
+        policy_version=POLICY_VERSION,
+        source_sort="date",
+        enabled=False,
+        status=PolicyStatus.PENDING_VALIDATION,
+        hits=50,
+        offsets=(1, 51, 101, 151, 201, 251),
+        max_requests_per_run=6,
+        minimum_delay_between_requests_seconds=1.0,
+        stop_on_rate_limit=True,
+        retry_count=0,
+        automatic_pagination=False,
+        cadence=Cadence.MANUAL,
+        priority=40,
+        observation_role=("isolated expansion discovery", "freshness verification"),
+        position_semantics="date-sorted observation position",
+        review_sort_semantics=None,
+        publication_use_allowed=False,
+        experimental=True,
+        configured_values_are_candidates=True,
+        selection_bias_warning="newest date-sorted 300-item observation window",
+        review_numeric_observation_allowed=True,
+        review_body_requested=False,
+        temporal_probe_required=False,
+        minimum_temporal_probe_count=0,
+        temporal_probe_count_is_experimental_assumption=False,
+        eligibility_gates=ProductionEligibilityGates(
+            True, True, True, True, True, True, True
+        ),
+    )
+
+
 def rank_candidate_policy() -> CollectionPolicy:
     return CollectionPolicy(
         policy_version=POLICY_VERSION,
@@ -202,6 +237,7 @@ def _valid_bool(value: Any) -> bool:
 
 def _invalid_reasons(policy: CollectionPolicy) -> set[str]:
     reasons: set[str] = set()
+    date_expansion = policy.source_sort == "date" and policy.experimental
     if policy.policy_version != POLICY_VERSION:
         reasons.add("UNSUPPORTED_POLICY_VERSION")
     if policy.source_sort not in {"date", "rank", "review"}:
@@ -230,7 +266,7 @@ def _invalid_reasons(policy: CollectionPolicy) -> set[str]:
         or not isinstance(policy.max_requests_per_run, int)
         or policy.max_requests_per_run != len(policy.offsets)
         or policy.max_requests_per_run < 1
-        or policy.max_requests_per_run > 2
+        or policy.max_requests_per_run > (6 if date_expansion else 2)
     ):
         reasons.add("REQUEST_BUDGET_MISMATCH")
     if (
@@ -249,7 +285,7 @@ def _invalid_reasons(policy: CollectionPolicy) -> set[str]:
         reasons.add("INVALID_RANK_SEMANTICS")
     if policy.source_sort == "review" and policy.review_sort_semantics != "review-sorted population":
         reasons.add("UNCONFIRMED_REVIEW_SEMANTICS")
-    if policy.source_sort in {"rank", "review"}:
+    if policy.source_sort in {"rank", "review"} or date_expansion:
         if not policy.experimental or not policy.configured_values_are_candidates:
             reasons.add("EXPERIMENTAL_MARKER_REQUIRED")
         if policy.enabled:
@@ -258,15 +294,24 @@ def _invalid_reasons(policy: CollectionPolicy) -> set[str]:
             reasons.add("RATE_LIMIT_STOP_REQUIRED")
         if policy.retry_count != 0:
             reasons.add("EXPERIMENTAL_RETRY_FORBIDDEN")
-        if not policy.temporal_probe_required:
-            reasons.add("TEMPORAL_VALIDATION_REQUIRED")
-        if (
-            policy.minimum_temporal_probe_count <= 0
-            or not policy.temporal_probe_count_is_experimental_assumption
-        ):
-            reasons.add("INVALID_TEMPORAL_ASSUMPTION")
+        if policy.source_sort in {"rank", "review"}:
+            if not policy.temporal_probe_required:
+                reasons.add("TEMPORAL_VALIDATION_REQUIRED")
+            if (
+                policy.minimum_temporal_probe_count <= 0
+                or not policy.temporal_probe_count_is_experimental_assumption
+            ):
+                reasons.add("INVALID_TEMPORAL_ASSUMPTION")
         if not isinstance(policy.eligibility_gates, ProductionEligibilityGates):
             reasons.add("ELIGIBILITY_GATES_MISSING")
+        if date_expansion and (
+            policy.hits != 50
+            or policy.offsets != (1, 51, 101, 151, 201, 251)
+            or policy.max_requests_per_run != 6
+            or policy.cadence is not Cadence.MANUAL
+            or policy.publication_use_allowed is not False
+        ):
+            reasons.add("INVALID_DATE_EXPANSION_SHAPE")
     elif policy.eligibility_gates is not None:
         reasons.add("UNEXPECTED_ELIGIBILITY_GATES")
     return reasons
@@ -313,6 +358,7 @@ __all__ = [
     "PolicyStatus",
     "ProductionEligibilityGates",
     "date_policy",
+    "date_expansion_candidate_policy",
     "evaluate_collection_policy",
     "rank_candidate_policy",
     "review_candidate_policy",
