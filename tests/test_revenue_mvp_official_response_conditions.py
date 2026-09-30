@@ -75,7 +75,7 @@ class RevenueMvpOfficialResponseConditionTests(unittest.TestCase):
             matrix.current_entries()["PR_AD_AFFILIATE_DISCLOSURE"].conditions_verified
         )
 
-    def test_sns_conditions_remain_blocking_after_domain_confirmation(self):
+    def test_only_unverified_media_and_automation_keep_full_sns_gate_closed(self):
         result = matrix.assess_answer_matrix(matrix.current_entries())
         self.assertTrue(result.core_publication_candidate)
         self.assertFalse(result.sns_operation_candidate)
@@ -83,7 +83,6 @@ class RevenueMvpOfficialResponseConditionTests(unittest.TestCase):
         self.assertEqual(
             result.blocking_topic_ids,
             (
-                "SNS_TO_SITE_TO_FANZA_FUNNEL",
                 "SNS_PRODUCT_MEDIA_USE",
                 "AUTOMATED_FACT_POSTING",
             ),
