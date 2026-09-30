@@ -78,6 +78,7 @@
       page_path: window.location.pathname,
       page_referrer: ""
     });
+    document.dispatchEvent(new Event("dataLabAnalyticsReady"));
 
     const script = document.createElement("script");
     script.async = true;

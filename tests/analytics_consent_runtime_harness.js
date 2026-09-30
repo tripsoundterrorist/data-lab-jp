@@ -21,6 +21,7 @@ function scenario(initialChoice, search = "?id=secret") {
   const bodyChildren = [];
   const headChildren = [];
   const domListeners = new Map();
+  const dispatchedEvents = [];
   let reloadCount = 0;
 
   class Element {
@@ -66,7 +67,8 @@ function scenario(initialChoice, search = "?id=secret") {
       return selector === "footer .container" || selector === "footer"
         ? footer : null;
     },
-    addEventListener(name, callback) { domListeners.set(name, callback); }
+    addEventListener(name, callback) { domListeners.set(name, callback); },
+    dispatchEvent(event) { dispatchedEvents.push(event.type); }
   };
   const window = {
     location: {
@@ -82,7 +84,8 @@ function scenario(initialChoice, search = "?id=secret") {
     }
   };
 
-  vm.runInNewContext(script, { window, document, console, URLSearchParams });
+  class Event { constructor(type) { this.type = type; } }
+  vm.runInNewContext(script, { window, document, console, URLSearchParams, Event });
   domListeners.get("DOMContentLoaded")();
 
   return {
@@ -90,6 +93,7 @@ function scenario(initialChoice, search = "?id=secret") {
     storage,
     bodyChildren,
     headChildren,
+    dispatchedEvents,
     get reloadCount() { return reloadCount; }
   };
 }
@@ -120,6 +124,10 @@ assert(
   "grant not persisted"
 );
 assert(accepted.headChildren.length === 1, "Google script not loaded after grant");
+assert(
+  accepted.dispatchedEvents.filter((name) => name === "dataLabAnalyticsReady").length === 1,
+  "analytics-ready event missing or duplicated"
+);
 assert(
   accepted.headChildren[0].src ===
     "https://www.googletagmanager.com/gtag/js?id=G-ZPBQJ6137L",

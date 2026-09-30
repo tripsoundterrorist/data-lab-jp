@@ -10,7 +10,7 @@ const source = fs.readFileSync(
   "utf8"
 );
 
-function run(withAnalytics, searchParams = "") {
+function run(withAnalytics, searchParams = "", grantAfterLoad = false) {
   const events = [];
   const listeners = {};
   const ctaListeners = {};
@@ -52,12 +52,21 @@ function run(withAnalytics, searchParams = "") {
 
   vm.runInNewContext(source, { document, window, Set, Array, Number, Date, URLSearchParams });
   listeners.DOMContentLoaded();
+  if (grantAfterLoad) {
+    window.dataLabAnalytics = { trackEvent(name) { events.push(name); return true; } };
+    listeners.dataLabAnalyticsReady();
+    listeners.dataLabAnalyticsReady();
+  }
   ctaListeners.click();
   return { events, price: price.value, sort: sort.value };
 }
 
 assert.deepStrictEqual(run(true).events, ["view_item_list", "outbound_product_click"]);
 assert.deepStrictEqual(run(false).events, []);
+assert.deepStrictEqual(
+  run(false, "", true).events,
+  ["view_item_list", "outbound_product_click"]
+);
 assert.deepStrictEqual(
   { price: run(false, "?price_band=under-1000&sort=price-asc&utm_source=x").price,
     sort: run(false, "?price_band=under-1000&sort=price-asc&utm_source=x").sort },

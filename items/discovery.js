@@ -16,6 +16,11 @@
       return false;
     }
   };
+  let listViewTracked = false;
+  const trackListView = () => {
+    if (listViewTracked) return;
+    listViewTracked = trackFunnelEvent("view_item_list");
+  };
 
   const normalize = (value) => value.normalize("NFKC").toLocaleLowerCase("ja").trim();
   const allowedPriceBands = new Set(["all", "under-1000", "1000-1999", "2000-2999", "3000-plus"]);
@@ -72,6 +77,7 @@
   document.querySelectorAll(".affiliate-cta-link").forEach((link) => {
     link.addEventListener("click", () => trackFunnelEvent("outbound_product_click"));
   });
-  document.addEventListener("DOMContentLoaded", () => trackFunnelEvent("view_item_list"));
+  document.addEventListener("dataLabAnalyticsReady", trackListView);
+  document.addEventListener("DOMContentLoaded", trackListView);
   update();
 })();

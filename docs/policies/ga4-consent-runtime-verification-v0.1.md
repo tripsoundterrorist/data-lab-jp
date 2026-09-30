@@ -13,6 +13,8 @@ against an inert DOM. It does not load any network resource. The harness proves:
 
 - no Google script, `gtag`, or `dataLayer` exists before a choice;
 - persisted denial does not load analytics or accept events;
+- a valid list or detail view that completed before first consent is recorded once
+  after consent is granted, without replaying clicks or invalid page states;
 - after consent, only the exact allowlisted X campaign tuple (`x`, `social`,
   and one lowercase campaign identifier) may populate GA4 campaign fields;
 - arbitrary, malformed, duplicated, or non-X query parameters are not forwarded;
