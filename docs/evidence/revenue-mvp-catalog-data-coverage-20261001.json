@@ -1,0 +1,54 @@
+{
+  "version": "0.1",
+  "status": "PRICE_DISCOVERY_READY_RANKING_AND_REVIEW_BLOCKED",
+  "observed_at": "2026-10-01",
+  "source": {
+    "kind": "LOCAL_SQLITE_READ_ONLY",
+    "path": "data/data-lab.db",
+    "sha256": "cd24816b185234d4a3e05e180f3e95ca97ab3b6c98cdf105da47b8ffaf7ecb53"
+  },
+  "coverage": {
+    "items": 1109,
+    "snapshots": 5244,
+    "distinct_items_with_snapshots": 1109,
+    "price_non_null_snapshots": 5244,
+    "review_average_non_null_snapshots": 0,
+    "review_count_non_null_snapshots": 0,
+    "distinct_observation_dates": 43,
+    "items_with_multiple_snapshots": 671,
+    "items_with_at_least_7_snapshots": 409,
+    "items_with_observed_price_change": 0,
+    "observed_price_min_yen": 400,
+    "observed_price_max_yen": 3734,
+    "earliest_observed_at": "2026-08-19T15:20:11Z",
+    "latest_observed_at": "2026-09-30T07:00:13Z",
+    "source_sort_snapshot_counts": {
+      "date": 5244
+    }
+  },
+  "allowed_current_uses": [
+    "PRICE_ASCENDING_SORT",
+    "PRICE_DESCENDING_SORT",
+    "PRICE_BAND_FILTER",
+    "OBSERVATION_TIME_SORT"
+  ],
+  "blocked_claims": [
+    "PRICE_DROP_OR_DISCOUNT_FROM_HISTORY",
+    "REVIEW_RANKING",
+    "POPULARITY_RANKING",
+    "SALES_RANKING",
+    "OFFICIAL_RANKING"
+  ],
+  "interpretation": [
+    "Every stored snapshot has a numeric minimum price, so deterministic price discovery is supported.",
+    "No stored item has more than one observed price, so the current database does not support a price-drop or discount-history claim.",
+    "Review average and review count are absent from all stored snapshots, so review-based ordering is unsupported.",
+    "All stored snapshots come from the date population, so their position must not be presented as popularity, sales, or official rank.",
+    "Public Revenue MVP remains the verified 100-item reduced surface; the larger local item count is not a publication count."
+  ],
+  "next_action": "USE_PRICE_DISCOVERY_WHILE_WAITING_FOR_CLOSED_PRODUCT_CLICK_DATA",
+  "publication_change_performed": false,
+  "production_write_performed": false,
+  "database_write_performed": false,
+  "external_write_performed": false
+}
