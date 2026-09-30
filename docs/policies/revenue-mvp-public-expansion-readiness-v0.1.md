@@ -146,3 +146,17 @@ rows at candidate SHA-256
 Runtime-eligible rows, redirect targets, and runtime revalidations remain zero.
 The SQL stays Git-ignored; only aggregate evidence is committed at
 `runtime/evidence/revenue-mvp-expansion-lookup-20261001.json`.
+
+`scripts/revenue_mvp_expansion_d1_overlap_audit.py` loads a hash-pinned private
+D1 SQL snapshot into in-memory SQLite and compares only aggregate mapping,
+eligibility, redirect, and runtime coverage against the exact 300-row candidate.
+It emits no identifiers or URLs and performs no persistent or D1 write. Missing
+rows and mapping conflicts remain separate fail-closed findings.
+
+The 2026-10-01 aggregate audit found 122 exact lookup matches and 178 missing
+rows among the 300-item candidate, with zero mapping conflicts. Existing private
+D1 evidence contained redirect targets for 119 candidate items and complete
+runtime coverage for 99. The safe next artifact is therefore an insert-only,
+disabled 178-row delta; replacing or deleting the other 987 remote mappings is
+not permitted. Aggregate evidence is recorded at
+`runtime/evidence/revenue-mvp-expansion-d1-overlap-20261001.json`.
