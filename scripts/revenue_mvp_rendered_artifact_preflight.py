@@ -91,7 +91,7 @@ def validate_and_preflight(
     inspector = _Inspector()
     inspector.feed(decoded)
     inspector.close()
-    allowed_references = {"items.css", "discovery.js", "/analytics-consent.css", "/analytics-consent.js", "#main-content", "/about", "/disclosure", "/privacy", "/terms", "/contact", "https://datalabx.jp/items/"}
+    allowed_references = {"items.css", "discovery.js?v=20260930", "/analytics-consent.css", "/analytics-consent.js", "#main-content", "/about", "/disclosure", "/privacy", "/terms", "/contact", "https://datalabx.jp/items/"}
     for tag, attrs in inspector.attrs:
         reference = attrs.get("href", attrs.get("src"))
         if reference is not None and reference not in allowed_references:
@@ -105,7 +105,7 @@ def validate_and_preflight(
         raise ValidationFailure("ROBOTS_DIRECTIVE_INVALID")
     if inspector.text.count(contract.TRANSPARENCY_NOTICE) != 1:
         raise ValidationFailure("TRANSPARENCY_NOTICE_INVALID")
-    required = {"discovery.js", "/analytics-consent.css", "/analytics-consent.js", "/about", "/disclosure", "/privacy", "/terms", "/contact", "#main-content", "https://datalabx.jp/items/"}
+    required = {"discovery.js?v=20260930", "/analytics-consent.css", "/analytics-consent.js", "/about", "/disclosure", "/privacy", "/terms", "/contact", "#main-content", "https://datalabx.jp/items/"}
     links = {attrs.get("href", attrs.get("src")) for _tag, attrs in inspector.attrs}
     controls = ('id="item-search" type="search"', 'id="price-filter"', 'id="item-sort"')
     if not required <= links or "items.js" in decoded or not all(value in decoded for value in controls) or 'id="result-count" role="status" aria-live="polite"' not in decoded or 'id="page-status" aria-live="polite"' not in decoded:

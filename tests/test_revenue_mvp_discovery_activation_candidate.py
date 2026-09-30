@@ -49,7 +49,7 @@ class DiscoveryActivationCandidateTests(unittest.TestCase):
         first, first_receipt = self.build()
         second, second_receipt = self.build()
         self.assertEqual((first, first_receipt), (second, second_receipt))
-        self.assertEqual(first.count(b'discovery.js'), 1)
+        self.assertEqual(first.count(b'discovery.js?v=20260930'), 1)
         self.assertEqual(first.count(b'id="item-search"'), 1)
         self.assertEqual(first.count(b'id="price-filter"'), 1)
         self.assertEqual(first.count(b'id="item-sort"'), 1)
@@ -60,7 +60,7 @@ class DiscoveryActivationCandidateTests(unittest.TestCase):
             (payload, "0" * 64, 1),
             (payload.replace(b'class="card-image"', b'class="other"'), hashlib.sha256(payload.replace(b'class="card-image"', b'class="other"')).hexdigest(), 1),
             (payload.replace(b'1 / 1', b'changed'), hashlib.sha256(payload.replace(b'1 / 1', b'changed')).hexdigest(), 1),
-            (payload.replace(b'<title>', b'<script src="discovery.js" defer></script><title>'), hashlib.sha256(payload.replace(b'<title>', b'<script src="discovery.js" defer></script><title>')).hexdigest(), 1),
+            (payload.replace(b'<title>', b'<script src="discovery.js?v=20260930" defer></script><title>'), hashlib.sha256(payload.replace(b'<title>', b'<script src="discovery.js?v=20260930" defer></script><title>')).hexdigest(), 1),
         ]
         for changed, digest, count in cases:
             with self.subTest(changed=changed[:80]), self.assertRaises(candidate.CandidateFailure):
