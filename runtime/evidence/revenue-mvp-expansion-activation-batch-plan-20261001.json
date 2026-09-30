@@ -1,0 +1,25 @@
+{
+  "version": "0.1",
+  "status": "ACTIVATION_BATCH_PLAN_READY",
+  "candidate_count": 300,
+  "new_initial_validation_count": 178,
+  "upstream_retry_count": 50,
+  "currently_active_count": 69,
+  "legacy_pending_review_count": 3,
+  "batch_size": 5,
+  "initial_batch_count": 36,
+  "retry_batch_count": 10,
+  "retry_attempt_limit": 1,
+  "wait_seconds_upper_bound": 300,
+  "api_request_performed": false,
+  "d1_write_performed": false,
+  "activation_allowed": false,
+  "explicit_approval_required": true,
+  "reason_codes": [
+    "NEW_AND_RETRY_QUEUES_SEPARATED",
+    "FIVE_ITEM_BATCH_MAXIMUM",
+    "NO_AUTOMATIC_RETRY",
+    "LEGACY_PENDING_REQUIRES_SEPARATE_REVIEW",
+    "EXPLICIT_LIVE_APPROVAL_REQUIRED"
+  ]
+}

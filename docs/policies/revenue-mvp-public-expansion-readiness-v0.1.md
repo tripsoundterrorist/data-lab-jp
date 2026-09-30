@@ -194,3 +194,13 @@ The readiness gate consumes these aggregate values fail-closed. Lookup coverage
 is therefore complete, but redirect and fresh runtime coverage remain blocking;
 stored targets must not be treated as eligible when revalidation has disabled
 their lookup rows.
+
+`scripts/revenue_mvp_expansion_activation_batch_plan.py` compares the immutable
+pre/post-write exports and separates the 300-item candidate into 178 newly
+inserted initial-validation rows, 50 pre-existing upstream-unconfirmed retry
+rows, 69 currently active rows, and 3 legacy pending rows requiring separate
+review. Initial validation and retry are never mixed. Any future execution is
+capped at five items per batch, with at most one retry after a bounded wait of
+no more than 300 seconds. The plan performs no API request or D1 write and does
+not grant activation. Aggregate evidence is recorded at
+`runtime/evidence/revenue-mvp-expansion-activation-batch-plan-20261001.json`.
