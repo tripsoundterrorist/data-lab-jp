@@ -106,6 +106,14 @@ specific published page supporting the stated fact. Compare link and non-link
 posts using link clicks, CTR, profile visits, follows, and downstream CTA
 outcomes where those measurements are actually acquired.
 
+Repository-generated link-free drafts must pass
+`scripts/revenue_mvp_x_link_free_candidate.py`. The gate permits only the
+allowlisted methodology, transparency, site-operation, and weekly-method themes;
+requires bounded source IDs and a timezone-aware source check time; rejects
+URLs, PR labels, affiliate wording, commercial CTAs, unsupported themes, and
+invalid input; and never posts automatically. A valid draft remains
+`PREVIEW_ONLY` until explicit human approval.
+
 For the 30-day Premium experiment, keep the existing schedule and theme rotation
 unchanged so the subscription is the smallest practical intervention. Record
 the pre-upgrade baseline separately from the post-upgrade period. Evaluate
