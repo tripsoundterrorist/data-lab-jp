@@ -35,7 +35,7 @@ class AnalyticsConsentTests(unittest.TestCase):
             document = (ROOT / page).read_text(encoding="utf-8")
             with self.subTest(page=page):
                 self.assertIn('href="/analytics-consent.css"', document)
-                self.assertIn('src="/analytics-consent.js"', document)
+                self.assertIn('src="/analytics-consent.js?v=20260930b"', document)
                 self.assertNotIn("googletagmanager.com", document)
                 self.assertNotIn("G-ZPBQJ6137L", document)
 

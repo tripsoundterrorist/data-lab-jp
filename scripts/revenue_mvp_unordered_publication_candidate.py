@@ -129,7 +129,7 @@ def render(packet_bytes: bytes, *, evaluated_at: datetime, target_route: str) ->
         '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
         '<meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1">'
         '<link rel="canonical" href="https://datalabx.jp/items/"><link rel="stylesheet" href="items.css">'
-        '<link rel="stylesheet" href="/analytics-consent.css"><script src="/analytics-consent.js" defer></script>'
+        '<link rel="stylesheet" href="/analytics-consent.css"><script src="/analytics-consent.js?v=20260930b" defer></script>'
         '<script src="discovery.js?v=20260930" defer></script>'
         '<title>確認時点の商品情報 | DATA LAB</title></head><body><a class="skip-link" href="#main-content">本文へ移動</a>'
         '<header class="topbar"><h1>確認時点の商品情報</h1></header><main id="main-content">'

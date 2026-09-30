@@ -18,7 +18,7 @@ def source() -> bytes:
         '<a href="/go/itm_0123456789abcdef01234567">確認</a></aside></article>'
     )
     return (
-        '<!doctype html><html><head><script src="/analytics-consent.js" defer></script>'
+        '<!doctype html><html><head><script src="/analytics-consent.js?v=20260930b" defer></script>'
         '<title>x</title></head><body><main id="main-content">'
         '<p id="result-count" role="status" aria-live="polite">1件</p>'
         '<p id="page-status" aria-live="polite">1 / 1</p>'

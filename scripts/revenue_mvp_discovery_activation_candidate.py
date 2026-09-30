@@ -18,9 +18,9 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = "0.1-candidate"
-HEAD_MARKER = '<script src="/analytics-consent.js" defer></script><title>'
+HEAD_MARKER = '<script src="/analytics-consent.js?v=20260930b" defer></script><title>'
 HEAD_REPLACEMENT = (
-    '<script src="/analytics-consent.js" defer></script>'
+    '<script src="/analytics-consent.js?v=20260930b" defer></script>'
     '<script src="discovery.js?v=20260930" defer></script><title>'
 )
 MAIN_PATTERN = re.compile(
