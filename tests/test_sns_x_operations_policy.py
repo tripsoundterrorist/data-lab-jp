@@ -4,12 +4,14 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY = ROOT / "docs" / "policies" / "sns-x-operations-v0.1.md"
+PREMIUM_TASK = ROOT / "docs" / "operations" / "chatgpt-x-scheduled-task-premium-prompt-v0.1.md"
 
 
 class SnsXOperationsPolicyTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.content = POLICY.read_text(encoding="utf-8")
+        cls.premium_task = PREMIUM_TASK.read_text(encoding="utf-8")
 
     def test_current_state_stays_preview_only(self):
         self.assertIn("SNS_ACCOUNT_REGISTRATION` is verified", self.content)
@@ -53,6 +55,22 @@ class SnsXOperationsPolicyTests(unittest.TestCase):
             "Do not upgrade to Premium+",
         ):
             self.assertIn(value, self.content)
+
+    def test_chatgpt_task_prompt_uses_premium_without_duplicating_schedule(self):
+        for value in (
+            "Monday/Thursday 09:30",
+            "Tuesday/Friday 12:30",
+            "Wednesday/Sunday 19:30",
+            "Saturday task",
+            "does not create another schedule",
+            "X_PAID_PARTNERSHIP_SCOPE_UNCONFIRMED",
+            "通常は日本語140字以内",
+            "日曜日だけ",
+            "300〜600字",
+            "画像候補を付けるのは毎週月曜日だけ",
+            "投稿操作は必ずユーザーが手動",
+        ):
+            self.assertIn(value, self.premium_task)
 
     def test_weekly_review_uses_observed_inputs_and_explicit_dispositions(self):
         for value in (
