@@ -114,3 +114,13 @@ fully validated disposable database to a random staged file, invokes the atomic
 storage commit, and removes any uncommitted stage in `finally`. A retention
 failure blocks the run receipt and never falls back to publication or the
 production database.
+
+The explicitly approved retained run completed at 2026-09-30T18:52:43Z. It
+fetched 300 items in six requests with zero duplicates; all 300 passed the base
+and 48-hour freshness coverage checks. The private collection-only database now
+contains 1,287 items and 5,544 snapshots at SHA-256
+`6d1ea77411d1aa631c807ad4f76394e7aa00a3af0abdd20c920af75119d9a042`.
+The production source remained unchanged, and publication, sitemap, D1, and the
+daily production schedule were not modified. Aggregate evidence is recorded in
+`runtime/evidence/revenue-mvp-expansion-collection-20261001.json`; the database
+itself remains Git-ignored.
