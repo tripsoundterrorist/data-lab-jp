@@ -68,7 +68,9 @@ class RevenueMvpPublicShellTests(unittest.TestCase):
         document = (ROOT / "index.html").read_text(encoding="utf-8")
         self.assertIn('href="/items/"', document)
         self.assertIn("作品データの公開状況を見る", document)
-        self.assertIn("公開前のデータは表示しません", document)
+        self.assertIn("確認済みのFANZA動画100作品", document)
+        self.assertIn("公式商品ページへのリンクを公開しています", document)
+        self.assertNotIn("作品データページは「公開準備中」", document)
         self.assertNotIn("作品データ A", document)
         self.assertNotIn("実データ取得前の表示確認用", document)
 
