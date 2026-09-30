@@ -19,3 +19,12 @@ SQL, and exceptions are not emitted. Temporary SQL is deleted after execution.
 The operation does not alter the public artifact, Publication Gate, sitemap,
 deployment, scheduler, or billing. Every LIVE batch requires separate explicit
 approval and post-write aggregate verification.
+
+`scripts/revenue_mvp_expansion_initial_selection.py` derives each selection
+only from the immutable 178-row pre/post-write difference, orders opaque IDs
+deterministically, and writes at most five IDs to an exclusive private file
+outside the repository. Batch 0 was generated and then validated read-only
+against production D1 on 2026-10-01. All five rows remained in their original
+pending/disabled state. No provider API request or D1 write occurred. The
+identifier-free receipt is stored at
+`runtime/evidence/revenue-mvp-expansion-initial-batch-000-dry-run-20261001.json`.

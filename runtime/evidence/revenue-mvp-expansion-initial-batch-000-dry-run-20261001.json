@@ -1,0 +1,23 @@
+{
+  "version": "0.1",
+  "status": "READY",
+  "mode": "DRY_RUN",
+  "inserted_scope_count": 178,
+  "batch_index": 0,
+  "batch_count": 36,
+  "selected_count": 5,
+  "selection_sha256": "dd6e68879bf45065560581ba2831d5d2bedb973a2f05d87b3251566a9a736488",
+  "selection_stored_outside_repository": true,
+  "current_pending_disabled_state_verified": true,
+  "identifiers_exposed": false,
+  "api_request_performed": false,
+  "d1_write_performed": false,
+  "activation_allowed": false,
+  "explicit_live_approval_required": true,
+  "reason_codes": [
+    "EXACT_INSERTED_SCOPE",
+    "PRIVATE_SELECTION_ONLY",
+    "INITIAL_SELECTION_VALIDATED",
+    "LIVE_APPROVAL_REQUIRED"
+  ]
+}
