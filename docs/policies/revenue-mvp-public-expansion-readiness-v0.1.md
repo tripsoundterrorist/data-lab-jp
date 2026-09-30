@@ -58,3 +58,11 @@ verified 5 tables, 1,109 items, 5,244 snapshots, and 55 collection runs. No
 temporary files were retained and the source identity was unchanged. This
 evidence satisfies only the isolated database and backup/restore prerequisites;
 it does not approve an API request or collection run.
+
+`scripts/revenue_mvp_expansion_collector_safety_audit.py` statically verifies
+the existing collector source without importing it or loading credentials. It
+requires at least one second between requests, a bounded timeout, immediate
+failure on HTTP/network errors, no retry marker, and response validation before
+the database-write phase. Passing this audit confirms the reusable stop and
+spacing behavior only; the expanded six-request budget remains separately
+blocked.

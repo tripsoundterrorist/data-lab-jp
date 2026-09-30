@@ -136,8 +136,8 @@ def current_evidence() -> ExpansionCollectorEvidence:
         fresh_eligible_count=108,
         isolated_database_verified=True,
         request_budget_confirmed=False,
-        rate_limit_safety_confirmed=False,
-        overlap_and_uniqueness_validation_ready=False,
+        rate_limit_safety_confirmed=True,
+        overlap_and_uniqueness_validation_ready=True,
         backup_and_restore_verified=True,
         production_schedule_unchanged=True,
     )

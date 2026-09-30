@@ -37,6 +37,8 @@ class ExpansionCollectorPlanTests(unittest.TestCase):
         self.assertIn("CURRENT_REQUEST_BUDGET_EXCEEDED", result.reason_codes)
         self.assertNotIn("ISOLATED_DATABASE_UNVERIFIED", result.reason_codes)
         self.assertNotIn("BACKUP_RESTORE_UNVERIFIED", result.reason_codes)
+        self.assertNotIn("RATE_LIMIT_SAFETY_UNCONFIRMED", result.reason_codes)
+        self.assertNotIn("OVERLAP_UNIQUENESS_VALIDATION_NOT_READY", result.reason_codes)
 
     def test_request_math_and_spacing_are_bounded(self):
         result = subject.assess(subject.current_evidence())
