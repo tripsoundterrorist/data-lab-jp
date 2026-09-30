@@ -1,0 +1,24 @@
+{
+  "version": "0.1",
+  "status": "POSTWRITE_VERIFIED",
+  "before_sha256": "59c6b2d4dfb3b37467c9ae3f0cc453c8db942537af81771a29c47b0d4a460801",
+  "after_sha256": "e08785bfc3cac0f94fe5ce6e3effaa571516794ea8f5c45981871ac66400a9a7",
+  "candidate_sha256": "d77105c1d0d81e2b79135b42c5163f1d722b55ad9806324b15ce2f3da1390434",
+  "delta_sha256": "3519b270dd7375080d5311df23277fca5409b9bd5682e52045c8ead5429035d4",
+  "before_row_count": 1109,
+  "after_row_count": 1287,
+  "new_row_count": 178,
+  "existing_rows_unchanged": true,
+  "new_mapping_exact_candidate_gap": true,
+  "new_rows_disabled_and_pending": true,
+  "eligibility_unchanged": true,
+  "redirect_targets_unchanged": true,
+  "runtime_redirects_unchanged": true,
+  "publication_allowed": false,
+  "reason_codes": [
+    "EXISTING_ROWS_PRESERVED",
+    "EXACT_CANDIDATE_GAP_INSERTED",
+    "NEW_ROWS_DISABLED_AND_PENDING",
+    "PUBLICATION_NOT_AUTHORIZED"
+  ]
+}

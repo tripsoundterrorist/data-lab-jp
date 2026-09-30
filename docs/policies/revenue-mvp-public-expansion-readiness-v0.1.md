@@ -177,3 +177,13 @@ and rechecks the 1,109 + 178 = 1,287 row postcondition in memory. Stale exports,
 mapping changes, count changes, identity changes, or a non-exact delta block the
 operation. Passing this gate is review readiness only; it does not authorize or
 perform the D1 write or publication.
+
+After explicit operator approval on 2026-10-01, the hash-pinned 178-row delta
+was applied once to production D1. A fresh post-write export was compared with
+the immutable pre-write export by
+`scripts/revenue_mvp_expansion_d1_postwrite_verify.py`. The verifier confirmed
+that all 1,109 existing rows were unchanged, the final count was 1,287, and the
+178 new mappings were exactly the candidate gap and remained disabled/pending.
+Eligibility, redirect-target, and runtime-redirect counts were unchanged. This
+does not authorize publication or enable any new CTA. Sanitized evidence is at
+`runtime/evidence/revenue-mvp-expansion-d1-postwrite-20261001.json`.
