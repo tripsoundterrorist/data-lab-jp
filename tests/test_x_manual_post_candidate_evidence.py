@@ -46,6 +46,24 @@ class XManualPostCandidateEvidenceTests(unittest.TestCase):
         ):
             self.assertEqual(measurement[key], "NOT_ACQUIRED")
 
+    def test_early_funnel_observation_does_not_infer_results(self):
+        observation = json.loads(
+            (
+                ROOT
+                / "docs"
+                / "evidence"
+                / "revenue-mvp-x-post-early-funnel-observation-20261001.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(observation["status"], "EARLY_OBSERVATION_NO_SIGNAL_YET")
+        self.assertEqual(observation["ga4"]["realtime_active_users_last_30_minutes"], 0)
+        self.assertEqual(observation["dmm_affiliate"]["status"], "NO_DATA")
+        self.assertEqual(observation["ga4"]["campaign_attribution"], "NOT_ACQUIRED")
+        self.assertEqual(observation["dmm_affiliate"]["revenue_increment_yen"], "NOT_ACQUIRED")
+        self.assertTrue(observation["site_follow_up"]["stale_prepublication_copy_detected"])
+        self.assertFalse(observation["site_follow_up"]["change_applied"])
+        self.assertFalse(observation["external_write_performed"])
+
 
 if __name__ == "__main__":
     unittest.main()

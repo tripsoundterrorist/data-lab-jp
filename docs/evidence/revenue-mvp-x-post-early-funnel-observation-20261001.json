@@ -1,0 +1,33 @@
+{
+  "version": "0.1",
+  "status": "EARLY_OBSERVATION_NO_SIGNAL_YET",
+  "observed_at": "2026-10-01T00:00:00+09:00",
+  "source_post": "https://x.com/datalab_jp/status/2105306290587419100",
+  "post_age_minutes_approximate": 21,
+  "ga4": {
+    "source": "GA4_AUTHENTICATED_UI_READ_ONLY",
+    "realtime_active_users_last_30_minutes": 0,
+    "campaign_attribution": "NOT_ACQUIRED",
+    "funnel_event_increment": "NOT_ACQUIRED"
+  },
+  "dmm_affiliate": {
+    "source": "DMM_AFFILIATE_AUTHENTICATED_UI_READ_ONLY",
+    "report_date": "2026-09-30",
+    "status": "NO_DATA",
+    "click_increment": "NOT_ACQUIRED",
+    "conversion_increment": "NOT_ACQUIRED",
+    "revenue_increment_yen": "NOT_ACQUIRED"
+  },
+  "interpretation": [
+    "The observation is too early to evaluate post or funnel performance.",
+    "No traffic, click, conversion, or revenue value is inferred from unavailable data.",
+    "The next comparison must use a later closed or sufficiently processed reporting window."
+  ],
+  "site_follow_up": {
+    "homepage_items_link_count": 2,
+    "stale_prepublication_copy_detected": true,
+    "change_applied": false,
+    "reason": "Existing HTML design and content changes are outside the current repository instruction."
+  },
+  "external_write_performed": false
+}
