@@ -1,0 +1,27 @@
+{
+  "version": "0.1",
+  "source": "CONTROL_CENTER_USER_MESSAGE",
+  "decision": "APPROVED_FOR_PRODUCTION",
+  "approved_at": "2026-09-30",
+  "user_direction": "承認",
+  "approved_scope": {
+    "source_sha256": "5eece329debeb14e517c20aaf6c7e2ded40488c2ff16f57dbec34afb54a2c2b4",
+    "candidate_sha256": "371b27bcf0896a780d305b193341fd2e63b350cb7bf79c0b98aa0f2454ae0676",
+    "public_route": "/items/",
+    "item_count": 100,
+    "image_count": 100,
+    "maximum_cta_count": 100,
+    "card_bytes_preserved": true,
+    "go_routes_preserved": true,
+    "only_script_reference_changed": true,
+    "script_reference_before": "discovery.js",
+    "script_reference_after": "discovery.js?v=20260930"
+  },
+  "boundaries": {
+    "d1": "unchanged",
+    "affiliate_routes": "unchanged",
+    "global_publication_gate": "unchanged",
+    "robots": "noindex,nofollow",
+    "paid_plan_change": false
+  }
+}

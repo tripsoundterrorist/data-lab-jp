@@ -21,7 +21,7 @@ VERSION = "0.1-candidate"
 HEAD_MARKER = '<script src="/analytics-consent.js" defer></script><title>'
 HEAD_REPLACEMENT = (
     '<script src="/analytics-consent.js" defer></script>'
-    '<script src="discovery.js" defer></script><title>'
+    '<script src="discovery.js?v=20260930" defer></script><title>'
 )
 MAIN_PATTERN = re.compile(
     r'(<main id="main-content">)'
@@ -122,7 +122,7 @@ def build(source: bytes, *, expected_sha256: str, expected_item_count: int) -> t
         raise CandidateFailure("CARD_BYTES_CHANGED")
     if candidate_routes != go_routes:
         raise CandidateFailure("GO_ROUTES_CHANGED")
-    if candidate.count(b'<script src="discovery.js" defer></script>') != 1:
+    if candidate.count(b'<script src="discovery.js?v=20260930" defer></script>') != 1:
         raise CandidateFailure("DISCOVERY_SCRIPT_INVALID")
     return candidate, CandidateReceipt(
         VERSION, "READY_FOR_EXACT_REVIEW", expected_sha256, _sha256(candidate),

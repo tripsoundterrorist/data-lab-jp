@@ -33,9 +33,11 @@ CANARY_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-one-cta-final-u
 PRODUCT_CARD_SHA256 = "c7d569dc732b73e4085c9d860f1a54c73c201b974d37dda7ae15d9c5193dddf1"
 DISCOVERY_PRODUCT_CARD_SHA256 = "293f10a921359f3f29091ece45c16e9214ce9164ad53a44c3ce35d38aff76a86"
 LATEST_PRODUCT_CARD_SHA256 = "5eece329debeb14e517c20aaf6c7e2ded40488c2ff16f57dbec34afb54a2c2b4"
+CACHE_BUSTED_PRODUCT_CARD_SHA256 = "371b27bcf0896a780d305b193341fd2e63b350cb7bf79c0b98aa0f2454ae0676"
 PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-card-canary-user-approval-20260929.json"
 DISCOVERY_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-discovery-user-approval-20260930.json"
 LATEST_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-latest-product-user-approval-20260930.json"
+CACHE_BUSTED_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-discovery-cache-bust-user-approval-20260930.json"
 PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-discovery-live-verification-20260930.json"
 LATEST_PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-latest-product-live-verification-20260930.json"
 EXPECTED_COUNT = 100
@@ -94,10 +96,16 @@ def assess(
             PRODUCT_CARD_SHA256,
             DISCOVERY_PRODUCT_CARD_SHA256,
             LATEST_PRODUCT_CARD_SHA256,
+            CACHE_BUSTED_PRODUCT_CARD_SHA256,
         }
         if raw_artifact_sha256 in product_card_hashes or artifact_sha256 in product_card_hashes:
+            cache_busted_candidate = (
+                raw_artifact_sha256 == CACHE_BUSTED_PRODUCT_CARD_SHA256
+                or artifact_sha256 == CACHE_BUSTED_PRODUCT_CARD_SHA256
+            )
             latest_candidate = (
-                raw_artifact_sha256 == LATEST_PRODUCT_CARD_SHA256
+                cache_busted_candidate
+                or raw_artifact_sha256 == LATEST_PRODUCT_CARD_SHA256
                 or artifact_sha256 == LATEST_PRODUCT_CARD_SHA256
             )
             discovery_candidate = (
@@ -106,12 +114,14 @@ def assess(
                 or artifact_sha256 == DISCOVERY_PRODUCT_CARD_SHA256
             )
             expected_product_card_sha256 = (
-                LATEST_PRODUCT_CARD_SHA256 if latest_candidate
+                CACHE_BUSTED_PRODUCT_CARD_SHA256 if cache_busted_candidate
+                else LATEST_PRODUCT_CARD_SHA256 if latest_candidate
                 else DISCOVERY_PRODUCT_CARD_SHA256 if discovery_candidate
                 else PRODUCT_CARD_SHA256
             )
             approval_path = (
-                LATEST_PRODUCT_CARD_APPROVAL_PATH if latest_candidate
+                CACHE_BUSTED_PRODUCT_CARD_APPROVAL_PATH if cache_busted_candidate
+                else LATEST_PRODUCT_CARD_APPROVAL_PATH if latest_candidate
                 else DISCOVERY_PRODUCT_CARD_APPROVAL_PATH if discovery_candidate
                 else PRODUCT_CARD_APPROVAL_PATH
             )
@@ -136,7 +146,18 @@ def assess(
                 and 'name="robots" content="noindex,nofollow"' in text
                 and "affiliateURL" not in text
                 and (
-                    not latest_candidate
+                    not cache_busted_candidate
+                    or (
+                        scope.get("source_sha256") == LATEST_PRODUCT_CARD_SHA256
+                        and scope.get("candidate_sha256") == CACHE_BUSTED_PRODUCT_CARD_SHA256
+                        and scope.get("card_bytes_preserved") is True
+                        and scope.get("go_routes_preserved") is True
+                        and scope.get("only_script_reference_changed") is True
+                        and text.count('<script src="discovery.js?v=20260930" defer></script>') == 1
+                    )
+                )
+                and (
+                    not latest_candidate or cache_busted_candidate
                     or (
                         scope.get("source_sha256") == DISCOVERY_PRODUCT_CARD_SHA256
                         and scope.get("reviewed_windows_source_sha256") == "4e5df75fd909f14896958a0ae51929592ce6f2b3931bc6c47b4a0fff52002cf2"

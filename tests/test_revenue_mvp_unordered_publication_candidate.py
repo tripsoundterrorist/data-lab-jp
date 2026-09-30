@@ -42,7 +42,7 @@ class CandidateTests(unittest.TestCase):
         self.assertEqual(receipt.target_route, "/items/")
         self.assertFalse(receipt.publication_allowed)
         self.assertIn(b"noindex,nofollow", first)
-        self.assertIn(b'<script src="discovery.js" defer></script>', first)
+        self.assertIn(b'<script src="discovery.js?v=20260930" defer></script>', first)
         self.assertIn(b'id="item-search" type="search"', first)
         self.assertIn(b'id="price-filter"', first)
         self.assertIn(b'id="item-sort"', first)
