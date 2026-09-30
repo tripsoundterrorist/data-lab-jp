@@ -1,0 +1,25 @@
+{
+  "version": "0.1",
+  "status": "GA4_PRODUCT_FUNNEL_DIMENSIONS_REGISTERED",
+  "confirmed_at": "2026-10-01",
+  "source": "OWNER_CONFIRMED_AUTHENTICATED_GA4_SCREENSHOT",
+  "property": "DATA LAB",
+  "custom_dimensions": [
+    {
+      "display_name": "Funnel Surface",
+      "scope": "EVENT",
+      "event_parameter": "funnel_surface"
+    },
+    {
+      "display_name": "Item ID",
+      "scope": "EVENT",
+      "event_parameter": "item_id"
+    }
+  ],
+  "site_collection_commit": "382d01e",
+  "expected_reporting_delay": "24_TO_48_HOURS",
+  "retroactive": false,
+  "next_action": "OBSERVE_PRODUCT_LEVEL_OUTBOUND_CLICK_DATA_AFTER_PROCESSING_WINDOW",
+  "production_site_write_performed": false,
+  "ga4_change_performed_by_owner": true
+}
