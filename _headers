@@ -7,3 +7,6 @@
 
 /items/*
   Cache-Control: public, max-age=0, must-revalidate, no-transform
+
+/analytics-consent.js
+  Cache-Control: public, max-age=0, must-revalidate

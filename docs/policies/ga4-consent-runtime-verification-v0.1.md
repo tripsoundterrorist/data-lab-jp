@@ -15,6 +15,8 @@ against an inert DOM. It does not load any network resource. The harness proves:
 - persisted denial does not load analytics or accept events;
 - a valid list or detail view that completed before first consent is recorded once
   after consent is granted, without replaying clicks or invalid page states;
+- `/analytics-consent.js` is revalidated on every page load so a consent or
+  measurement fix is not held behind the site's ordinary four-hour asset cache;
 - after consent, only the exact allowlisted X campaign tuple (`x`, `social`,
   and one lowercase campaign identifier) may populate GA4 campaign fields;
 - arbitrary, malformed, duplicated, or non-X query parameters are not forwarded;
