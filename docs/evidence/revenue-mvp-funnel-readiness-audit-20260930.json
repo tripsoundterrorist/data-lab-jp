@@ -1,0 +1,40 @@
+{
+  "version": "0.1",
+  "status": "FUNNEL_READY_FOR_OBSERVATION",
+  "audited_at": "2026-09-30",
+  "source": "GITHUB_SOURCE_AND_LOCAL_REGRESSION",
+  "current_state": {
+    "revenue_mvp_status": "REVENUE_SURFACE_PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE",
+    "live_route": "/items/",
+    "live_item_count": 100,
+    "affiliate_d1_enabled_row_count": 100,
+    "affiliate_d1_lookup_ready": true,
+    "cta_allowed": true,
+    "edge_artifact_verified": true
+  },
+  "funnel_checks": {
+    "view_item_list_event_present": true,
+    "select_item_event_present": true,
+    "view_item_event_present": true,
+    "outbound_product_click_event_present": true,
+    "analytics_remains_consent_first": true,
+    "cta_has_proximate_pr_disclosure": true,
+    "cta_uses_same_origin_opaque_go_route": true,
+    "invalid_public_id_fails_closed": true
+  },
+  "verification": {
+    "targeted_test_count": 47,
+    "targeted_test_failures": 0,
+    "targeted_test_errors": 0
+  },
+  "changes_required_now": [],
+  "deferred": [
+    {
+      "topic": "public_ranking_numbers",
+      "reason": "The official meaning of API sort=rank remains unconfirmed; do not infer rank-number semantics."
+    }
+  ],
+  "next_action": "OBSERVE_X_TO_GA4_TO_DMM_INCREMENT_WITHOUT_CHANGING_THE_LIVE_SURFACE",
+  "production_write_performed": false,
+  "external_write_performed": false
+}

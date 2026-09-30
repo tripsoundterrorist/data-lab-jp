@@ -68,6 +68,20 @@ class MonetizationStartEvidenceTests(unittest.TestCase):
         self.assertFalse(self.evidence["boundaries"]["automatic_x_posting"])
         self.assertFalse(self.evidence["boundaries"]["unreviewed_scope_expansion"])
 
+    def test_funnel_readiness_audit_preserves_observation_only_boundary(self):
+        audit = json.loads(
+            (ROOT / "docs" / "evidence" / "revenue-mvp-funnel-readiness-audit-20260930.json")
+            .read_text(encoding="utf-8")
+        )
+        self.assertEqual(audit["status"], "FUNNEL_READY_FOR_OBSERVATION")
+        self.assertEqual(audit["current_state"]["live_item_count"], 100)
+        self.assertEqual(audit["current_state"]["affiliate_d1_enabled_row_count"], 100)
+        self.assertTrue(all(audit["funnel_checks"].values()))
+        self.assertEqual(audit["changes_required_now"], [])
+        self.assertEqual(audit["deferred"][0]["topic"], "public_ranking_numbers")
+        self.assertFalse(audit["production_write_performed"])
+        self.assertFalse(audit["external_write_performed"])
+
 
 if __name__ == "__main__":
     unittest.main()
