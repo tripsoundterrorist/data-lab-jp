@@ -38,3 +38,9 @@ that difference without calling the API or writing a database. The plan remains
 blocked until a disposable database, backup/restore, request budget, rate-limit
 safety, and overlap/duplicate validation are proven. The existing two-request
 daily schedule must remain unchanged while this isolated plan is reviewed.
+
+`scripts/revenue_mvp_expansion_page_validator.py` defines the isolated
+pre-write page contract: exactly six 50-item pages at offsets 1, 51, 101, 151,
+201, and 251, with exactly 300 unique non-empty content IDs. Any short page,
+offset drift, malformed identifier, or duplicate across pages blocks database
+writes. This validator is not connected to the live collector in v0.1.
