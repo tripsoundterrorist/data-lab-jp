@@ -73,3 +73,14 @@ temporary SQLite backup, points the existing collector at that disposable
 database, suppresses collector output, validates the exact six-page contract,
 reports aggregate coverage only, verifies the source file identity, and removes
 the temporary database. It never publishes or changes the production schedule.
+
+The explicitly approved 2026-10-01 isolated run completed six API requests,
+fetched six pages and 300 items, found zero duplicate content IDs, and passed
+the exact page contract. All 300 newest candidate rows met the base title,
+official-image, price, and affiliate-observation checks. The production source
+database remained at SHA-256
+`cd24816b185234d4a3e05e180f3e95ca97ab3b6c98cdf105da47b8ffaf7ecb53`
+and the disposable database was removed. Its freshness count is not accepted:
+the supplied evaluation timestamp preceded snapshots created during the run,
+causing a negative-age rejection. The harness now evaluates freshness after
+collection completion. No second API run was performed for this correction.

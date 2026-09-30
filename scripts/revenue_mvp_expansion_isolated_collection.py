@@ -164,7 +164,12 @@ def assess(source: Path, env_path: Path, *, evaluated_at: datetime) -> IsolatedC
                 or page_check.status != page_validator.PASS
             ):
                 return _blocked("ISOLATED_RUN_CONTRACT_FAILED", before_sha)
-            covered = coverage.assess(disposable, evaluated_at=evaluated_at)
+            # The approval timestamp can precede snapshots created during the
+            # bounded run. Evaluate freshness only after collection completes.
+            coverage_evaluated_at = max(
+                evaluated_at.astimezone(timezone.utc), datetime.now(timezone.utc)
+            )
+            covered = coverage.assess(disposable, evaluated_at=coverage_evaluated_at)
             if covered.status == coverage.FAIL_CLOSED:
                 return _blocked("COVERAGE_AUDIT_FAILED", before_sha)
             receipt = IsolatedCollectionReceipt(
