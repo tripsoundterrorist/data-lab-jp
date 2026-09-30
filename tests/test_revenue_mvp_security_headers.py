@@ -45,6 +45,12 @@ class RevenueMvpSecurityHeadersTests(unittest.TestCase):
             self.headers.replace("\r\n", "\n"),
         )
 
+    def test_analytics_consent_script_is_always_revalidated(self):
+        self.assertIn(
+            "/analytics-consent.js\n  Cache-Control: public, max-age=0, must-revalidate",
+            self.headers.replace("\r\n", "\n"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
