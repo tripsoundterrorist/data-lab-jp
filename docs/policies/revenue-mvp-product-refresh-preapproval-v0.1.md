@@ -38,3 +38,19 @@ python scripts/revenue_mvp_product_refresh_preapproval.py `
 may be presented to the user. Production replacement remains a separate,
 explicitly approved action followed by CI, edge verification, and evidence
 recording.
+
+## Daily assessment boundary
+
+`scripts/run-product-refresh-assessment-task.ps1` is the bounded, read-only
+entrypoint for a daily post-Collector assessment. It reads the current public
+artifact and Revenue database, persists only the rehearsal's aggregate JSON
+under the ignored `logs/product-refresh-assessment` directory, and retains logs
+for 30 days. It does not generate a candidate, export or query D1, call an API,
+replace the public artifact, deploy, or open the Publication Gate.
+
+The wrapper is safe to schedule after the 16:00 JST Revenue Collector, but no
+schedule is created by this repository change. A
+`READY_FOR_SEPARATE_REFRESH_CANDIDATE` result means that candidate preparation
+may begin. `d1_refresh_required=true` means the later private D1 export and
+preapproval step must cover the changed route set. `BLOCKED` must stop the
+refresh path while leaving the currently published artifact unchanged.
