@@ -41,6 +41,19 @@ class SnsXOperationsPolicyTests(unittest.TestCase):
         ):
             self.assertIn(value, self.content)
 
+    def test_premium_is_a_bounded_experiment_not_a_compliance_override(self):
+        for value in (
+            "`@datalab_jp` to Premium on 2026-10-01",
+            "bounded 30-day acquisition",
+            "X_PAID_PARTNERSHIP_SCOPE_UNCONFIRMED",
+            "link-free, non-promotional",
+            "pre-upgrade baseline",
+            "confirmed revenue",
+            "missing metrics cannot support renewal",
+            "Do not upgrade to Premium+",
+        ):
+            self.assertIn(value, self.content)
+
     def test_weekly_review_uses_observed_inputs_and_explicit_dispositions(self):
         for value in (
             "once each week",

@@ -32,14 +32,24 @@ live site, its affiliate CTAs, or measurement. Do not delete or modify past post
 automatically. Official source checked 2026-10-01:
 `https://help.x.com/en/rules-and-policies/paid-partnerships-policy`.
 
-X Premium does not override this boundary. Do not purchase Basic, Premium, or
-Premium+ as a workaround. If COMPLIANCE later clears the intended posting model,
-the only current cost test candidate is one month of web Premium; renewal must
-depend on measured incremental value and the current checkout price. Premium+
-is not justified by current traffic or revenue. Official feature and price
-references checked 2026-10-01:
+X Premium does not override this boundary. The owner reported upgrading
+`@datalab_jp` to Premium on 2026-10-01 as an experimental launch boost. The
+purchase channel, charged amount, billing renewal date, and checkout receipt are
+`NOT_ACQUIRED`; do not infer them. Treat this as a bounded 30-day acquisition
+experiment, not as permission for affiliate promotion and not as proof of
+distribution, traffic, or revenue benefit. Do not upgrade to Premium+, switch to
+an annual plan, renew, cancel, or change billing automatically. Continuation
+requires the owner to compare the observed incremental benefit with the actual
+charged amount. Official feature and price references checked 2026-10-01:
 `https://help.x.com/en/using-x/x-premium` and
 `https://help.x.com/en/premium-plus-price-update`.
+
+During the experiment, use Premium only for safe operational value: account
+credibility subject to X review, correction of accidental text errors, and
+Media Studio for rights-cleared non-explicit DATA LAB brand media. Long posts,
+long video, reply priority, or a checkmark must not be treated as a reason to
+increase posting volume, target unrelated conversations, or weaken factual and
+COMPLIANCE gates. Original Content Rewards are not a launch revenue assumption.
 
 ## Current X presentation
 
@@ -86,12 +96,25 @@ Any post containing an advertising or affiliate path must state `【PR】` clear
 in the post body. A DATA LAB page containing affiliate CTAs is treated as an
 advertising path for this conservative manual-post policy.
 
-For the current acquisition test, target links in 60--70% of drafts and preserve
-30--40% as link-free trust or explanation posts. Link to the most specific
-published page that supports the stated fact; do not send every post to the home
-page. Compare link and non-link posts using link clicks, CTR, profile visits,
-follows, and downstream CTA outcomes where acquired. This ratio is an operating
-test target, not authority to post or change the external schedule.
+While `X_PAID_PARTNERSHIP_SCOPE_UNCONFIRMED` remains active, distribute only
+link-free, non-promotional trust and explanation posts after manual review.
+Link-bearing and affiliate-promotional drafts may be generated for internal
+review but must not be handed off as postable. The former 60--70% linked-draft
+target is suspended, not deleted. If 03 COMPLIANCE later clears a specific link
+model, restore it only through a reviewed policy change and link to the most
+specific published page supporting the stated fact. Compare link and non-link
+posts using link clicks, CTR, profile visits, follows, and downstream CTA
+outcomes where those measurements are actually acquired.
+
+For the 30-day Premium experiment, keep the existing schedule and theme rotation
+unchanged so the subscription is the smallest practical intervention. Record
+the pre-upgrade baseline separately from the post-upgrade period. Evaluate
+impressions, non-follower reach, engagement, profile visits, follows, organic
+site sessions, product-detail views, outbound product clicks, DMM clicks,
+confirmed conversions, and confirmed revenue. Do not claim uplift from a blue
+checkmark or reply priority without observed comparative evidence. At day 30,
+the disposition must be `CONTINUE`, `CANCEL`, or
+`ADDITIONAL_CONFIRMATION_REQUIRED`; missing metrics cannot support renewal.
 
 Before handing a draft to the owner, also validate the completed post with X's
 weighted limit. Count each URL as 23 characters because X wraps every posted URL
