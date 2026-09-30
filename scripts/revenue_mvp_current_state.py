@@ -43,6 +43,7 @@ REFRESHED_PRODUCT_CARD_APPROVAL_PATH = ROOT / "docs" / "evidence" / "revenue-mvp
 PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-discovery-live-verification-20260930.json"
 LATEST_PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-latest-product-live-verification-20260930.json"
 CACHE_BUSTED_PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-discovery-cache-bust-live-verification-20260930.json"
+REFRESHED_PRODUCT_CARD_LIVE_EVIDENCE_PATH = ROOT / "docs" / "evidence" / "revenue-mvp-product-refresh-live-verification-20260930.json"
 EXPECTED_COUNT = 100
 EXPECTED_ROUTE = "/items/"
 
@@ -248,7 +249,7 @@ def assess(
                 and live.get("paid_plan_change") is False
             )
             latest_live_verified = (
-                latest_candidate
+                latest_candidate and not refreshed_candidate
                 and production_verified
                 and deployment.get("main_commit") == (
                     "114b7330413843a7e3b358ce779ccb00d8020e4e"
@@ -264,6 +265,21 @@ def assess(
                 and private_d1.get("candidate_runtime_redirect_matches") == EXPECTED_COUNT
                 and private_d1.get("scoped_revalidation_selected") == 12
                 and private_d1.get("scoped_revalidation_valid") == 12
+                and private_d1.get("scoped_revalidation_disabled") == 0
+            )
+            refresh_live_verified = (
+                refreshed_candidate
+                and production_verified
+                and deployment.get("main_commit") == "37c493b7a4650a219d96ca865277cd0a328f8ffb"
+                and deployment.get("revalidation_status") == "LOCAL_SCHEDULER_ACTIVE"
+                and private_d1.get("enabled_count") == EXPECTED_COUNT
+                and private_d1.get("runtime_target_count") == EXPECTED_COUNT
+                and private_d1.get("candidate_lookup_matches") == EXPECTED_COUNT
+                and private_d1.get("candidate_eligible_matches") == EXPECTED_COUNT
+                and private_d1.get("candidate_redirect_matches") == EXPECTED_COUNT
+                and private_d1.get("candidate_runtime_redirect_matches") == EXPECTED_COUNT
+                and private_d1.get("scoped_revalidation_selected") == 8
+                and private_d1.get("scoped_revalidation_valid") == 8
                 and private_d1.get("scoped_revalidation_disabled") == 0
             )
             prior_live_verified = (
@@ -298,9 +314,21 @@ def assess(
                 and local_canary.get("scheduler_manual_smoke_disabled_count") == 0
                 and local_canary.get("residual_worker_cron_explicitly_removed") is True
             )
-            live_verified = latest_live_verified or prior_live_verified
+            live_verified = refresh_live_verified or latest_live_verified or prior_live_verified
             if live_verified:
                 live_reason_codes = (
+                    (
+                        "PRODUCTION_PRODUCT_CARD_ARTIFACT_EXACT_MATCH_VERIFIED",
+                        "ONE_HUNDRED_OFFICIAL_IMAGES_LIVE",
+                        "ONE_HUNDRED_PROXIMATE_PR_DISCLOSED_CTAS_LIVE",
+                        "CURRENT_SURFACE_D1_RUNTIME_TARGETS_EXACTLY_ONE_HUNDRED",
+                        "EIGHT_NEW_ROUTES_SCOPED_REVALIDATION_PASSED",
+                        "INVALID_PUBLIC_ID_FAIL_CLOSED_VERIFIED",
+                        "LOCAL_REVALIDATION_SCHEDULER_ACTIVE_AT_20_00_JST",
+                        "GLOBAL_PUBLICATION_GATE_UNCHANGED",
+                    )
+                    if refreshed_candidate
+                    else
                     (
                         "PRODUCTION_PRODUCT_CARD_ARTIFACT_EXACT_MATCH_VERIFIED",
                         "ONE_HUNDRED_OFFICIAL_IMAGES_LIVE",
@@ -451,7 +479,9 @@ def current_state() -> CurrentRevenueState:
             _canonical_sha256(artifact),
         }
         live_evidence_path = (
-            CACHE_BUSTED_PRODUCT_CARD_LIVE_EVIDENCE_PATH
+            REFRESHED_PRODUCT_CARD_LIVE_EVIDENCE_PATH
+            if REFRESHED_PRODUCT_CARD_SHA256 in artifact_hashes
+            else CACHE_BUSTED_PRODUCT_CARD_LIVE_EVIDENCE_PATH
             if CACHE_BUSTED_PRODUCT_CARD_SHA256 in artifact_hashes
             else LATEST_PRODUCT_CARD_LIVE_EVIDENCE_PATH
             if LATEST_PRODUCT_CARD_SHA256 in artifact_hashes
