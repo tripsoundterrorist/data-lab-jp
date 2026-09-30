@@ -169,3 +169,11 @@ Git-ignored private storage and has not been applied to D1. Its aggregate
 receipt is recorded at
 `runtime/evidence/revenue-mvp-expansion-d1-delta-20261001.json`. A separate
 approval and final remote-identity recheck are required before any D1 write.
+
+`scripts/revenue_mvp_expansion_d1_prewrite_gate.py` defines that final recheck.
+It accepts only a hash-pinned remote export no more than 15 minutes old, rebuilds
+the scoped delta, requires byte-exact equality with the reviewed private delta,
+and rechecks the 1,109 + 178 = 1,287 row postcondition in memory. Stale exports,
+mapping changes, count changes, identity changes, or a non-exact delta block the
+operation. Passing this gate is review readiness only; it does not authorize or
+perform the D1 write or publication.
