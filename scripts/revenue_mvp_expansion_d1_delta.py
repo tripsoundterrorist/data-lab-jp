@@ -23,6 +23,19 @@ READY = "SCOPED_DISABLED_DELTA_READY"
 BLOCKED = "BLOCKED"
 
 
+def load_remote_snapshot(
+    connection: sqlite3.Connection, schema_bytes: bytes, remote_bytes: bytes
+) -> None:
+    """Load either a full Wrangler export or the legacy data-only snapshot."""
+
+    marker = b"CREATE TABLE affiliate_item_lookup ("
+    if marker in remote_bytes:
+        connection.executescript(remote_bytes.decode("utf-8"))
+    else:
+        connection.executescript(schema_bytes.decode("utf-8"))
+        connection.executescript(remote_bytes.decode("utf-8"))
+
+
 @dataclass(frozen=True)
 class DeltaReceipt:
     version: str
@@ -74,8 +87,7 @@ def build(
             return _blocked("IDENTITY_MISMATCH"), None
         candidate_rows = reconciliation._parse_candidate(candidate_bytes)
         connection = sqlite3.connect(":memory:")
-        connection.executescript(schema_bytes.decode("utf-8"))
-        connection.executescript(remote_bytes.decode("utf-8"))
+        load_remote_snapshot(connection, schema_bytes, remote_bytes)
         remote_rows = connection.execute(
             "SELECT public_id,content_id FROM affiliate_item_lookup ORDER BY public_id"
         ).fetchall()

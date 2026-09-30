@@ -42,6 +42,12 @@ def remote(*, conflict: bool = False) -> bytes:
     return ("\n".join(lines) + "\n").encode()
 
 
+def full_remote() -> bytes:
+    schema = (ROOT / "runtime-candidates" / "affiliate-item-lookup-schema.sql").read_text()
+    inserts = remote().decode().splitlines()[1:]
+    return ("PRAGMA defer_foreign_keys=TRUE;\n" + schema + "\n" + "\n".join(inserts) + "\n").encode()
+
+
 class ExpansionD1DeltaTests(unittest.TestCase):
     def assess(self, remote_bytes: bytes):
         candidate_bytes = candidate()
@@ -70,6 +76,12 @@ class ExpansionD1DeltaTests(unittest.TestCase):
         receipt, delta = self.assess(remote(conflict=True))
         self.assertEqual(receipt.status, subject.BLOCKED)
         self.assertIsNone(delta)
+
+    def test_full_wrangler_export_is_supported(self):
+        receipt, delta = self.assess(full_remote())
+        self.assertEqual(receipt.status, subject.READY)
+        self.assertEqual(receipt.delta_row_count, 100)
+        self.assertIsNotNone(delta)
 
     def test_identity_mismatch_blocks(self):
         remote_bytes = remote()

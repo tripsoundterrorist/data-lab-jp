@@ -8,6 +8,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import revenue_mvp_expansion_d1_overlap_audit as subject  # noqa: E402
+from tests.test_revenue_mvp_expansion_d1_delta import full_remote  # noqa: E402
 
 
 def digest(path: Path) -> str:
@@ -75,6 +76,21 @@ class ExpansionD1OverlapAuditTests(unittest.TestCase):
                 expected_candidate_sha256=digest(candidate_path),
             )
         self.assertEqual(result.status, subject.BLOCKED)
+
+    def test_full_wrangler_export_is_supported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidate_path = root / "candidate.sql"
+            remote_path = root / "remote.sql"
+            candidate(candidate_path)
+            remote_path.write_bytes(full_remote())
+            result = subject.assess(
+                remote_path, candidate_path,
+                expected_remote_sha256=digest(remote_path),
+                expected_candidate_sha256=digest(candidate_path),
+            )
+        self.assertEqual(result.status, subject.AUDITED)
+        self.assertEqual(result.candidate_missing_count, 100)
 
 
 if __name__ == "__main__":

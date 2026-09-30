@@ -9,6 +9,7 @@ import sqlite3
 from typing import Any
 
 import affiliate_d1_incremental_reconciliation as reconciliation
+import revenue_mvp_expansion_d1_delta as delta_builder
 from validate_affiliate_item_lookup_candidate import _snapshot_regular_file
 
 
@@ -76,8 +77,7 @@ def assess(
             return _blocked("CANDIDATE_MAPPING_NOT_UNIQUE")
 
         connection = sqlite3.connect(":memory:")
-        connection.executescript(schema_bytes.decode("utf-8"))
-        connection.executescript(remote_bytes.decode("utf-8"))
+        delta_builder.load_remote_snapshot(connection, schema_bytes, remote_bytes)
         remote_rows = set(connection.execute(
             "SELECT public_id,content_id FROM affiliate_item_lookup"
         ))
