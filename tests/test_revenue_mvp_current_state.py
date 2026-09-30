@@ -23,7 +23,7 @@ class CurrentRevenueStateTests(unittest.TestCase):
         self.d1 = state.affiliate_d1_production_state.assess(
             state.affiliate_d1_production_state.current_evidence()
         )
-        self.live = json.loads(state.LATEST_PRODUCT_CARD_LIVE_EVIDENCE_PATH.read_text(encoding="utf-8"))
+        self.live = json.loads(state.CACHE_BUSTED_PRODUCT_CARD_LIVE_EVIDENCE_PATH.read_text(encoding="utf-8"))
 
     def assess(self, receipt=None, artifact=None, live=None):
         return state.assess(
@@ -33,18 +33,18 @@ class CurrentRevenueStateTests(unittest.TestCase):
             self.live if live is None else live,
         )
 
-    def test_current_approved_cache_bust_is_pending_edge_verification(self):
+    def test_current_cache_busted_surface_is_live_and_edge_verified(self):
         result = self.assess()
-        self.assertEqual(result.status, state.PRODUCT_CARD_CANARY_PENDING_EDGE)
+        self.assertEqual(result.status, state.PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE)
         self.assertTrue(result.limited_surface_live)
-        self.assertFalse(result.edge_artifact_verified)
+        self.assertTrue(result.edge_artifact_verified)
         self.assertEqual(result.live_item_count, 100)
         self.assertTrue(result.affiliate_runtime_candidate_ready)
         self.assertTrue(result.cta_allowed)
         self.assertTrue(result.affiliate_integration_allowed)
         self.assertFalse(result.production_write_allowed)
-        self.assertEqual(result.next_action, "VERIFY_PRODUCT_CARD_CANARY_AT_EDGE")
-        self.assertEqual(result.affiliate_d1_enabled_row_count, 100)
+        self.assertEqual(result.next_action, "VERIFY_FIRST_AUTOMATIC_LOCAL_REVALIDATION_RUN")
+        self.assertEqual(result.affiliate_d1_enabled_row_count, 112)
 
     def test_artifact_mismatch_fails_closed(self):
         result = self.assess(artifact=self.artifact + b"\n")
@@ -55,7 +55,7 @@ class CurrentRevenueStateTests(unittest.TestCase):
         receipt = copy.deepcopy(self.receipt)
         receipt["cta_allowed"] = True
         result = self.assess(receipt=receipt)
-        self.assertEqual(result.status, state.PRODUCT_CARD_CANARY_PENDING_EDGE)
+        self.assertEqual(result.status, state.PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE)
         self.assertTrue(result.affiliate_integration_allowed)
 
     def test_invalid_live_evidence_falls_back_to_pending_edge(self):
@@ -67,7 +67,7 @@ class CurrentRevenueStateTests(unittest.TestCase):
 
     def test_cli_current_state(self):
         result = state.current_state()
-        self.assertEqual(result.status, state.PRODUCT_CARD_CANARY_PENDING_EDGE)
+        self.assertEqual(result.status, state.PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE)
 
 
 if __name__ == "__main__":
