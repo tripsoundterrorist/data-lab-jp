@@ -1,0 +1,21 @@
+# Revenue MVP Expansion Initial Revalidation v0.1
+
+This is a bounded local transport for newly inserted expansion lookup rows. It
+is separate from recurring lifecycle revalidation and accepts only an exact
+private selection file outside the repository containing one to five opaque
+public IDs. The selected D1 rows must still be disabled and in the original
+pending rights, lifecycle, and verification state.
+
+The default mode is read-only `DRY_RUN`. LIVE requires both `--execute` and the
+exact confirmation token `LIVE_EXPANSION_INITIAL_REVALIDATION`. Each selected
+item is queried once; there is no automatic retry. A single exact API result
+with an allowlisted HTTPS affiliate URL writes the redirect target and audit
+event before conditionally approving, resolving, and enabling that lookup row.
+Missing, mismatched, malformed, or URL-absent results remain disabled. Upstream
+errors remain pending and disabled for a separately approved bounded retry.
+
+Output is aggregate-only. IDs, content IDs, URLs, credentials, response bodies,
+SQL, and exceptions are not emitted. Temporary SQL is deleted after execution.
+The operation does not alter the public artifact, Publication Gate, sitemap,
+deployment, scheduler, or billing. Every LIVE batch requires separate explicit
+approval and post-write aggregate verification.
