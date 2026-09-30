@@ -40,7 +40,8 @@
     "The rolling seven-day window includes time before monetization start.",
     "The home summary does not expose the allowlisted funnel-event breakdown.",
     "No key event or affiliate conversion may be inferred from total event count.",
-    "Search Console was shown as not linked to the GA4 property."
+    "Search Console was linked after this baseline was observed; search query reporting may remain unavailable until Google finishes processing the new link."
   ],
+  "search_console_link_evidence": "docs/evidence/revenue-mvp-ga4-search-console-link-20260930.json",
   "external_write_performed": false
 }

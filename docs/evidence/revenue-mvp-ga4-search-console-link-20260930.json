@@ -1,0 +1,18 @@
+{
+  "version": "0.1",
+  "status": "LINK_VERIFIED",
+  "verified_at": "2026-09-30",
+  "source": "GA4_AUTHENTICATED_UI_READ_ONLY",
+  "analytics_property": "DATA LAB",
+  "search_console_property": "datalabx.jp",
+  "property_type": "DOMAIN",
+  "web_stream": "DATA LAB Web",
+  "linked_on": "2026-09-30",
+  "identifiers_redacted": true,
+  "limitations": [
+    "The link was newly created, so Search Console dimensions and reports may not be populated immediately.",
+    "No search performance value is inferred until it is visible in an authenticated report."
+  ],
+  "created_by_user": true,
+  "external_write_performed_by_agent": false
+}

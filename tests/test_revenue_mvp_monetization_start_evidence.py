@@ -38,6 +38,14 @@ class MonetizationStartEvidenceTests(unittest.TestCase):
         self.assertEqual(baseline["summary"]["sessions"], 8)
         self.assertIn("post_monetization_start_sessions", baseline["not_acquired"])
         self.assertFalse(baseline["external_write_performed"])
+        link_path = ROOT / baseline["search_console_link_evidence"]
+        link = json.loads(link_path.read_text(encoding="utf-8"))
+        self.assertEqual(link["status"], "LINK_VERIFIED")
+        self.assertEqual(link["search_console_property"], "datalabx.jp")
+        self.assertEqual(link["property_type"], "DOMAIN")
+        self.assertTrue(link["identifiers_redacted"])
+        self.assertTrue(link["created_by_user"])
+        self.assertFalse(link["external_write_performed_by_agent"])
         for key in (
             "observed_sessions",
             "observed_outbound_product_clicks",
