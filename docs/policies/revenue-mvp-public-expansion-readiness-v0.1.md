@@ -187,3 +187,10 @@ that all 1,109 existing rows were unchanged, the final count was 1,287, and the
 Eligibility, redirect-target, and runtime-redirect counts were unchanged. This
 does not authorize publication or enable any new CTA. Sanitized evidence is at
 `runtime/evidence/revenue-mvp-expansion-d1-postwrite-20261001.json`.
+
+The post-write candidate-scoped audit records exact lookup coverage for all 300
+items, 119 stored redirect targets, and 69 currently runtime-eligible redirects.
+The readiness gate consumes these aggregate values fail-closed. Lookup coverage
+is therefore complete, but redirect and fresh runtime coverage remain blocking;
+stored targets must not be treated as eligible when revalidation has disabled
+their lookup rows.

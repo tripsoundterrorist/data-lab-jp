@@ -36,7 +36,8 @@ def evidence(**changes):
 
 class PublicExpansionReadinessTests(unittest.TestCase):
     def test_current_state_is_blocked_without_publication_or_writes(self):
-        result = subject.assess(subject.current_evidence())
+        current = subject.current_evidence()
+        result = subject.assess(current)
         self.assertEqual(result.status, subject.BLOCKED)
         self.assertFalse(result.manual_expansion_review_candidate)
         self.assertFalse(result.publication_allowed)
@@ -47,7 +48,11 @@ class PublicExpansionReadinessTests(unittest.TestCase):
         self.assertNotIn("IMAGE_COVERAGE_NOT_EXACT", result.reason_codes)
         self.assertNotIn("PRICE_COVERAGE_NOT_EXACT", result.reason_codes)
         self.assertNotIn("FRESHNESS_NOT_EXACT", result.reason_codes)
-        self.assertIn("AFFILIATE_LOOKUP_NOT_EXACT", result.reason_codes)
+        self.assertNotIn("AFFILIATE_LOOKUP_NOT_EXACT", result.reason_codes)
+        self.assertEqual(current.affiliate_lookup_ready_count, 300)
+        self.assertEqual(current.affiliate_redirect_ready_count, 119)
+        self.assertEqual(current.runtime_revalidation_ready_count, 69)
+        self.assertIn("AFFILIATE_REDIRECT_NOT_EXACT", result.reason_codes)
         self.assertIn("COMPLIANCE_PUBLICATION_UNCONFIRMED", result.reason_codes)
 
     def test_missing_or_invalid_collection_evidence_fails_closed_to_zero_counts(self):
@@ -61,6 +66,16 @@ class PublicExpansionReadinessTests(unittest.TestCase):
             with mock.patch.object(subject, "COLLECTION_EVIDENCE", missing):
                 current = subject.current_evidence()
             self.assertEqual(current.fresh_item_count, 0)
+
+    def test_invalid_d1_evidence_fails_closed_to_zero_runtime_counts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            invalid = Path(directory) / "invalid.json"
+            invalid.write_text("{}", encoding="utf-8")
+            with mock.patch.object(subject, "D1_COVERAGE_EVIDENCE", invalid):
+                current = subject.current_evidence()
+            self.assertEqual(current.affiliate_lookup_ready_count, 0)
+            self.assertEqual(current.affiliate_redirect_ready_count, 0)
+            self.assertEqual(current.runtime_revalidation_ready_count, 0)
 
     def test_only_the_next_300_item_stage_is_accepted(self):
         result = subject.assess(evidence(target_public_item_count=500))

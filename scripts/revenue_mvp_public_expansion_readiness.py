@@ -16,6 +16,7 @@ BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
 ROOT = Path(__file__).resolve().parents[1]
 COLLECTION_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-collection-20261001.json"
+D1_COVERAGE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-d1-postwrite-20261001.json"
 
 
 @dataclass(frozen=True)
@@ -186,6 +187,9 @@ def assess(evidence: Any) -> ExpansionReadiness:
 def current_evidence() -> ExpansionEvidence:
     verified_count = 0
     surface_preserved = False
+    lookup_ready = 0
+    redirect_ready = 0
+    runtime_ready = 0
     try:
         value = json.loads(COLLECTION_EVIDENCE.read_text(encoding="utf-8"))
         evidence_valid = (
@@ -216,6 +220,33 @@ def current_evidence() -> ExpansionEvidence:
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
         pass
 
+    try:
+        value = json.loads(D1_COVERAGE_EVIDENCE.read_text(encoding="utf-8"))
+        d1_evidence_valid = (
+            type(value) is dict
+            and value.get("version") == "0.1"
+            and value.get("status") == "POSTWRITE_VERIFIED"
+            and value.get("before_row_count") == 1109
+            and value.get("after_row_count") == 1287
+            and value.get("new_row_count") == 178
+            and value.get("candidate_lookup_ready_count") == 300
+            and type(value.get("candidate_redirect_ready_count")) is int
+            and 0 <= value["candidate_redirect_ready_count"] <= 300
+            and type(value.get("candidate_runtime_revalidation_ready_count")) is int
+            and 0 <= value["candidate_runtime_revalidation_ready_count"] <= 300
+            and value.get("candidate_mapping_conflict_count") == 0
+            and value.get("existing_rows_unchanged") is True
+            and value.get("new_mapping_exact_candidate_gap") is True
+            and value.get("new_rows_disabled_and_pending") is True
+            and value.get("publication_allowed") is False
+        )
+        if d1_evidence_valid:
+            lookup_ready = value["candidate_lookup_ready_count"]
+            redirect_ready = value["candidate_redirect_ready_count"]
+            runtime_ready = value["candidate_runtime_revalidation_ready_count"]
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        pass
+
     return ExpansionEvidence(
         current_public_item_count=CURRENT_PUBLIC_ITEM_COUNT,
         target_public_item_count=NEXT_STAGE_ITEM_COUNT,
@@ -224,9 +255,9 @@ def current_evidence() -> ExpansionEvidence:
         image_ready_count=verified_count,
         price_ready_count=verified_count,
         fresh_item_count=verified_count,
-        affiliate_lookup_ready_count=0,
-        affiliate_redirect_ready_count=0,
-        runtime_revalidation_ready_count=0,
+        affiliate_lookup_ready_count=lookup_ready,
+        affiliate_redirect_ready_count=redirect_ready,
+        runtime_revalidation_ready_count=runtime_ready,
         existing_surface_preservation_verified=surface_preserved,
         sitemap_capacity_verified=False,
         seo_quality_reviewed=False,
