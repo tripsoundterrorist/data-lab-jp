@@ -124,3 +124,10 @@ The production source remained unchanged, and publication, sitemap, D1, and the
 daily production schedule were not modified. Aggregate evidence is recorded in
 `runtime/evidence/revenue-mvp-expansion-collection-20261001.json`; the database
 itself remains Git-ignored.
+
+The public-expansion readiness gate consumes only that committed aggregate
+evidence. It now recognizes exact 300-item candidate, eligibility, official
+image, price, freshness, and existing-surface-preservation coverage. Missing,
+malformed, or contradictory evidence falls back to zero verified items. D1
+lookup/redirect/runtime coverage and every SEO, capacity, COMPLIANCE, funnel,
+and rollback decision remain blocked independently.

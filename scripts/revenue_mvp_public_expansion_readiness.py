@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import json
+from pathlib import Path
 from typing import Any
 
 
@@ -13,6 +14,8 @@ NEXT_STAGE_ITEM_COUNT = 300
 READY_FOR_MANUAL_EXPANSION_REVIEW = "READY_FOR_MANUAL_EXPANSION_REVIEW"
 BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
+ROOT = Path(__file__).resolve().parents[1]
+COLLECTION_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-collection-20261001.json"
 
 
 @dataclass(frozen=True)
@@ -151,11 +154,17 @@ def assess(evidence: Any) -> ExpansionReadiness:
     if any(
         reason in reasons for reason in (
             "IMAGE_COVERAGE_NOT_EXACT", "PRICE_COVERAGE_NOT_EXACT",
-            "FRESHNESS_NOT_EXACT", "AFFILIATE_LOOKUP_NOT_EXACT",
-            "AFFILIATE_REDIRECT_NOT_EXACT", "RUNTIME_REVALIDATION_NOT_EXACT",
+            "FRESHNESS_NOT_EXACT",
         )
     ):
-        actions.append("VALIDATE_EXACT_300_ITEM_DATA_AND_AFFILIATE_LIFECYCLE")
+        actions.append("VALIDATE_EXACT_300_ITEM_DATA_COVERAGE")
+    if any(
+        reason in reasons for reason in (
+            "AFFILIATE_LOOKUP_NOT_EXACT", "AFFILIATE_REDIRECT_NOT_EXACT",
+            "RUNTIME_REVALIDATION_NOT_EXACT",
+        )
+    ):
+        actions.append("BUILD_EXACT_300_ITEM_D1_AND_RUNTIME_COVERAGE")
     if not evidence.existing_surface_preservation_verified or not evidence.rollback_plan_verified:
         actions.append("VERIFY_EXISTING_100_ITEM_SURFACE_AND_ROLLBACK")
     if not evidence.sitemap_capacity_verified or not evidence.seo_quality_reviewed:
@@ -175,20 +184,50 @@ def assess(evidence: Any) -> ExpansionReadiness:
 
 
 def current_evidence() -> ExpansionEvidence:
-    # The local database contains more rows, but local presence alone does not
-    # prove that an exact 300-item candidate is public-eligible.
+    verified_count = 0
+    surface_preserved = False
+    try:
+        value = json.loads(COLLECTION_EVIDENCE.read_text(encoding="utf-8"))
+        evidence_valid = (
+            type(value) is dict
+            and value.get("version") == "0.1"
+            and value.get("mode") == "COLLECTION_ONLY"
+            and value.get("status") == "ISOLATED_COLLECTION_VERIFIED"
+            and value.get("processed_items") == NEXT_STAGE_ITEM_COUNT
+            and value.get("duplicate_content_ids") == 0
+            and value.get("page_validation_status") == "PASS"
+            and value.get("base_eligible_count") == NEXT_STAGE_ITEM_COUNT
+            and value.get("fresh_base_eligible_count") == NEXT_STAGE_ITEM_COUNT
+            and value.get("target_gap") == 0
+            and value.get("collection_only_storage_committed") is True
+            and value.get("source_identity_preserved") is True
+            and value.get("production_database_write_performed") is False
+            and value.get("publication_allowed") is False
+            and value.get("sitemap_changed") is False
+            and value.get("d1_changed") is False
+            and value.get("production_schedule_changed") is False
+            and type(value.get("retained_sha256")) is str
+            and len(value["retained_sha256"]) == 64
+            and all(character in "0123456789abcdef" for character in value["retained_sha256"])
+        )
+        if evidence_valid:
+            verified_count = NEXT_STAGE_ITEM_COUNT
+            surface_preserved = True
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        pass
+
     return ExpansionEvidence(
         current_public_item_count=CURRENT_PUBLIC_ITEM_COUNT,
         target_public_item_count=NEXT_STAGE_ITEM_COUNT,
-        candidate_unique_item_count=0,
-        eligible_item_count=0,
-        image_ready_count=0,
-        price_ready_count=0,
-        fresh_item_count=0,
+        candidate_unique_item_count=verified_count,
+        eligible_item_count=verified_count,
+        image_ready_count=verified_count,
+        price_ready_count=verified_count,
+        fresh_item_count=verified_count,
         affiliate_lookup_ready_count=0,
         affiliate_redirect_ready_count=0,
         runtime_revalidation_ready_count=0,
-        existing_surface_preservation_verified=False,
+        existing_surface_preservation_verified=surface_preserved,
         sitemap_capacity_verified=False,
         seo_quality_reviewed=False,
         cloudflare_free_plan_capacity_verified=False,

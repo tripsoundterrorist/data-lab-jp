@@ -1,6 +1,8 @@
 from pathlib import Path
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,8 +42,25 @@ class PublicExpansionReadinessTests(unittest.TestCase):
         self.assertFalse(result.publication_allowed)
         self.assertFalse(result.production_write_allowed)
         self.assertFalse(result.deployment_allowed)
-        self.assertIn("CANDIDATE_SET_NOT_EXACT", result.reason_codes)
+        self.assertNotIn("CANDIDATE_SET_NOT_EXACT", result.reason_codes)
+        self.assertNotIn("ELIGIBILITY_NOT_EXACT", result.reason_codes)
+        self.assertNotIn("IMAGE_COVERAGE_NOT_EXACT", result.reason_codes)
+        self.assertNotIn("PRICE_COVERAGE_NOT_EXACT", result.reason_codes)
+        self.assertNotIn("FRESHNESS_NOT_EXACT", result.reason_codes)
+        self.assertIn("AFFILIATE_LOOKUP_NOT_EXACT", result.reason_codes)
         self.assertIn("COMPLIANCE_PUBLICATION_UNCONFIRMED", result.reason_codes)
+
+    def test_missing_or_invalid_collection_evidence_fails_closed_to_zero_counts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            missing = Path(directory) / "missing.json"
+            with mock.patch.object(subject, "COLLECTION_EVIDENCE", missing):
+                current = subject.current_evidence()
+            self.assertEqual(current.candidate_unique_item_count, 0)
+            self.assertFalse(current.existing_surface_preservation_verified)
+            missing.write_text("{}", encoding="utf-8")
+            with mock.patch.object(subject, "COLLECTION_EVIDENCE", missing):
+                current = subject.current_evidence()
+            self.assertEqual(current.fresh_item_count, 0)
 
     def test_only_the_next_300_item_stage_is_accepted(self):
         result = subject.assess(evidence(target_public_item_count=500))
