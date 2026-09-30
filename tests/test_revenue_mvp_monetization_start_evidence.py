@@ -1,0 +1,51 @@
+import json
+from pathlib import Path
+import sys
+import unittest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import revenue_mvp_current_state as current_state  # noqa: E402
+
+
+class MonetizationStartEvidenceTests(unittest.TestCase):
+    def setUp(self):
+        self.evidence = json.loads(
+            (ROOT / "docs" / "evidence" / "revenue-mvp-monetization-start-20260930.json")
+            .read_text(encoding="utf-8")
+        )
+
+    def test_evidence_matches_current_live_surface(self):
+        state = current_state.current_state()
+        surface = self.evidence["public_surface"]
+        runtime = self.evidence["affiliate_runtime"]
+        self.assertEqual(self.evidence["status"], "MONETIZATION_STARTED")
+        self.assertEqual(state.status, current_state.PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE)
+        self.assertEqual(surface["artifact_sha256"], current_state.REFRESHED_PRODUCT_CARD_SHA256)
+        self.assertEqual(surface["item_count"], state.live_item_count)
+        self.assertEqual(surface["cta_count"], 100)
+        self.assertEqual(runtime["runtime_redirect_matches"], 100)
+        self.assertEqual(runtime["representative_redirects_passed"], 3)
+        self.assertFalse(runtime["private_affiliate_url_exposed"])
+
+    def test_unobserved_results_are_not_invented(self):
+        measurement = self.evidence["measurement"]
+        self.assertTrue(measurement["consent_first_funnel_events_deployed"])
+        for key in (
+            "observed_sessions",
+            "observed_outbound_product_clicks",
+            "observed_affiliate_conversions",
+            "observed_revenue",
+        ):
+            self.assertEqual(measurement[key], "NOT_ACQUIRED")
+
+    def test_scope_expansion_and_paid_changes_remain_closed(self):
+        self.assertFalse(self.evidence["operations"]["paid_plan_change"])
+        self.assertEqual(self.evidence["boundaries"]["global_publication_gate"], "unchanged")
+        self.assertFalse(self.evidence["boundaries"]["automatic_x_posting"])
+        self.assertFalse(self.evidence["boundaries"]["unreviewed_scope_expansion"])
+
+
+if __name__ == "__main__":
+    unittest.main()

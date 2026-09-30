@@ -1,23 +1,27 @@
 # Revenue MVP Current State v0.1
 
 `scripts/revenue_mvp_current_state.py` is the current bounded Control Center
-checkpoint after the one-time edge-verified activation on 2026-09-22.
+checkpoint after the product refresh and edge verification on 2026-09-30.
 
 It distinguishes two facts that older pre-publication checkpoints cannot
 represent:
 
-- the exact 100-item `UNORDERED_REDUCED_SURFACE` at `/items/` is live; and
-- CTA, affiliate eligibility, D1 writes, scope expansion, and the global
-  Publication Gate remain closed.
+- the exact approved 100-item product-card surface at `/items/` is live;
+- all 100 cards contain a proximate `【PR】` disclosure and an opaque same-origin
+  `/go/itm_*` affiliate route;
+- the 100 current public IDs match the D1 lookup, eligibility, redirect, and
+  runtime redirect layers; and
+- the global Publication Gate, paid-plan changes, unreviewed scope expansion,
+  and arbitrary production writes remain closed.
 
-The repository-held edge receipt records the observed HTTP 200 response,
-exact artifact SHA-256, `no-transform` cache directive, 100 articles, and the
-absence of injected analytics, client-side item JavaScript, and affiliate
-references. The checkpoint re-hashes the tracked artifact and independently
-requires the affiliate runtime, route, and D1 evidence to remain inert.
+The repository-held refresh evidence records the observed HTTP 200 response,
+exact artifact SHA-256, 100 products, 100 official images, 100 disclosed CTAs,
+three successful representative redirects, an invalid-ID 404 without a
+Location header, and no private affiliate URL exposure. It also records the
+first automatic 20:00 JST lifecycle revalidation: five selected, five valid,
+zero disabled, and a successful task result.
 
-Any missing, changed, malformed, or unexpectedly enabled evidence fails
-closed. This checkpoint performs no network request, secret read, D1 access,
-write, deployment, redirect, billing change, Gate mutation, or affiliate
-activation. Its only successful next action is
-`REVIEW_SEPARATE_AFFILIATE_CTA_GATE`.
+Any missing, changed, malformed, or unexpectedly expanded evidence fails
+closed. This checkpoint itself performs no network request, secret read, D1
+access, write, deployment, redirect, billing change, or Gate mutation. Its
+successful next action is `MONITOR_DAILY_REVALIDATION_AND_REVENUE_FUNNEL`.

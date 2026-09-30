@@ -1,0 +1,43 @@
+{
+  "version": "0.1",
+  "status": "MONETIZATION_STARTED",
+  "started_at": "2026-09-30T13:36:22Z",
+  "source": "EDGE_VERIFIED_PRODUCTION_EVIDENCE",
+  "public_surface": {
+    "route": "/items/",
+    "artifact_sha256": "21cebab8b202129658fe192055cd72b6cf3cd197765a18cc5b92378104457db1",
+    "deployment_commit": "37c493b7a4650a219d96ca865277cd0a328f8ffb",
+    "item_count": 100,
+    "cta_count": 100,
+    "proximate_pr_disclosure_count": 100
+  },
+  "affiliate_runtime": {
+    "lookup_matches": 100,
+    "eligible_matches": 100,
+    "redirect_matches": 100,
+    "runtime_redirect_matches": 100,
+    "representative_redirects_tested": 3,
+    "representative_redirects_passed": 3,
+    "invalid_public_id_status": 404,
+    "private_affiliate_url_exposed": false
+  },
+  "operations": {
+    "daily_revalidation_time_jst": "20:00",
+    "first_automatic_run_selected": 5,
+    "first_automatic_run_valid": 5,
+    "first_automatic_run_disabled": 0,
+    "paid_plan_change": false
+  },
+  "measurement": {
+    "consent_first_funnel_events_deployed": true,
+    "observed_sessions": "NOT_ACQUIRED",
+    "observed_outbound_product_clicks": "NOT_ACQUIRED",
+    "observed_affiliate_conversions": "NOT_ACQUIRED",
+    "observed_revenue": "NOT_ACQUIRED"
+  },
+  "boundaries": {
+    "global_publication_gate": "unchanged",
+    "automatic_x_posting": false,
+    "unreviewed_scope_expansion": false
+  }
+}
