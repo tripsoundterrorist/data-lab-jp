@@ -54,3 +54,16 @@ schedule is created by this repository change. A
 may begin. `d1_refresh_required=true` means the later private D1 export and
 preapproval step must cover the changed route set. `BLOCKED` must stop the
 refresh path while leaving the currently published artifact unchanged.
+
+The optional Windows schedule is configured separately and is dry-run by
+default:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File scripts/configure-product-refresh-assessment-schedule.ps1
+```
+
+After reviewing `READY_TO_CREATE`, `-Apply` creates one daily 16:30 JST task.
+The installer refuses to replace or modify a same-named task whose action or
+trigger differs. Scheduling only runs the read-only assessment wrapper; it does
+not generate or approve a candidate and does not publish.
