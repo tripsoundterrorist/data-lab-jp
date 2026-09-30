@@ -167,8 +167,9 @@ def build_candidate(
 
 def main() -> int:
     result = build_candidate(
-        fact_text="DATA LABの公開準備状況を更新しました。",
-        landing_path="/", campaign="launch_status",
+        fact_text="FANZA動画100作品の商品情報と公式商品ページへのリンクを掲載しています。",
+        landing_path="/items/", campaign="product_catalog",
+        public_data_available=True,
     )
     print(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
     return 0

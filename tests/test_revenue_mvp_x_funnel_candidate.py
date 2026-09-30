@@ -1,4 +1,5 @@
 import json
+import subprocess
 from pathlib import Path
 import sys
 import unittest
@@ -155,3 +156,19 @@ class XFunnelCandidateTests(unittest.TestCase):
 
     def test_weighted_counter_uses_23_for_each_url(self):
         self.assertEqual(gate.x_weighted_length("A https://example.com/very/long/path B"), 27)
+
+    def test_cli_preview_targets_live_product_catalog(self):
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "revenue_mvp_x_funnel_candidate.py")],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = json.loads(result.stdout)
+        self.assertEqual(output["status"], gate.PREVIEW_ONLY)
+        self.assertIn("https://datalabx.jp/items/?", output["candidate_text"])
+        self.assertIn("utm_campaign=product_catalog", output["candidate_text"])
+        self.assertIn("FANZA動画100作品", output["candidate_text"])
+        self.assertFalse(output["posting_performed"])
