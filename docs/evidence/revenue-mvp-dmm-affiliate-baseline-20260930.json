@@ -1,0 +1,38 @@
+{
+  "version": "0.1",
+  "status": "BASELINE_OBSERVED",
+  "observed_at": "2026-09-30",
+  "source": "DMM_AFFILIATE_AUTHENTICATED_UI_READ_ONLY",
+  "report_period": {
+    "from": "2026-09-29",
+    "to": "2026-09-29",
+    "timezone": "Asia/Tokyo"
+  },
+  "summary": {
+    "clicks": 1,
+    "direct_reward_count": 0,
+    "direct_reward_yen": 0,
+    "category_reward_count": 0,
+    "category_reward_yen": 0,
+    "new_service_reward_count": 0,
+    "new_service_reward_yen": 0,
+    "total_reward_count": 0,
+    "total_reward_yen": 0
+  },
+  "hourly_observation": {
+    "20": {
+      "clicks": 1
+    }
+  },
+  "current_day_at_observation": {
+    "date": "2026-09-30",
+    "status": "NO_DATA"
+  },
+  "limitations": [
+    "The observed click predates the recorded Revenue MVP monetization start and must not be attributed to the current live product surface.",
+    "The report does not identify the referring page in this view.",
+    "A click is not a conversion and no revenue may be inferred from it."
+  ],
+  "identifiers_redacted": true,
+  "external_write_performed": false
+}

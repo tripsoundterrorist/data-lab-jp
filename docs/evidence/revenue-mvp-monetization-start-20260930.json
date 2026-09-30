@@ -31,6 +31,7 @@
   "measurement": {
     "consent_first_funnel_events_deployed": true,
     "ga4_baseline_evidence": "docs/evidence/revenue-mvp-ga4-baseline-20260930.json",
+    "dmm_affiliate_baseline_evidence": "docs/evidence/revenue-mvp-dmm-affiliate-baseline-20260930.json",
     "observed_sessions": "NOT_ACQUIRED",
     "observed_outbound_product_clicks": "NOT_ACQUIRED",
     "observed_affiliate_conversions": "NOT_ACQUIRED",

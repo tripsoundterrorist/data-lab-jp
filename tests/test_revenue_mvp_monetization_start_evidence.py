@@ -46,6 +46,14 @@ class MonetizationStartEvidenceTests(unittest.TestCase):
         self.assertTrue(link["identifiers_redacted"])
         self.assertTrue(link["created_by_user"])
         self.assertFalse(link["external_write_performed_by_agent"])
+        affiliate_path = ROOT / measurement["dmm_affiliate_baseline_evidence"]
+        affiliate = json.loads(affiliate_path.read_text(encoding="utf-8"))
+        self.assertEqual(affiliate["status"], "BASELINE_OBSERVED")
+        self.assertEqual(affiliate["summary"]["clicks"], 1)
+        self.assertEqual(affiliate["summary"]["total_reward_count"], 0)
+        self.assertEqual(affiliate["summary"]["total_reward_yen"], 0)
+        self.assertTrue(affiliate["identifiers_redacted"])
+        self.assertFalse(affiliate["external_write_performed"])
         for key in (
             "observed_sessions",
             "observed_outbound_product_clicks",
