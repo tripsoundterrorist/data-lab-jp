@@ -52,6 +52,20 @@ class DiscoveryControlsTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_image_failure_has_one_shot_safe_fallback(self):
+        for required in (
+            'document.querySelectorAll(".card-image")',
+            'image.addEventListener("error"',
+            '{ once: true }',
+            'image.closest(".card-image-wrap")',
+            'document.createElement("span")',
+            'placeholder.className = "image-placeholder"',
+            'placeholder.textContent = "画像を取得できませんでした"',
+        ):
+            self.assertIn(required, self.source)
+        self.assertNotIn("setTimeout", self.source)
+        self.assertNotIn("retry", self.source.lower())
+
     def test_discovery_javascript_is_syntactically_valid(self):
         node = shutil.which("node")
         if node is None:

@@ -14,6 +14,8 @@ function run(withAnalytics, searchParams = "", grantAfterLoad = false) {
   const events = [];
   const listeners = {};
   const ctaListeners = {};
+  const imageListeners = {};
+  const appended = [];
   const control = (value = "") => ({
     value,
     addEventListener(name, handler) { listeners[`control:${name}`] = handler; },
@@ -30,6 +32,13 @@ function run(withAnalytics, searchParams = "", grantAfterLoad = false) {
   const cta = {
     addEventListener(name, handler) { ctaListeners[name] = handler; },
   };
+  const wrapper = { append(value) { appended.push(value); } };
+  const image = {
+    removed: false,
+    addEventListener(name, handler, options) { imageListeners[name] = { handler, options }; },
+    closest(selector) { return selector === ".card-image-wrap" ? wrapper : null; },
+    remove() { this.removed = true; },
+  };
   const document = {
     querySelector(selector) {
       return {
@@ -42,8 +51,11 @@ function run(withAnalytics, searchParams = "", grantAfterLoad = false) {
       }[selector] || null;
     },
     querySelectorAll(selector) {
-      return selector === ".affiliate-cta-link" ? [cta] : [];
+      if (selector === ".affiliate-cta-link") return [cta];
+      if (selector === ".card-image") return [image];
+      return [];
     },
+    createElement(tagName) { return { tagName, className: "", textContent: "" }; },
     addEventListener(name, handler) { listeners[name] = handler; },
   };
   const window = withAnalytics
@@ -58,7 +70,15 @@ function run(withAnalytics, searchParams = "", grantAfterLoad = false) {
     listeners.dataLabAnalyticsReady();
   }
   ctaListeners.click();
-  return { events, price: price.value, sort: sort.value };
+  imageListeners.error.handler();
+  return {
+    events,
+    price: price.value,
+    sort: sort.value,
+    imageFallback: appended[0],
+    imageRemoved: image.removed,
+    imageErrorOnce: imageListeners.error.options.once,
+  };
 }
 
 assert.deepStrictEqual(run(true).events, ["view_item_list", "outbound_product_click"]);
@@ -77,3 +97,8 @@ assert.deepStrictEqual(
     sort: run(false, "?price_band=unsafe&sort=rank").sort },
   { price: "all", sort: "original" }
 );
+const fallback = run(false);
+assert.equal(fallback.imageRemoved, true);
+assert.equal(fallback.imageErrorOnce, true);
+assert.equal(fallback.imageFallback.className, "image-placeholder");
+assert.equal(fallback.imageFallback.textContent, "画像を取得できませんでした");

@@ -77,6 +77,17 @@
   document.querySelectorAll(".affiliate-cta-link").forEach((link) => {
     link.addEventListener("click", () => trackFunnelEvent("outbound_product_click"));
   });
+  document.querySelectorAll(".card-image").forEach((image) => {
+    image.addEventListener("error", () => {
+      const wrapper = image.closest(".card-image-wrap");
+      if (!wrapper) return;
+      const placeholder = document.createElement("span");
+      placeholder.className = "image-placeholder";
+      placeholder.textContent = "画像を取得できませんでした";
+      image.remove();
+      wrapper.append(placeholder);
+    }, { once: true });
+  });
   document.addEventListener("dataLabAnalyticsReady", trackListView);
   document.addEventListener("DOMContentLoaded", trackListView);
   update();
