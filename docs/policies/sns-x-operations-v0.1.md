@@ -19,6 +19,28 @@ unverified. Text drafts remain preview-only until explicit human approval. This
 does not authorize product media, automatic posting, direct
 affiliate links from X, or any Publication Gate change.
 
+An additional X-platform policy boundary was identified on 2026-10-01. X's
+official Paid Partnerships Policy includes affiliate commissions in its paid
+partnership definition and says adult or sexual products and services are not
+eligible for paid-partnership promotion. Whether a factual DATA LAB post linking
+to a first-party page that separately contains FANZA affiliate CTAs is within
+that prohibition is not explicitly resolved by the published text. Therefore
+new link-bearing or affiliate-promotional X candidates must remain preview-only
+with `X_PAID_PARTNERSHIP_SCOPE_UNCONFIRMED`, even after human approval, until
+03 COMPLIANCE records a verified decision. This X-only hold does not stop the
+live site, its affiliate CTAs, or measurement. Do not delete or modify past posts
+automatically. Official source checked 2026-10-01:
+`https://help.x.com/en/rules-and-policies/paid-partnerships-policy`.
+
+X Premium does not override this boundary. Do not purchase Basic, Premium, or
+Premium+ as a workaround. If COMPLIANCE later clears the intended posting model,
+the only current cost test candidate is one month of web Premium; renewal must
+depend on measured incremental value and the current checkout price. Premium+
+is not justified by current traffic or revenue. Official feature and price
+references checked 2026-10-01:
+`https://help.x.com/en/using-x/x-premium` and
+`https://help.x.com/en/premium-plus-price-update`.
+
 ## Current X presentation
 
 - Header primary: `FANZA動画の価格・人気・ランキングをデータで分析`

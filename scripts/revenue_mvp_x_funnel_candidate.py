@@ -85,11 +85,16 @@ def build_candidate(
     public_data_available: Any = False,
     official_answer_entries: Mapping[str, AnswerDecision] | None = None,
     explicit_human_approval: Any = False,
+    x_paid_partnership_scope_confirmed: Any = False,
 ) -> XCandidateResult:
     reasons: set[str] = set()
     text: str | None = None
     weighted_length: int | None = None
-    if type(public_data_available) is not bool or type(explicit_human_approval) is not bool:
+    if (
+        type(public_data_available) is not bool
+        or type(explicit_human_approval) is not bool
+        or type(x_paid_partnership_scope_confirmed) is not bool
+    ):
         reasons.add("BOOLEAN_INPUT_INVALID")
     if (
         not isinstance(fact_text, str) or not fact_text.strip()
@@ -121,6 +126,8 @@ def build_candidate(
     )
     if not manual_link_conditions_verified:
         reasons.add("SNS_CONDITIONS_NOT_VERIFIED")
+    if x_paid_partnership_scope_confirmed is not True:
+        reasons.add("X_PAID_PARTNERSHIP_SCOPE_UNCONFIRMED")
 
     content_safe = not reasons.intersection({
         "BOOLEAN_INPUT_INVALID", "FACT_TEXT_INVALID", "LANDING_PATH_BLOCKED",
@@ -148,6 +155,7 @@ def build_candidate(
 
     manual_candidate = (
         content_safe and manual_link_conditions_verified
+        and x_paid_partnership_scope_confirmed is True
         and explicit_human_approval is True
     )
     status = (
