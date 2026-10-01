@@ -1,0 +1,34 @@
+{
+  "version": "0.1",
+  "status": "PUBLISHED_AFFILIATE_ROUTES_RECOVERED",
+  "observed_at": "2026-10-01T14:28:23Z",
+  "source_domain": "datalabx.jp",
+  "incident": {
+    "published_cta_count": 100,
+    "pre_recovery_redirect_count": 5,
+    "pre_recovery_not_found_count": 95,
+    "disabled_reason_code": "PROVIDER_UPSTREAM_UNAVAILABLE",
+    "unexpected_hourly_cron_removed": true,
+    "windows_revalidation_task_present": false
+  },
+  "recovery": {
+    "approved_scope_count": 95,
+    "batch_size": 5,
+    "completed_batch_count": 19,
+    "official_api_valid_count": 95,
+    "unavailable_count": 0,
+    "unconfirmed_count": 0,
+    "database_write_performed": true,
+    "temporary_sql_deleted": true
+  },
+  "post_recovery": {
+    "items_http_status": 200,
+    "published_cta_count": 100,
+    "published_d1_pass_enabled_count": 100,
+    "redirect_http_302_count": 100,
+    "redirect_failure_count": 0,
+    "redirect_destination_host": "al.fanza.co.jp"
+  },
+  "secrets_recorded": false,
+  "product_identifiers_recorded": false
+}
