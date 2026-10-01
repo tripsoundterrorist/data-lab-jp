@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = "C:\github\data-lab-jp"
 $PythonExecutable = "C:\Users\User\AppData\Local\Programs\Python\Python310\python.exe"
 $RunnerPath = Join-Path $RepoRoot "scripts\affiliate_local_lifecycle_revalidation.py"
+$HealthPath = Join-Path $RepoRoot "scripts\affiliate_public_route_health.py"
 $LogDirectory = Join-Path $RepoRoot "logs\affiliate-revalidation"
 $RetentionDays = 30
 
@@ -17,6 +18,10 @@ if (-not (Test-Path -LiteralPath $PythonExecutable -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath $RunnerPath -PathType Leaf)) {
     [Console]::Error.WriteLine("wrapper_error=RUNNER_MISSING")
     exit 21
+}
+if (-not (Test-Path -LiteralPath $HealthPath -PathType Leaf)) {
+    [Console]::Error.WriteLine("wrapper_error=HEALTH_CHECK_MISSING")
+    exit 24
 }
 
 try {
@@ -35,21 +40,35 @@ catch {
 
 $timestamp = [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ")
 $LogPath = Join-Path $LogDirectory ("revalidation-{0}-{1}.json" -f $timestamp, $PID)
-$result = & $PythonExecutable -B $RunnerPath --execute --confirm LIVE_LOCAL_DMM_D1_REVALIDATION 2>$null
-$exitCode = $LASTEXITCODE
+$revalidationResult = & $PythonExecutable -B $RunnerPath --execute --confirm LIVE_LOCAL_DMM_D1_REVALIDATION 2>$null
+$revalidationExitCode = $LASTEXITCODE
+$healthResult = & $PythonExecutable -B $HealthPath 2>$null
+$healthExitCode = $LASTEXITCODE
 
 try {
-    $parsed = $result | ConvertFrom-Json -ErrorAction Stop
-    $allowedStatus = $parsed.status -in @("COMPLETED", "FAILED_SAFE", "BLOCKED")
-    $allowedMode = $parsed.mode -eq "LIVE"
-    if (-not $allowedStatus -or -not $allowedMode) {
+    $parsedRevalidation = $revalidationResult | ConvertFrom-Json -ErrorAction Stop
+    $parsedHealth = $healthResult | ConvertFrom-Json -ErrorAction Stop
+    $allowedRevalidationStatus = $parsedRevalidation.status -in @("COMPLETED", "FAILED_SAFE", "BLOCKED")
+    $allowedMode = $parsedRevalidation.mode -eq "LIVE"
+    $allowedHealthStatus = $parsedHealth.status -in @("HEALTHY", "FAILED_SAFE")
+    $healthIsReadOnly = $parsedHealth.external_write_performed -eq $false
+    if (-not $allowedRevalidationStatus -or -not $allowedMode -or
+        -not $allowedHealthStatus -or -not $healthIsReadOnly) {
         throw "invalid result"
     }
-    $result | Set-Content -LiteralPath $LogPath -Encoding UTF8 -NoNewline
+    $record = [ordered]@{
+        version = "0.2"
+        revalidation = $parsedRevalidation
+        public_route_health = $parsedHealth
+    }
+    $record | ConvertTo-Json -Depth 5 -Compress |
+        Set-Content -LiteralPath $LogPath -Encoding UTF8 -NoNewline
 }
 catch {
     [Console]::Error.WriteLine("wrapper_error=RUNNER_RESULT_INVALID")
     exit 23
 }
 
-exit $exitCode
+if ($revalidationExitCode -ne 0) { exit $revalidationExitCode }
+if ($healthExitCode -ne 0) { exit 30 }
+exit 0

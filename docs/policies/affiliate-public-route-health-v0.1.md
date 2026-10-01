@@ -13,3 +13,9 @@ Any missing, duplicate, non-302, wrong-host, network, decoding, or parsing resul
 returns `FAILED_SAFE` with a non-zero process exit. The check performs no remote
 write, repair, retry, publication, schedule change, or notification. Connecting
 it to a schedule or notification path requires a separate reviewed Gate.
+
+The reviewed Windows wrapper runs this check after its bounded 20:00 JST
+revalidation cycle. Both aggregate results are written to the same local log.
+Either a revalidation failure or a public-route health failure makes the Task
+Scheduler run non-zero. The wrapper does not repair, retry, publish, or send a
+notification; operators inspect the aggregate result separately.
