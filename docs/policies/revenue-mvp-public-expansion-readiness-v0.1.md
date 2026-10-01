@@ -256,3 +256,25 @@ capped at five items per batch, with at most one retry after a bounded wait of
 no more than 300 seconds. The plan performs no API request or D1 write and does
 not grant activation. Aggregate evidence is recorded at
 `runtime/evidence/revenue-mvp-expansion-activation-batch-plan-20261001.json`.
+
+## Aggregate COMPLIANCE decision packet
+
+`scripts/revenue_mvp_expansion_compliance_packet.py` composes the official
+lifecycle response, current candidate coverage, presentation policy, and
+product-funnel measurement window into one aggregate-only manual review packet.
+It contains no item identifiers, URLs, credentials, or mutable production
+instructions. Missing or malformed inputs fail closed.
+
+As of 2026-10-01, the official lifecycle core and the current presentation
+policy are verified. The exact 300-item candidate has 300 lookup mappings, 124
+stored redirect targets, and 49 currently runtime-ready redirects. The product
+funnel window is still open. Redirect coverage, runtime eligibility, and the
+closed measurement window therefore remain blocking.
+
+Before a manual COMPLIANCE decision, the operator must also account for the
+unexpected Cloudflare recurring trigger, confirm exact 300-item runtime
+eligibility, exclude API-unavailable and affiliate-ineligible items, preserve
+the PR disclosure and opaque first-party route, and record an explicit decision.
+The packet never turns that decision into permission: COMPLIANCE confirmation,
+publication, and production writes all remain `false`. Sanitized evidence is at
+`runtime/evidence/revenue-mvp-expansion-compliance-packet-20261001.json`.

@@ -1,0 +1,26 @@
+{
+  "candidate_lookup_ready_count": 300,
+  "candidate_redirect_ready_count": 124,
+  "candidate_runtime_ready_count": 49,
+  "compliance_publication_confirmed": false,
+  "official_lifecycle_core_confirmed": true,
+  "presentation_policy_verified": true,
+  "product_funnel_window_closed": false,
+  "production_write_allowed": false,
+  "publication_allowed": false,
+  "reason_codes": [
+    "PRODUCT_FUNNEL_WINDOW_OPEN",
+    "REDIRECT_COVERAGE_INCOMPLETE",
+    "RUNTIME_ELIGIBILITY_INCOMPLETE"
+  ],
+  "required_manual_checks": [
+    "CONFIRM_UNEXPECTED_CLOUDFLARE_CRON_REMOVED_OR_ACCOUNTED_FOR",
+    "CONFIRM_EXACT_300_RUNTIME_ELIGIBILITY",
+    "CONFIRM_API_UNAVAILABLE_AND_AFFILIATE_INELIGIBLE_ITEMS_EXCLUDED",
+    "CONFIRM_PR_DISCLOSURE_AND_OPAQUE_FIRST_PARTY_ROUTE_UNCHANGED",
+    "RECORD_EXPLICIT_MANUAL_COMPLIANCE_DECISION"
+  ],
+  "status": "BLOCKED_PENDING_EXPANSION_EVIDENCE",
+  "target_item_count": 300,
+  "version": "0.1"
+}
