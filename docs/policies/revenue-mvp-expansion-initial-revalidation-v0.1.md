@@ -48,3 +48,13 @@ was 300 lookup rows, 124 stored targets, and 49 runtime-eligible redirects.
 Publication and automatic additional batches remain unauthorized. Evidence is
 stored at
 `runtime/evidence/revenue-mvp-expansion-initial-batch-000-live-success-20261001.json`.
+
+Before preparing or executing another LIVE batch, run
+`scripts/revenue_mvp_revalidation_cadence_guard.py` against the latest private
+D1 SQL export. The guard emits aggregate-only output and blocks when it observes
+three or more consecutive upstream-unavailable run groups at roughly hourly
+intervals. Missing or malformed evidence also fails closed. A blocked result
+does not identify the scheduler owner; it forbids another LIVE batch until the
+Cloudflare trigger configuration is inspected and the unexpected cadence is
+resolved or explicitly accounted for. The guard does not change D1, deployment,
+scheduler, publication, or credentials.
