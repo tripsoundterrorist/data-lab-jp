@@ -19,3 +19,7 @@ revalidation cycle. Both aggregate results are written to the same local log.
 Either a revalidation failure or a public-route health failure makes the Task
 Scheduler run non-zero. The wrapper does not repair, retry, publish, or send a
 notification; operators inspect the aggregate result separately.
+
+The existing DATA LAB health check treats a non-zero Affiliate Revalidation
+task result as `ERROR` because it may represent a broken revenue route. Other
+pre-existing task result severities are unchanged.

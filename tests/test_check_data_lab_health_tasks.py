@@ -34,6 +34,12 @@ class HealthTaskCoverageTests(unittest.TestCase):
             },
         )
 
+    def test_affiliate_nonzero_result_is_error(self):
+        self.assertEqual(
+            subject.task_last_result_level("affiliate_revalidation"), "ERROR"
+        )
+        self.assertEqual(subject.task_last_result_level("collector"), "WARN")
+
 
 if __name__ == "__main__":
     unittest.main()

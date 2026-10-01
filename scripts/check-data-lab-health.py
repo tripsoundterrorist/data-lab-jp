@@ -55,6 +55,11 @@ def overall_status(issues: list[dict[str, str]]) -> str:
     return next(name for name, value in SEVERITY.items() if value == highest)
 
 
+def task_last_result_level(key: str) -> str:
+    """Revenue-route validation failures are operational errors, not warnings."""
+    return "ERROR" if key == "affiliate_revalidation" else "WARN"
+
+
 def read_only_connection(path: Path) -> sqlite3.Connection:
     resolved = path.resolve()
     connection = sqlite3.connect(f"{resolved.as_uri()}?mode=ro", uri=True)
@@ -481,7 +486,11 @@ def check_tasks(issues: list[dict[str, str]]) -> dict[str, Any]:
             add_issue(issues, level, f"TASK_{key.upper()}_DISABLED")
         last_result = task.get("last_result")
         if last_result not in (0, NOT_YET_RUN_RESULT):
-            add_issue(issues, "WARN", f"TASK_{key.upper()}_LAST_RESULT_NONZERO")
+            add_issue(
+                issues,
+                task_last_result_level(key),
+                f"TASK_{key.upper()}_LAST_RESULT_NONZERO",
+            )
     return tasks
 
 
