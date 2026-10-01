@@ -1,0 +1,22 @@
+{
+  "version": "0.1",
+  "status": "FAILED_SAFE",
+  "mode": "LIVE",
+  "batch_index": 0,
+  "selected_count": 5,
+  "post_failure_pending_disabled_count": 5,
+  "api_request_count": "UNKNOWN",
+  "d1_write_performed": false,
+  "temporary_sql_deleted": true,
+  "post_failure_read_only_state_verified": true,
+  "automatic_retry_performed": false,
+  "retry_attempt_limit": 1,
+  "separate_retry_approval_required": true,
+  "identifiers_exposed": false,
+  "reason_codes": [
+    "INITIAL_REVALIDATION_FAILED_SAFE",
+    "D1_STATE_UNCHANGED",
+    "REQUEST_COUNT_NOT_INFERRED",
+    "RETRY_NOT_AUTOMATIC"
+  ]
+}

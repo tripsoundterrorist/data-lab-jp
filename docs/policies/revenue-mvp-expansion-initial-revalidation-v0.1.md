@@ -28,3 +28,13 @@ against production D1 on 2026-10-01. All five rows remained in their original
 pending/disabled state. No provider API request or D1 write occurred. The
 identifier-free receipt is stored at
 `runtime/evidence/revenue-mvp-expansion-initial-batch-000-dry-run-20261001.json`.
+
+The first explicitly approved LIVE attempt failed safe before any D1 write. A
+post-failure read-only selection confirmed that all five rows remained pending
+and disabled, and temporary SQL was absent. The original aggregate result did
+not retain a reliable request count, so the number of provider requests is
+recorded as unknown rather than inferred. No automatic retry was made. The
+executor now retains an identifier-free failure stage and treats malformed
+provider shapes as unconfirmed, not unavailable. Any retry is limited to one
+separately approved attempt. Sanitized evidence is stored at
+`runtime/evidence/revenue-mvp-expansion-initial-batch-000-live-attempt-20261001.json`.

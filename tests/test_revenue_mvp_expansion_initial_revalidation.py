@@ -61,5 +61,18 @@ class InitialRevalidationTests(unittest.TestCase):
         self.assertEqual(result.unconfirmed, 2)
         self.assertEqual(result.valid, 0)
 
+    def test_malformed_provider_shape_stays_unconfirmed(self):
+        calls = []
+        def runner(command, **kwargs):
+            calls.append(command)
+            return Process(selection()) if len(calls) == 1 else Process(success())
+        result = subject.run(
+            public_ids=IDS, execute=True, confirmed=True, runner=runner,
+            fetcher=lambda **kwargs: {"result": {"items": [None]}},
+            checked_at="2026-10-01T00:00:00Z",
+        )
+        self.assertEqual(result.status, "COMPLETED")
+        self.assertEqual(result.unconfirmed, 2)
+
 
 if __name__ == "__main__": unittest.main()

@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 import affiliate_local_lifecycle_revalidation as shared
 from affiliate_runtime_dmm_connector import AffiliateRuntimeConnectorError, fetch_item_response
@@ -113,31 +113,44 @@ def run(*, public_ids: tuple[str, ...], execute: bool = False, confirmed: bool =
         checked_at: str | None = None) -> Result:
     mode = "LIVE" if execute else "DRY_RUN"
     temporary: Path | None = None
+    selected_count = 0
+    stage = "SELECTION"
     try:
         if execute and not confirmed:
             return _result("BLOCKED", mode, "EXPLICIT_CONFIRMATION_REQUIRED")
         if not 1 <= len(public_ids) <= 5 or len(set(public_ids)) != len(public_ids):
             return _result("BLOCKED", mode, "SELECTION_INVALID")
         rows = _select(public_ids, runner)
+        selected_count = len(rows)
         if not execute:
             return _result("READY", mode, "INITIAL_SELECTION_VALIDATED", selected=len(rows))
+        stage = "PROVIDER"
         outcomes: list[tuple[str, str | None]] = []
         for row in rows:
             try:
                 payload = fetcher(content_id=row["content_id"], env_path=shared.ENV_PATH)
-                items = payload.get("result", {}).get("items")
-                if isinstance(items, list) and len(items) == 1 and items[0].get("content_id") == row["content_id"]:
+                result = payload.get("result") if isinstance(payload, Mapping) else None
+                items = result.get("items") if isinstance(result, Mapping) else None
+                if (isinstance(items, list) and len(items) == 1
+                        and isinstance(items[0], Mapping)
+                        and items[0].get("content_id") == row["content_id"]):
                     url = items[0].get("affiliateURL")
                     outcomes.append(("VALID", url) if shared._safe_url(url) else ("NOT_AVAILABLE", None))
-                else:
+                elif isinstance(items, list) and len(items) == 0:
                     outcomes.append(("NOT_AVAILABLE", None))
-            except AffiliateRuntimeConnectorError:
+                else:
+                    outcomes.append(("UNCONFIRMED", None))
+            except (AffiliateRuntimeConnectorError, AttributeError, TypeError, ValueError):
                 outcomes.append(("UNCONFIRMED", None))
         timestamp = checked_at or datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        if not isinstance(timestamp, str) or not timestamp.endswith("Z"):
+            return _result("BLOCKED", mode, "CHECKED_AT_INVALID", selected=selected_count)
+        stage = "TEMPORARY_SQL"
         descriptor, name = tempfile.mkstemp(prefix="data-lab-expansion-initial-", suffix=".sql")
         temporary = Path(name)
         with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(_statements(rows, outcomes, timestamp))
+        stage = "D1_WRITE"
         process = shared._wrangler(
             ["d1", "execute", shared.DATABASE_NAME, "--remote", "--json", "--file", str(temporary)], runner
         )
@@ -158,7 +171,8 @@ def run(*, public_ids: tuple[str, ...], execute: bool = False, confirmed: bool =
                 temporary.unlink()
             except OSError:
                 pass
-        return _result("FAILED_SAFE", mode, "INITIAL_REVALIDATION_FAILED",
+        return _result("FAILED_SAFE", mode, f"INITIAL_REVALIDATION_{stage}_FAILED",
+                       selected=selected_count,
                        temporary_sql_deleted=temporary is None or not temporary.exists())
 
 
