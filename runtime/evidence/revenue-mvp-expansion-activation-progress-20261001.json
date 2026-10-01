@@ -1,0 +1,23 @@
+{
+  "active_count": 49,
+  "api_request_performed": false,
+  "candidate_count": 300,
+  "d1_write_performed": false,
+  "explicit_live_approval_required": true,
+  "initial_completed_count": 5,
+  "initial_remaining_count": 173,
+  "legacy_pending_review_count": 3,
+  "live_execution_allowed": false,
+  "next_initial_batch_size": 5,
+  "reason_codes": [
+    "READ_ONLY_AGGREGATE_PROGRESS",
+    "INITIAL_AND_RETRY_QUEUES_SEPARATED",
+    "EXPLICIT_LIVE_APPROVAL_REQUIRED"
+  ],
+  "redirect_target_count": 124,
+  "remaining_initial_batch_count": 35,
+  "retry_waiting_count": 75,
+  "runtime_redirect_count": 49,
+  "status": "ACTIVATION_PROGRESS_REVIEWED",
+  "version": "0.1"
+}

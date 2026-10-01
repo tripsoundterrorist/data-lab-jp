@@ -66,3 +66,13 @@ no active Cron trigger and no capacity blocker. Until that observation exists,
 the gate remains blocked. Passing permits preparation of the next bounded batch
 only; LIVE execution, D1 writes, and publication stay false and continue to
 require a separate explicit approval.
+
+`scripts/revenue_mvp_expansion_activation_progress.py` reclassifies the exact
+300-item candidate from hash-pinned pre-expansion and post-batch snapshots. It
+reports aggregate counts only and keeps remaining initial validation, retry,
+active, and legacy-pending populations separate. The current snapshot records
+5 completed initial validations, 173 untouched initial validations, 75 retry
+rows, 49 active rows, and 3 legacy-pending rows; 124 redirect targets exist and
+49 are runtime eligible. The next initial batch is capped at five, but the plan
+does not permit execution or any D1 write. Sanitized evidence is stored at
+`runtime/evidence/revenue-mvp-expansion-activation-progress-20261001.json`.
