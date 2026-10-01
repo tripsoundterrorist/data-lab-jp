@@ -58,3 +58,11 @@ does not identify the scheduler owner; it forbids another LIVE batch until the
 Cloudflare trigger configuration is inspected and the unexpected cadence is
 resolved or explicitly accounted for. The guard does not change D1, deployment,
 scheduler, publication, or credentials.
+
+`scripts/revenue_mvp_expansion_resume_gate.py` separates that historical
+failure evidence from a current dashboard observation. The historical cadence
+is accounted for only when a fresh, validated Cloudflare Free observation shows
+no active Cron trigger and no capacity blocker. Until that observation exists,
+the gate remains blocked. Passing permits preparation of the next bounded batch
+only; LIVE execution, D1 writes, and publication stay false and continue to
+require a separate explicit approval.
