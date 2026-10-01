@@ -31,6 +31,10 @@ MAX_NEW_ROUTE_REVALIDATION_AGE = timedelta(hours=48)
 ROUTE_PATTERN = re.compile(rb'href="/go/(itm_[0-9a-f]{24})"')
 
 
+class GateBlocked(ValueError):
+    """Fail closed with a fixed, non-sensitive operator reason code."""
+
+
 @dataclass(frozen=True)
 class PreapprovalResult:
     version: str
@@ -147,7 +151,7 @@ def assess(
         candidate_ids = {value.decode("ascii") for value in ROUTE_PATTERN.findall(candidate_bytes)}
         current_ids = {card.public_id for card in cards.reconcile(source.read_bytes(), database)}
         if len(candidate_ids) != expected_count or len(current_ids) != expected_count:
-            raise ValueError("SURFACE_IDENTITY_INVALID")
+            raise GateBlocked("SURFACE_IDENTITY_INVALID")
         added_ids = candidate_ids - current_ids
 
         connection = sqlite3.connect(":memory:")
@@ -182,15 +186,15 @@ def assess(
                 (public_id,),
             ).fetchone()
             if event is None or event[1:] != ("VALID", 1):
-                raise ValueError("NEW_ROUTE_REVALIDATION_MISSING")
+                raise GateBlocked("NEW_ROUTE_REVALIDATION_MISSING")
             checked = rehearsal._timestamp(event[0])
             age = now - checked
             if age < timedelta(0) or age > MAX_NEW_ROUTE_REVALIDATION_AGE:
-                raise ValueError("NEW_ROUTE_REVALIDATION_STALE")
+                raise GateBlocked("NEW_ROUTE_REVALIDATION_STALE")
             fresh += 1
 
         if (lookup, eligible, redirect, runtime) != (expected_count,) * 4:
-            raise ValueError("D1_RUNTIME_COVERAGE_INCOMPLETE")
+            raise GateBlocked("D1_RUNTIME_COVERAGE_INCOMPLETE")
         return PreapprovalResult(
             VERSION, READY, expected_db_sha256,
             hashlib.sha256(source.read_bytes()).hexdigest(),
@@ -205,6 +209,13 @@ def assess(
                 "EXPLICIT_PRODUCTION_APPROVAL_REQUIRED",
             ),
         )
+    except GateBlocked as error:
+        try:
+            if output.exists():
+                output.unlink()
+        except OSError:
+            pass
+        return _blocked(str(error))
     except (OSError, UnicodeError, sqlite3.Error, ValueError, TypeError):
         try:
             if output.exists():

@@ -125,6 +125,7 @@ class ProductRefreshPreapprovalTests(unittest.TestCase):
         )
         result = self.assess()
         self.assertEqual(result.status, subject.BLOCKED)
+        self.assertEqual(result.reason_codes, ("D1_RUNTIME_COVERAGE_INCOMPLETE",))
         self.assertFalse(self.output.exists())
 
     def test_identity_mismatch_fails_before_output(self):
