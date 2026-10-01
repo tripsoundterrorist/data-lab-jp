@@ -37,6 +37,7 @@ class RankingEvidence:
     collector_integration_tested: bool
     compliance_publication_confirmed: bool
     product_funnel_window_closed: bool
+    product_funnel_review_completed: bool
 
 
 @dataclass(frozen=True)
@@ -90,6 +91,7 @@ def assess(evidence: Any) -> RankingReadiness:
         "COLLECTOR_INTEGRATION_UNTESTED": evidence.collector_integration_tested,
         "COMPLIANCE_PUBLICATION_UNCONFIRMED": evidence.compliance_publication_confirmed,
         "PRODUCT_FUNNEL_WINDOW_NOT_CLOSED": evidence.product_funnel_window_closed,
+        "PRODUCT_FUNNEL_REVIEW_NOT_COMPLETED": evidence.product_funnel_review_completed,
     }
     reasons = {reason for reason, passed in checks.items() if passed is not True}
     if not evaluated.valid:
@@ -111,6 +113,8 @@ def assess(evidence: Any) -> RankingReadiness:
         next_actions.append("OBTAIN_COMPLIANCE_PUBLICATION_DECISION")
     if not evidence.product_funnel_window_closed:
         next_actions.append("WAIT_FOR_CLOSED_PRODUCT_FUNNEL_WINDOW")
+    if not evidence.product_funnel_review_completed:
+        next_actions.append("COMPLETE_PRODUCT_FUNNEL_REVIEW")
 
     return RankingReadiness(
         VERSION,
@@ -127,7 +131,7 @@ def assess(evidence: Any) -> RankingReadiness:
 
 
 def current_evidence() -> RankingEvidence:
-    return RankingEvidence(False, False, False, False, False, False, False)
+    return RankingEvidence(False, False, False, False, False, False, False, False)
 
 
 def main() -> int:

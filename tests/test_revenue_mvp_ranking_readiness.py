@@ -26,6 +26,8 @@ class RankingReadinessTests(unittest.TestCase):
         self.assertFalse(result.ranking_label_allowed)
         self.assertIn("OFFICIAL_SORT_DEFINITION_UNCONFIRMED", result.reason_codes)
         self.assertIn("RANK_COLLECTION_NOT_PRODUCTION_ELIGIBLE", result.reason_codes)
+        self.assertIn("PRODUCT_FUNNEL_REVIEW_NOT_COMPLETED", result.reason_codes)
+        self.assertIn("COMPLETE_PRODUCT_FUNNEL_REVIEW", result.next_actions)
 
     def test_price_and_observation_sorts_remain_safe(self):
         result = subject.assess(subject.current_evidence())

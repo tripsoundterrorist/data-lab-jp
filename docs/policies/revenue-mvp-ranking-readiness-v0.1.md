@@ -9,8 +9,9 @@ popularity, sales, official, or overall ranking.
 state is `BLOCKED` because the official meaning of the API `rank` sort, isolated
 rank-population collection, temporal stability, database handoff, collector
 integration, COMPLIANCE publication decision, and a closed product-funnel window
-are not all verified. The existing collection policy also keeps rank collection
-outside production eligibility.
+plus its completed processed-data review are not all verified. A closed time
+window alone is insufficient. The existing collection policy also keeps rank
+collection outside production eligibility.
 
 Even a future complete evidence set reaches only
 `READY_FOR_MANUAL_IMPLEMENTATION_REVIEW`. It does not publish a ranking, modify
