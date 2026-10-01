@@ -1,0 +1,21 @@
+{
+  "version": "0.1",
+  "status": "LINK_BEARING_POSTS_BLOCKED",
+  "observed_at": "2026-10-02",
+  "official_source": "https://help.x.com/en/rules-and-policies/paid-partnerships-policy",
+  "verified_facts": [
+    "Sales commissions generated through affiliate links are included in X's paid-partnership definition.",
+    "Adult and sexual products and services, including adult entertainment, are listed as prohibited industries for paid-partnership promotion.",
+    "X may consider case-by-case exceptions upon request."
+  ],
+  "data_lab_state": {
+    "case_by_case_exception_verified": false,
+    "link_bearing_post_candidate_allowed": false,
+    "affiliate_promotional_post_candidate_allowed": false,
+    "link_free_non_promotional_draft_allowed_after_manual_review": true,
+    "live_web_affiliate_surface_affected": false
+  },
+  "reason_code": "X_ADULT_AFFILIATE_PAID_PARTNERSHIP_BLOCKED",
+  "automatic_x_change_performed": false,
+  "posting_performed": false
+}

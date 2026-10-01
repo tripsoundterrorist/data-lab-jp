@@ -19,7 +19,7 @@ def build(**changes):
     values = {
         "fact_text": "価格データの観測状況を更新しました。",
         "landing_path": "/column-price", "campaign": "price_update",
-        "x_paid_partnership_scope_confirmed": True,
+        "x_case_by_case_exception_confirmed": True,
     }
     values.update(changes)
     return gate.build_candidate(**values)
@@ -133,18 +133,18 @@ class XFunnelCandidateTests(unittest.TestCase):
         self.assertEqual(build(public_data_available=1).status, gate.BLOCKED)
         self.assertEqual(build(explicit_human_approval=1).status, gate.BLOCKED)
         self.assertEqual(
-            build(x_paid_partnership_scope_confirmed=1).status, gate.BLOCKED
+            build(x_case_by_case_exception_confirmed=1).status, gate.BLOCKED
         )
 
-    def test_unconfirmed_x_paid_partnership_scope_never_becomes_post_candidate(self):
+    def test_missing_x_case_by_case_exception_never_becomes_post_candidate(self):
         result = build(
-            x_paid_partnership_scope_confirmed=False,
+            x_case_by_case_exception_confirmed=False,
             explicit_human_approval=True,
         )
         self.assertEqual(result.status, gate.PREVIEW_ONLY)
         self.assertFalse(result.manual_post_candidate)
         self.assertIn(
-            "X_PAID_PARTNERSHIP_SCOPE_UNCONFIRMED", result.reason_codes
+            "X_ADULT_AFFILIATE_PAID_PARTNERSHIP_BLOCKED", result.reason_codes
         )
 
     def test_output_is_within_x_weighted_character_limit(self):
@@ -188,5 +188,5 @@ class XFunnelCandidateTests(unittest.TestCase):
         self.assertIn("FANZA動画100作品", output["candidate_text"])
         self.assertFalse(output["posting_performed"])
         self.assertIn(
-            "X_PAID_PARTNERSHIP_SCOPE_UNCONFIRMED", output["reason_codes"]
+            "X_ADULT_AFFILIATE_PAID_PARTNERSHIP_BLOCKED", output["reason_codes"]
         )

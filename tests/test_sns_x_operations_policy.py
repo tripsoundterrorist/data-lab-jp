@@ -47,7 +47,7 @@ class SnsXOperationsPolicyTests(unittest.TestCase):
         for value in (
             "`@datalab_jp` to Premium on 2026-10-01",
             "bounded 30-day acquisition",
-            "X_PAID_PARTNERSHIP_SCOPE_UNCONFIRMED",
+            "X_ADULT_AFFILIATE_PAID_PARTNERSHIP_BLOCKED",
             "link-free, non-promotional",
             "pre-upgrade baseline",
             "confirmed revenue",
@@ -63,7 +63,7 @@ class SnsXOperationsPolicyTests(unittest.TestCase):
             "Wednesday/Sunday 19:30",
             "Saturday task",
             "does not create another schedule",
-            "X_PAID_PARTNERSHIP_SCOPE_UNCONFIRMED",
+            "X_ADULT_AFFILIATE_PAID_PARTNERSHIP_BLOCKED",
             "通常は日本語140字以内",
             "日曜日だけ",
             "300〜600字",

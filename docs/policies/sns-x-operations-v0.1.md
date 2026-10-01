@@ -19,17 +19,18 @@ unverified. Text drafts remain preview-only until explicit human approval. This
 does not authorize product media, automatic posting, direct
 affiliate links from X, or any Publication Gate change.
 
-An additional X-platform policy boundary was identified on 2026-10-01. X's
-official Paid Partnerships Policy includes affiliate commissions in its paid
-partnership definition and says adult or sexual products and services are not
-eligible for paid-partnership promotion. Whether a factual DATA LAB post linking
-to a first-party page that separately contains FANZA affiliate CTAs is within
-that prohibition is not explicitly resolved by the published text. Therefore
-new link-bearing or affiliate-promotional X candidates must remain preview-only
-with `X_PAID_PARTNERSHIP_SCOPE_UNCONFIRMED`, even after human approval, until
-03 COMPLIANCE records a verified decision. This X-only hold does not stop the
-live site, its affiliate CTAs, or measurement. Do not delete or modify past posts
-automatically. Official source checked 2026-10-01:
+An X-platform policy boundary was rechecked on 2026-10-02. X's official Paid
+Partnerships Policy expressly includes sales commissions from affiliate links
+in its paid-partnership definition and lists adult and sexual products and
+services, including adult entertainment, as prohibited industries. The policy
+says X may consider case-by-case exceptions upon request, but no DATA LAB
+exception is recorded. Because the published DATA LAB landing page contains
+FANZA affiliate CTAs, new link-bearing or affiliate-promotional X candidates
+are blocked with `X_ADULT_AFFILIATE_PAID_PARTNERSHIP_BLOCKED` unless a specific
+case-by-case exception is verified. Human approval alone cannot override this
+gate. This X-only hold does not stop the live site, its affiliate CTAs, or
+measurement. Do not delete or modify past posts automatically. Official source
+checked 2026-10-02:
 `https://help.x.com/en/rules-and-policies/paid-partnerships-policy`.
 
 X Premium does not override this boundary. The owner reported upgrading
@@ -96,7 +97,7 @@ Any post containing an advertising or affiliate path must state `【PR】` clear
 in the post body. A DATA LAB page containing affiliate CTAs is treated as an
 advertising path for this conservative manual-post policy.
 
-While `X_PAID_PARTNERSHIP_SCOPE_UNCONFIRMED` remains active, distribute only
+While `X_ADULT_AFFILIATE_PAID_PARTNERSHIP_BLOCKED` remains active, distribute only
 link-free, non-promotional trust and explanation posts after manual review.
 Link-bearing and affiliate-promotional drafts may be generated for internal
 review but must not be handed off as postable. The former 60--70% linked-draft
