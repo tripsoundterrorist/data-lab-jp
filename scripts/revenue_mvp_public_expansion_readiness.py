@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import revenue_mvp_cloudflare_dashboard_observation as cloudflare_dashboard
+
 
 VERSION = "0.1"
 CURRENT_PUBLIC_ITEM_COUNT = 100
@@ -20,6 +22,8 @@ D1_COVERAGE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-in
 SITEMAP_CAPACITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-sitemap-capacity-20261001.json"
 ROLLBACK_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-rollback-rehearsal-20261001.json"
 SEO_QUALITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-seo-quality-20261001.json"
+CLOUDFLARE_CAPACITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-cloudflare-dashboard-observation.json"
+FUNNEL_WINDOW_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-product-funnel-window-20261001.json"
 
 
 @dataclass(frozen=True)
@@ -196,6 +200,8 @@ def current_evidence() -> ExpansionEvidence:
     sitemap_capacity = False
     rollback_verified = False
     seo_quality_reviewed = False
+    cloudflare_capacity_verified = False
+    funnel_window_closed = False
     try:
         value = json.loads(COLLECTION_EVIDENCE.read_text(encoding="utf-8"))
         evidence_valid = (
@@ -223,6 +229,32 @@ def current_evidence() -> ExpansionEvidence:
         if evidence_valid:
             verified_count = NEXT_STAGE_ITEM_COUNT
             surface_preserved = True
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        pass
+
+    try:
+        value = json.loads(CLOUDFLARE_CAPACITY_EVIDENCE.read_text(encoding="utf-8"))
+        observation = cloudflare_dashboard.validate(value)
+        cloudflare_capacity_verified = (
+            observation.status == cloudflare_dashboard.VERIFIED
+            and observation.cloudflare_free_plan_capacity_verified is True
+            and observation.unexpected_cron_absent is True
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        pass
+
+    try:
+        value = json.loads(FUNNEL_WINDOW_EVIDENCE.read_text(encoding="utf-8"))
+        funnel_window_closed = (
+            type(value) is dict
+            and value.get("version") == "0.1"
+            and value.get("status") == "PRODUCT_FUNNEL_WINDOW_READY_FOR_MANUAL_EXPORT"
+            and value.get("product_funnel_window_closed") is True
+            and value.get("ga4_export_allowed") is True
+            and value.get("expansion_decision_allowed") is False
+            and value.get("production_write_allowed") is False
+            and value.get("reason_codes") == ["MANUAL_GA4_EXPORT_REQUIRED"]
+        )
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
         pass
 
@@ -353,9 +385,9 @@ def current_evidence() -> ExpansionEvidence:
         existing_surface_preservation_verified=surface_preserved,
         sitemap_capacity_verified=sitemap_capacity,
         seo_quality_reviewed=seo_quality_reviewed,
-        cloudflare_free_plan_capacity_verified=False,
+        cloudflare_free_plan_capacity_verified=cloudflare_capacity_verified,
         compliance_publication_confirmed=False,
-        product_funnel_window_closed=False,
+        product_funnel_window_closed=funnel_window_closed,
         rollback_plan_verified=rollback_verified,
     )
 

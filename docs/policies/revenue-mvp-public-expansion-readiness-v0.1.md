@@ -287,3 +287,13 @@ any active Cron trigger block verification. A passing observation verifies
 capacity only; it never permits a paid-plan change, production change, batch
 execution, or publication. No real dashboard value is recorded until it has
 been observed directly.
+
+The expansion readiness gate consumes the sanitized Cloudflare observation and
+product-funnel window independently. It revalidates Cloudflare freshness at
+read time; a stored observation older than 24 hours becomes `false`. Missing,
+malformed, incomplete, or merely review-ready evidence also maps to `false`.
+The current COMPLIANCE packet is decision material, not an approval receipt, so
+the COMPLIANCE flag remains hard-false until a separate explicit decision
+contract is defined. Even fully verified prerequisites yield only manual
+expansion-review readiness. Publication, deployment, and production writes
+remain `false` in the gate result.

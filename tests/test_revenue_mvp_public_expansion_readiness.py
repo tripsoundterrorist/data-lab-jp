@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -106,6 +108,80 @@ class PublicExpansionReadinessTests(unittest.TestCase):
             with mock.patch.object(subject, "SEO_QUALITY_EVIDENCE", invalid):
                 current = subject.current_evidence()
             self.assertFalse(current.seo_quality_reviewed)
+
+    def test_missing_cloudflare_observation_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            missing = Path(directory) / "missing.json"
+            with mock.patch.object(subject, "CLOUDFLARE_CAPACITY_EVIDENCE", missing):
+                current = subject.current_evidence()
+            self.assertFalse(current.cloudflare_free_plan_capacity_verified)
+
+    def test_current_valid_cloudflare_observation_is_consumed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            observation = Path(directory) / "cloudflare.json"
+            observation.write_text(json.dumps({
+                "version": "0.1",
+                "observed_at": datetime.now(timezone.utc).isoformat(),
+                "workers_requests_24h": 1,
+                "workers_cpu_limit_errors_24h": 0,
+                "d1_rows_read_24h": 1,
+                "d1_rows_written_24h": 1,
+                "d1_database_storage_bytes": 1,
+                "d1_account_storage_bytes": 1,
+                "active_cron_triggers": [],
+            }), encoding="utf-8")
+            with mock.patch.object(
+                subject, "CLOUDFLARE_CAPACITY_EVIDENCE", observation
+            ):
+                current = subject.current_evidence()
+            self.assertTrue(current.cloudflare_free_plan_capacity_verified)
+
+    def test_stale_cloudflare_observation_is_rejected_at_read_time(self):
+        with tempfile.TemporaryDirectory() as directory:
+            observation = Path(directory) / "cloudflare.json"
+            observation.write_text(json.dumps({
+                "version": "0.1",
+                "observed_at": (
+                    datetime.now(timezone.utc) - timedelta(days=2)
+                ).isoformat(),
+                "workers_requests_24h": 1,
+                "workers_cpu_limit_errors_24h": 0,
+                "d1_rows_read_24h": 1,
+                "d1_rows_written_24h": 1,
+                "d1_database_storage_bytes": 1,
+                "d1_account_storage_bytes": 1,
+                "active_cron_triggers": [],
+            }), encoding="utf-8")
+            with mock.patch.object(
+                subject, "CLOUDFLARE_CAPACITY_EVIDENCE", observation
+            ):
+                current = subject.current_evidence()
+            self.assertFalse(current.cloudflare_free_plan_capacity_verified)
+
+    def test_current_compliance_and_funnel_evidence_remain_unconfirmed(self):
+        current = subject.current_evidence()
+        self.assertFalse(current.compliance_publication_confirmed)
+        self.assertFalse(current.product_funnel_window_closed)
+
+    def test_invalid_external_evidence_cannot_self_authorize_publication(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cloudflare = root / "cloudflare.json"
+            cloudflare.write_text("{}", encoding="utf-8")
+            funnel = root / "funnel.json"
+            funnel.write_text("{}", encoding="utf-8")
+            with (
+                mock.patch.object(subject, "CLOUDFLARE_CAPACITY_EVIDENCE", cloudflare),
+                mock.patch.object(subject, "FUNNEL_WINDOW_EVIDENCE", funnel),
+            ):
+                current = subject.current_evidence()
+            self.assertFalse(current.cloudflare_free_plan_capacity_verified)
+            self.assertFalse(current.compliance_publication_confirmed)
+            self.assertFalse(current.product_funnel_window_closed)
+
+    def test_compliance_remains_false_without_separate_decision_contract(self):
+        current = subject.current_evidence()
+        self.assertFalse(current.compliance_publication_confirmed)
 
     def test_only_the_next_300_item_stage_is_accepted(self):
         result = subject.assess(evidence(target_public_item_count=500))
