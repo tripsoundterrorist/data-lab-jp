@@ -50,8 +50,8 @@ class PublicExpansionReadinessTests(unittest.TestCase):
         self.assertNotIn("FRESHNESS_NOT_EXACT", result.reason_codes)
         self.assertNotIn("AFFILIATE_LOOKUP_NOT_EXACT", result.reason_codes)
         self.assertEqual(current.affiliate_lookup_ready_count, 300)
-        self.assertEqual(current.affiliate_redirect_ready_count, 119)
-        self.assertEqual(current.runtime_revalidation_ready_count, 69)
+        self.assertEqual(current.affiliate_redirect_ready_count, 124)
+        self.assertEqual(current.runtime_revalidation_ready_count, 49)
         self.assertIn("AFFILIATE_REDIRECT_NOT_EXACT", result.reason_codes)
         self.assertIn("COMPLIANCE_PUBLICATION_UNCONFIRMED", result.reason_codes)
 

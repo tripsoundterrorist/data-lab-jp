@@ -38,3 +38,13 @@ executor now retains an identifier-free failure stage and treats malformed
 provider shapes as unconfirmed, not unavailable. Any retry is limited to one
 separately approved attempt. Sanitized evidence is stored at
 `runtime/evidence/revenue-mvp-expansion-initial-batch-000-live-attempt-20261001.json`.
+
+After the separately approved single retry, all five selected rows passed exact
+official API and affiliate URL validation and were conditionally approved and
+enabled. Five redirect targets were added. A concurrent recurring revalidation
+changed 25 other rows from pass/enabled to upstream-unconfirmed pending/disabled;
+those fail-closed changes were not reversed. The resulting candidate coverage
+was 300 lookup rows, 124 stored targets, and 49 runtime-eligible redirects.
+Publication and automatic additional batches remain unauthorized. Evidence is
+stored at
+`runtime/evidence/revenue-mvp-expansion-initial-batch-000-live-success-20261001.json`.

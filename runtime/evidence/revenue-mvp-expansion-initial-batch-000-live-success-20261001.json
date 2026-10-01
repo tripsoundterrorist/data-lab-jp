@@ -1,0 +1,28 @@
+{
+  "version": "0.1",
+  "status": "INITIAL_BATCH_000_VERIFIED",
+  "remote_sha256": "9220bce210aa3cb968949c986451ea9706bfb4c9f030096a8f01a1cb31ca96d1",
+  "lookup_row_count": 1287,
+  "candidate_lookup_ready_count": 300,
+  "candidate_redirect_ready_count": 124,
+  "candidate_runtime_revalidation_ready_count": 49,
+  "candidate_mapping_conflict_count": 0,
+  "selected_count": 5,
+  "valid_count": 5,
+  "unavailable_count": 0,
+  "unconfirmed_count": 0,
+  "selected_rows_conditionally_approved": true,
+  "selected_redirects_added": 5,
+  "concurrent_fail_closed_change_count": 25,
+  "concurrent_change": "PASS_ENABLED_TO_PENDING_DISABLED",
+  "temporary_sql_deleted": true,
+  "publication_allowed": false,
+  "automatic_additional_batch_allowed": false,
+  "reason_codes": [
+    "BOUNDED_INITIAL_REVALIDATION_COMPLETED",
+    "SELECTED_ROWS_ACTIVE",
+    "SELECTED_REDIRECTS_ADDED",
+    "CONCURRENT_REVALIDATION_FAIL_CLOSED",
+    "PUBLICATION_NOT_AUTHORIZED"
+  ]
+}

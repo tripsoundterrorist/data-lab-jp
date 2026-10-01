@@ -16,7 +16,7 @@ BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
 ROOT = Path(__file__).resolve().parents[1]
 COLLECTION_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-collection-20261001.json"
-D1_COVERAGE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-d1-postwrite-20261001.json"
+D1_COVERAGE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-initial-batch-000-live-success-20261001.json"
 
 
 @dataclass(frozen=True)
@@ -225,19 +225,18 @@ def current_evidence() -> ExpansionEvidence:
         d1_evidence_valid = (
             type(value) is dict
             and value.get("version") == "0.1"
-            and value.get("status") == "POSTWRITE_VERIFIED"
-            and value.get("before_row_count") == 1109
-            and value.get("after_row_count") == 1287
-            and value.get("new_row_count") == 178
+            and value.get("status") == "INITIAL_BATCH_000_VERIFIED"
+            and value.get("lookup_row_count") == 1287
             and value.get("candidate_lookup_ready_count") == 300
             and type(value.get("candidate_redirect_ready_count")) is int
             and 0 <= value["candidate_redirect_ready_count"] <= 300
             and type(value.get("candidate_runtime_revalidation_ready_count")) is int
             and 0 <= value["candidate_runtime_revalidation_ready_count"] <= 300
             and value.get("candidate_mapping_conflict_count") == 0
-            and value.get("existing_rows_unchanged") is True
-            and value.get("new_mapping_exact_candidate_gap") is True
-            and value.get("new_rows_disabled_and_pending") is True
+            and value.get("selected_count") == 5
+            and value.get("valid_count") == 5
+            and value.get("selected_rows_conditionally_approved") is True
+            and value.get("selected_redirects_added") == 5
             and value.get("publication_allowed") is False
         )
         if d1_evidence_valid:
