@@ -1,0 +1,30 @@
+{
+  "activation_scope_target_ready": false,
+  "cloudflare_free_plan_capacity_verified": false,
+  "cta_d1_queries_per_click": 1,
+  "cta_worker_requests_per_click": 1,
+  "d1_free_account_storage_bytes": 5000000000,
+  "d1_free_database_bytes": 500000000,
+  "d1_free_queries_per_invocation": 50,
+  "d1_free_rows_read_per_day": 5000000,
+  "d1_free_rows_written_per_day": 100000,
+  "dashboard_checks": [
+    "WORKERS_REQUESTS_24H_AND_CPU_LIMIT_ERRORS",
+    "D1_ROWS_READ_24H",
+    "D1_ROWS_WRITTEN_24H",
+    "D1_DATABASE_AND_ACCOUNT_STORAGE",
+    "ACTIVE_CRON_TRIGGER_COUNT_AND_SCHEDULE"
+  ],
+  "dashboard_observation_required": true,
+  "lifecycle_batch_size": 5,
+  "paid_plan_required_by_static_design": false,
+  "preview_urls_disabled": true,
+  "production_change_allowed": false,
+  "reason_codes": [],
+  "status": "STATIC_CAPACITY_REVIEW_READY",
+  "target_item_count": 300,
+  "version": "0.1",
+  "workers_dev_disabled": true,
+  "workers_free_cpu_ms_per_request": 10,
+  "workers_free_requests_per_day": 100000
+}

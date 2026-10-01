@@ -48,6 +48,18 @@ This evidence records that the quality decision was made; it does not authorize
 indexing, sitemap changes, detail-page generation, or publication. Evidence is
 at `runtime/evidence/revenue-mvp-expansion-seo-quality-20261001.json`.
 
+The Cloudflare Free capacity review is prepared but deliberately not marked
+verified. Official limits reviewed on 2026-10-01 were 100,000 Worker requests
+per day, 10 ms CPU per HTTP request, 5,000,000 D1 rows read per day, 100,000 D1
+rows written per day, 500 MB per Free database, and 5 GB total Free D1 storage.
+The current CTA path is statically bounded to one Worker invocation and one
+public-ID lookup per click, while lifecycle processing remains capped at five
+items. Nothing in the static design requires a paid plan. Dashboard observation
+is still required for actual request, CPU, row-read, row-write, storage, and
+Cron-trigger usage, so `CLOUDFLARE_FREE_CAPACITY_UNVERIFIED` remains blocking.
+The 300-item activation scope is also not changed by this review. Evidence is at
+`runtime/evidence/revenue-mvp-cloudflare-free-capacity-static-review-20261001.json`.
+
 Expansion work is P1 behind P0 revenue measurement. If Cloudflare Free capacity
 cannot be verified, work stops and any paid requirement must be reported before
 the plan changes.
