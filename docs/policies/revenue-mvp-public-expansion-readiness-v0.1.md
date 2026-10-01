@@ -19,6 +19,16 @@ affiliate/SNS claims. The existing production gates that require exactly 100
 items remain intentional safeguards until a separately reviewed migration is
 approved.
 
+The read-only sitemap capacity review is now complete for the current URL
+architecture. `sitemap.xml` contains nine unique first-party URLs, while the
+item listing and item template remain `noindex,nofollow` and absent from the
+sitemap. Expanding the existing listing from 100 to 300 records therefore adds
+zero sitemap URLs and remains far below the 50,000-URL protocol limit. The
+review is hash-bound to the four inspected source files and authorizes neither
+sitemap changes nor publication. SEO content-quality review remains separate
+and blocked. Aggregate evidence is recorded at
+`runtime/evidence/revenue-mvp-expansion-sitemap-capacity-20261001.json`.
+
 Expansion work is P1 behind P0 revenue measurement. If Cloudflare Free capacity
 cannot be verified, work stops and any paid requirement must be reported before
 the plan changes.

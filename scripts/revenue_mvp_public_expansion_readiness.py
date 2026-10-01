@@ -17,6 +17,7 @@ FAIL_CLOSED = "FAIL_CLOSED"
 ROOT = Path(__file__).resolve().parents[1]
 COLLECTION_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-collection-20261001.json"
 D1_COVERAGE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-initial-batch-000-live-success-20261001.json"
+SITEMAP_CAPACITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-sitemap-capacity-20261001.json"
 
 
 @dataclass(frozen=True)
@@ -190,6 +191,7 @@ def current_evidence() -> ExpansionEvidence:
     lookup_ready = 0
     redirect_ready = 0
     runtime_ready = 0
+    sitemap_capacity = False
     try:
         value = json.loads(COLLECTION_EVIDENCE.read_text(encoding="utf-8"))
         evidence_valid = (
@@ -217,6 +219,35 @@ def current_evidence() -> ExpansionEvidence:
         if evidence_valid:
             verified_count = NEXT_STAGE_ITEM_COUNT
             surface_preserved = True
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        pass
+
+    try:
+        value = json.loads(SITEMAP_CAPACITY_EVIDENCE.read_text(encoding="utf-8"))
+        sitemap_capacity = (
+            type(value) is dict
+            and value.get("version") == "0.1"
+            and value.get("status") == "SITEMAP_CAPACITY_VERIFIED"
+            and value.get("target_item_count") == NEXT_STAGE_ITEM_COUNT
+            and value.get("sitemap_capacity_verified") is True
+            and value.get("seo_quality_reviewed") is False
+            and value.get("publication_allowed") is False
+            and value.get("sitemap_change_allowed") is False
+            and value.get("target_additional_sitemap_urls") == 0
+            and type(value.get("sitemap_url_count")) is int
+            and 0 < value["sitemap_url_count"] <= 50_000
+            and type(value.get("source_sha256")) is dict
+            and set(value["source_sha256"]) == {
+                "sitemap.xml", "robots.txt", "items/index.html", "items/item.html",
+            }
+            and all(
+                type(digest) is str
+                and len(digest) == 64
+                and all(character in "0123456789abcdef" for character in digest)
+                for digest in value["source_sha256"].values()
+            )
+            and value.get("reason_codes") == []
+        )
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
         pass
 
@@ -258,7 +289,7 @@ def current_evidence() -> ExpansionEvidence:
         affiliate_redirect_ready_count=redirect_ready,
         runtime_revalidation_ready_count=runtime_ready,
         existing_surface_preservation_verified=surface_preserved,
-        sitemap_capacity_verified=False,
+        sitemap_capacity_verified=sitemap_capacity,
         seo_quality_reviewed=False,
         cloudflare_free_plan_capacity_verified=False,
         compliance_publication_confirmed=False,

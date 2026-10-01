@@ -1,0 +1,19 @@
+{
+  "publication_allowed": false,
+  "reason_codes": [],
+  "seo_quality_reviewed": false,
+  "sitemap_capacity_verified": true,
+  "sitemap_change_allowed": false,
+  "sitemap_limit": 50000,
+  "sitemap_url_count": 9,
+  "source_sha256": {
+    "items/index.html": "21cebab8b202129658fe192055cd72b6cf3cd197765a18cc5b92378104457db1",
+    "items/item.html": "b322215f1893c1054d778bef865f32ed4df4964c4c2ffd80f9c89a620da0716c",
+    "robots.txt": "99598ed10fc1207149097dc03f14b8c8d7900e87f53e3b025e460bdb92f7604d",
+    "sitemap.xml": "e61215ff90cea38abb3d69540d8f92bde4b4fe76f1bba40d021fcf305503abb5"
+  },
+  "status": "SITEMAP_CAPACITY_VERIFIED",
+  "target_additional_sitemap_urls": 0,
+  "target_item_count": 300,
+  "version": "0.1"
+}
