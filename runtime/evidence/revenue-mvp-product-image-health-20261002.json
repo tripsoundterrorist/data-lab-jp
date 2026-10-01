@@ -1,0 +1,19 @@
+{
+  "version": "0.1",
+  "status": "HEALTHY",
+  "observed_at": "2026-10-02",
+  "items_http_status": 200,
+  "published_image_count": 100,
+  "healthy_image_count": 100,
+  "image_failure_count": 0,
+  "official_host_verified": true,
+  "reason_codes": [
+    "ALL_PUBLISHED_OFFICIAL_IMAGES_VERIFIED"
+  ],
+  "limitations": [
+    "This is a point-in-time availability check.",
+    "A passing response does not grant new media rights.",
+    "No product identifier, title, image URL, credential, or response body is retained."
+  ],
+  "external_write_performed": false
+}
