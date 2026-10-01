@@ -1,0 +1,27 @@
+{
+  "affiliate_cta_live": true,
+  "compliance_publication_confirmed": false,
+  "expansion_lookup_ready_count": 300,
+  "expansion_publication_allowed": false,
+  "expansion_redirect_ready_count": 124,
+  "expansion_runtime_ready_count": 49,
+  "expansion_target_item_count": 300,
+  "limited_surface_live": true,
+  "live_item_count": 100,
+  "next_actions": [
+    "KEEP_100_ITEM_REVENUE_SURFACE_LIVE_AND_MEASURED",
+    "CAPTURE_CURRENT_CLOUDFLARE_CAPACITY_AND_CRON_OBSERVATION",
+    "WAIT_FOR_PRODUCT_FUNNEL_WINDOW_END",
+    "COMPLETE_GA4_PRODUCT_FUNNEL_REVIEW_ON_OR_AFTER_2026_10_10",
+    "OBTAIN_HASH_PINNED_OWNER_COMPLIANCE_DECISION_WHEN_READY"
+  ],
+  "next_batch_live_execution_allowed": false,
+  "next_batch_preparation_allowed": false,
+  "product_funnel_review_completed": false,
+  "product_funnel_window_closed": false,
+  "production_write_allowed": false,
+  "ranking_implementation_review_candidate": false,
+  "revenue_priority": "P0",
+  "status": "REVENUE_MVP_LIVE_EXPANSION_BLOCKED",
+  "version": "0.1"
+}
