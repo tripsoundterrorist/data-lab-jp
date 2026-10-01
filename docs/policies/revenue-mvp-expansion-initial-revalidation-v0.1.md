@@ -49,6 +49,20 @@ Publication and automatic additional batches remain unauthorized. Evidence is
 stored at
 `runtime/evidence/revenue-mvp-expansion-initial-batch-000-live-success-20261001.json`.
 
+Later lifecycle revalidation can make a historical fixed batch stale. The
+selection builder therefore accepts an optional current D1 snapshot. In that
+mode it verifies all 178 inserted mappings and allowlisted lifecycle states,
+excludes rows that are already active or awaiting retry, and selects only rows
+still in the original pending/disabled state. Mapping drift, an unknown state,
+or a mixed stale selection blocks before provider API access or D1 writes.
+
+On 2026-10-02, the current-state selection excluded already active rows and
+produced a five-item private batch from 155 remaining pending rows. A remote D1
+read-only dry run verified all five were still pending and disabled. It made no
+provider API request or D1 write and did not grant LIVE execution. Aggregate
+evidence is stored at
+`runtime/evidence/revenue-mvp-expansion-current-pending-batch-000-dry-run-20261002.json`.
+
 Before preparing or executing another LIVE batch, run
 `scripts/revenue_mvp_revalidation_cadence_guard.py` against the latest private
 D1 SQL export. The guard emits aggregate-only output and blocks when it observes

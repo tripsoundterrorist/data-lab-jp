@@ -59,5 +59,37 @@ class InitialSelectionTests(unittest.TestCase):
         self.assertEqual(receipt.status, subject.BLOCKED)
         self.assertIsNone(payload)
 
+    def test_current_snapshot_excludes_already_active_rows(self):
+        before, after = snapshots()
+        active_id = "itm_000000000000000000000190"
+        lines = after.decode().splitlines()
+        for index, line in enumerate(lines):
+            if active_id in line:
+                lines[index] = line.replace(
+                    "'PENDING_SEPARATE_POLICY','PENDING_OFFICIAL_CONFIRMATION','PENDING',0",
+                    "'CONDITIONALLY_APPROVED','RESOLVED','PASS',1",
+                )
+                break
+        current = ("\n".join(lines) + "\n").encode()
+        receipt, payload = subject.build(
+            before, after,
+            (ROOT / "runtime-candidates" / "affiliate-item-lookup-schema.sql").read_bytes(),
+            batch_index=0, current=current,
+        )
+        self.assertEqual(receipt.status, subject.READY)
+        self.assertNotIn(active_id, payload.decode().splitlines())
+        self.assertIn("CURRENT_PENDING_SCOPE_VERIFIED", receipt.reason_codes)
+
+    def test_current_mapping_drift_blocks(self):
+        before, after = snapshots()
+        current = after.replace(b"new400", b"drift400", 1)
+        receipt, payload = subject.build(
+            before, after,
+            (ROOT / "runtime-candidates" / "affiliate-item-lookup-schema.sql").read_bytes(),
+            batch_index=0, current=current,
+        )
+        self.assertEqual(receipt.status, subject.BLOCKED)
+        self.assertIsNone(payload)
+
 
 if __name__ == "__main__": unittest.main()

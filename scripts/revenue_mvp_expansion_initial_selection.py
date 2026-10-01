@@ -53,6 +53,7 @@ def _blocked(reason: str) -> SelectionReceipt:
 
 def build(
     before: bytes, after: bytes, schema: bytes, *, batch_index: Any,
+    current: bytes | None = None,
 ) -> tuple[SelectionReceipt, bytes | None]:
     connections: list[sqlite3.Connection] = []
     try:
@@ -79,13 +80,49 @@ def build(
         batch_count = (len(inserted) + BATCH_SIZE - 1) // BATCH_SIZE
         if batch_index >= batch_count:
             return _blocked("BATCH_INDEX_OUT_OF_RANGE"), None
-        selected = inserted[batch_index * BATCH_SIZE:(batch_index + 1) * BATCH_SIZE]
+        selectable = inserted
+        current_scope_verified = False
+        if current is not None:
+            connection = sqlite3.connect(":memory:")
+            connections.append(connection)
+            delta_builder.load_remote_snapshot(connection, schema, current)
+            current_rows = {row[0]: row for row in connection.execute(
+                """SELECT public_id,content_id,rights_status,lifecycle_status,
+                          verification_status,affiliate_enabled
+                   FROM affiliate_item_lookup"""
+            )}
+            allowed_states = {
+                ("PENDING_SEPARATE_POLICY", "PENDING_OFFICIAL_CONFIRMATION", "PENDING", 0),
+                ("CONDITIONALLY_APPROVED", "RESOLVED", "PASS", 1),
+                ("CONDITIONALLY_APPROVED", "RESOLVED", "PENDING", 0),
+            }
+            if any(
+                value not in current_rows
+                or current_rows[value][1] != after_rows[value][1]
+                or current_rows[value][2:] not in allowed_states
+                for value in inserted
+            ):
+                return _blocked("CURRENT_SCOPE_INVALID"), None
+            selectable = [
+                value for value in inserted
+                if current_rows[value][2:] == (
+                    "PENDING_SEPARATE_POLICY", "PENDING_OFFICIAL_CONFIRMATION", "PENDING", 0
+                )
+            ]
+            current_scope_verified = True
+            batch_count = (len(selectable) + BATCH_SIZE - 1) // BATCH_SIZE
+            if batch_index >= batch_count:
+                return _blocked("BATCH_INDEX_OUT_OF_RANGE"), None
+        selected = selectable[batch_index * BATCH_SIZE:(batch_index + 1) * BATCH_SIZE]
         payload = ("\n".join(selected) + "\n").encode("ascii")
         return SelectionReceipt(
             VERSION, READY, len(inserted), len(selected), batch_index,
             batch_count, hashlib.sha256(payload).hexdigest(), False, False,
             False, False, False,
-            ("EXACT_INSERTED_SCOPE", "PRIVATE_SELECTION_ONLY", "LIVE_APPROVAL_REQUIRED"),
+            (
+                "CURRENT_PENDING_SCOPE_VERIFIED" if current_scope_verified else "EXACT_INSERTED_SCOPE",
+                "PRIVATE_SELECTION_ONLY", "LIVE_APPROVAL_REQUIRED",
+            ),
         ), payload
     except Exception:
         return _blocked("SELECTION_BUILD_FAILED"), None
@@ -96,6 +133,7 @@ def build(
 
 def write(
     before: Path, after: Path, output: Path, *, batch_index: int,
+    current: Path | None = None,
 ) -> SelectionReceipt:
     temporary: Path | None = None
     try:
@@ -104,11 +142,13 @@ def write(
             return _blocked("OUTPUT_MUST_BE_OUTSIDE_REPOSITORY")
         except ValueError:
             pass
-        if any(path.is_symlink() for path in (before, after, output, SCHEMA)) or output.exists():
+        checked_paths = (before, after, output, SCHEMA) + ((current,) if current is not None else ())
+        if any(path.is_symlink() for path in checked_paths) or output.exists():
             return _blocked("PATH_BOUNDARY_INVALID")
         receipt, payload = build(
             _snapshot_regular_file(before), _snapshot_regular_file(after),
             _snapshot_regular_file(SCHEMA), batch_index=batch_index,
+            current=_snapshot_regular_file(current) if current is not None else None,
         )
         if receipt.status != READY or payload is None:
             return receipt
