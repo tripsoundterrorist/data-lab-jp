@@ -19,6 +19,7 @@ COLLECTION_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-col
 D1_COVERAGE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-initial-batch-000-live-success-20261001.json"
 SITEMAP_CAPACITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-sitemap-capacity-20261001.json"
 ROLLBACK_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-rollback-rehearsal-20261001.json"
+SEO_QUALITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-seo-quality-20261001.json"
 
 
 @dataclass(frozen=True)
@@ -194,6 +195,7 @@ def current_evidence() -> ExpansionEvidence:
     runtime_ready = 0
     sitemap_capacity = False
     rollback_verified = False
+    seo_quality_reviewed = False
     try:
         value = json.loads(COLLECTION_EVIDENCE.read_text(encoding="utf-8"))
         evidence_valid = (
@@ -221,6 +223,37 @@ def current_evidence() -> ExpansionEvidence:
         if evidence_valid:
             verified_count = NEXT_STAGE_ITEM_COUNT
             surface_preserved = True
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        pass
+
+    try:
+        value = json.loads(SEO_QUALITY_EVIDENCE.read_text(encoding="utf-8"))
+        seo_quality_reviewed = (
+            type(value) is dict
+            and value.get("version") == "0.1"
+            and value.get("status") == "SEO_QUALITY_REVIEWED_KEEP_NOINDEX"
+            and value.get("current_item_count") == CURRENT_PUBLIC_ITEM_COUNT
+            and value.get("target_item_count") == NEXT_STAGE_ITEM_COUNT
+            and value.get("complete_card_count") == CURRENT_PUBLIC_ITEM_COUNT
+            and value.get("unique_cta_route_count") == CURRENT_PUBLIC_ITEM_COUNT
+            and value.get("seo_quality_reviewed") is True
+            and value.get("indexing_allowed") is False
+            and value.get("detail_page_generation_allowed") is False
+            and value.get("sitemap_change_allowed") is False
+            and value.get("publication_allowed") is False
+            and value.get("candidate_render_performance_verified") is False
+            and type(value.get("source_sha256")) is dict
+            and set(value["source_sha256"]) == {
+                "sitemap.xml", "items/index.html", "items/item.html",
+            }
+            and all(
+                type(digest) is str
+                and len(digest) == 64
+                and all(character in "0123456789abcdef" for character in digest)
+                for digest in value["source_sha256"].values()
+            )
+            and value.get("reason_codes") == []
+        )
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
         pass
 
@@ -319,7 +352,7 @@ def current_evidence() -> ExpansionEvidence:
         runtime_revalidation_ready_count=runtime_ready,
         existing_surface_preservation_verified=surface_preserved,
         sitemap_capacity_verified=sitemap_capacity,
-        seo_quality_reviewed=False,
+        seo_quality_reviewed=seo_quality_reviewed,
         cloudflare_free_plan_capacity_verified=False,
         compliance_publication_confirmed=False,
         product_funnel_window_closed=False,

@@ -38,6 +38,16 @@ expansion review; it does not deploy, call Cloudflare, authorize publication,
 or permit automatic production rollback. Aggregate evidence is recorded at
 `runtime/evidence/revenue-mvp-expansion-rollback-rehearsal-20261001.json`.
 
+SEO quality has been reviewed for the staged expansion structure, with a
+fail-closed conclusion: keep the item surface `noindex,nofollow`, do not add the
+item surface to the sitemap, and do not generate thin detail pages. The current
+100 cards each retain one title, official image, price, observation time,
+proximate PR disclosure, and unique opaque first-party CTA route. A separate
+300-item render-performance check is still required before publication review.
+This evidence records that the quality decision was made; it does not authorize
+indexing, sitemap changes, detail-page generation, or publication. Evidence is
+at `runtime/evidence/revenue-mvp-expansion-seo-quality-20261001.json`.
+
 Expansion work is P1 behind P0 revenue measurement. If Cloudflare Free capacity
 cannot be verified, work stops and any paid requirement must be reported before
 the plan changes.

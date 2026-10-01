@@ -1,0 +1,25 @@
+{
+  "candidate_render_performance_verified": false,
+  "complete_card_count": 100,
+  "current_item_count": 100,
+  "detail_page_generation_allowed": false,
+  "indexing_allowed": false,
+  "publication_allowed": false,
+  "reason_codes": [],
+  "recommendations": [
+    "KEEP_ITEM_SURFACE_NOINDEX_UNTIL_SEPARATE_INDEXING_REVIEW",
+    "DO_NOT_GENERATE_THIN_ITEM_DETAIL_PAGES",
+    "VERIFY_300_ITEM_RENDER_PERFORMANCE_BEFORE_PUBLICATION"
+  ],
+  "seo_quality_reviewed": true,
+  "sitemap_change_allowed": false,
+  "source_sha256": {
+    "items/index.html": "21cebab8b202129658fe192055cd72b6cf3cd197765a18cc5b92378104457db1",
+    "items/item.html": "b322215f1893c1054d778bef865f32ed4df4964c4c2ffd80f9c89a620da0716c",
+    "sitemap.xml": "e61215ff90cea38abb3d69540d8f92bde4b4fe76f1bba40d021fcf305503abb5"
+  },
+  "status": "SEO_QUALITY_REVIEWED_KEEP_NOINDEX",
+  "target_item_count": 300,
+  "unique_cta_route_count": 100,
+  "version": "0.1"
+}
