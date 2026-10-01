@@ -39,20 +39,20 @@ def _result(status: str, *, failure: bool = False, event: bool = False,
     )
 
 
-def build(wrapper_result: Any, *, occurred_at: Any) -> CandidateResult:
-    """Map only exact aggregate wrapper state; never send a notification."""
+def prepare(wrapper_result: Any, *, occurred_at: Any) -> tuple[CandidateResult, adapter.PushoverNotification | None]:
+    """Return a safe summary plus an in-memory fixed notification contract."""
 
     try:
         if not isinstance(wrapper_result, Mapping) or set(wrapper_result) != {
             "version", "revalidation", "public_route_health",
         }:
-            return _result("FAILED_SAFE", reason="WRAPPER_RESULT_INVALID")
+            return _result("FAILED_SAFE", reason="WRAPPER_RESULT_INVALID"), None
         revalidation = wrapper_result["revalidation"]
         health = wrapper_result["public_route_health"]
         if not isinstance(revalidation, Mapping) or not isinstance(health, Mapping):
-            return _result("FAILED_SAFE", reason="WRAPPER_RESULT_INVALID")
+            return _result("FAILED_SAFE", reason="WRAPPER_RESULT_INVALID"), None
         if wrapper_result["version"] != "0.2":
-            return _result("FAILED_SAFE", reason="WRAPPER_VERSION_UNSUPPORTED")
+            return _result("FAILED_SAFE", reason="WRAPPER_VERSION_UNSUPPORTED"), None
         healthy = (
             revalidation.get("status") == "COMPLETED"
             and revalidation.get("mode") == "LIVE"
@@ -60,7 +60,7 @@ def build(wrapper_result: Any, *, occurred_at: Any) -> CandidateResult:
             and health.get("external_write_performed") is False
         )
         if healthy:
-            return _result("SUPPRESSED_HEALTHY", reason="NO_FAILURE_NOTIFICATION")
+            return _result("SUPPRESSED_HEALTHY", reason="NO_FAILURE_NOTIFICATION"), None
         event = queue.create_event(
             event_version=queue.EVENT_VERSION,
             event_type="JOB_FAILED_SAFE",
@@ -76,21 +76,27 @@ def build(wrapper_result: Any, *, occurred_at: Any) -> CandidateResult:
             return _result(
                 "FAILED_SAFE", failure=True,
                 reason="SAFE_NOTIFICATION_EVENT_REJECTED",
-            )
+            ), None
         notification = adapter.adapt_notification(event)
         if notification.notification_status != adapter.READY:
             return _result(
                 "FAILED_SAFE", failure=True, event=True,
                 reason="NOTIFICATION_ADAPTER_REJECTED",
-            )
+            ), None
         return _result(
             "READY_FOR_EXPLICIT_LIVE_SEND", failure=True, event=True,
             ready=True, delivery=notification.delivery_class,
             priority=notification.pushover_priority,
             reason="SAFE_FAILURE_NOTIFICATION_READY",
-        )
+        ), notification
     except Exception:
-        return _result("FAILED_SAFE", reason="CANDIDATE_BUILD_FAILED")
+        return _result("FAILED_SAFE", reason="CANDIDATE_BUILD_FAILED"), None
 
 
-__all__ = ["CandidateResult", "VERSION", "build"]
+def build(wrapper_result: Any, *, occurred_at: Any) -> CandidateResult:
+    """Map only exact aggregate wrapper state; never send a notification."""
+
+    return prepare(wrapper_result, occurred_at=occurred_at)[0]
+
+
+__all__ = ["CandidateResult", "VERSION", "build", "prepare"]

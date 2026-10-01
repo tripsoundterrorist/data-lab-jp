@@ -8,6 +8,7 @@ $RepoRoot = "C:\github\data-lab-jp"
 $PythonExecutable = "C:\Users\User\AppData\Local\Programs\Python\Python310\python.exe"
 $RunnerPath = Join-Path $RepoRoot "scripts\affiliate_local_lifecycle_revalidation.py"
 $HealthPath = Join-Path $RepoRoot "scripts\affiliate_public_route_health.py"
+$NotificationDryRunPath = Join-Path $RepoRoot "scripts\affiliate_route_failure_notification_dry_run.py"
 $LogDirectory = Join-Path $RepoRoot "logs\affiliate-revalidation"
 $RetentionDays = 30
 
@@ -22,6 +23,10 @@ if (-not (Test-Path -LiteralPath $RunnerPath -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath $HealthPath -PathType Leaf)) {
     [Console]::Error.WriteLine("wrapper_error=HEALTH_CHECK_MISSING")
     exit 24
+}
+if (-not (Test-Path -LiteralPath $NotificationDryRunPath -PathType Leaf)) {
+    [Console]::Error.WriteLine("wrapper_error=NOTIFICATION_DRY_RUN_MISSING")
+    exit 25
 }
 
 try {
@@ -56,12 +61,28 @@ try {
         -not $allowedHealthStatus -or -not $healthIsReadOnly) {
         throw "invalid result"
     }
-    $record = [ordered]@{
+    $wrapperRecord = [ordered]@{
         version = "0.2"
         revalidation = $parsedRevalidation
         public_route_health = $parsedHealth
     }
-    $record | ConvertTo-Json -Depth 5 -Compress |
+    $wrapperJson = $wrapperRecord | ConvertTo-Json -Depth 5 -Compress
+    $notificationDryResult = $wrapperJson |
+        & $PythonExecutable -B $NotificationDryRunPath 2>$null
+    $notificationDryExitCode = $LASTEXITCODE
+    $parsedNotificationDry = $notificationDryResult | ConvertFrom-Json -ErrorAction Stop
+    if ($parsedNotificationDry.status -notin @("SUPPRESSED_HEALTHY", "READY_NO_SEND") -or
+        $parsedNotificationDry.external_send_performed -ne $false -or
+        $parsedNotificationDry.delivery_attempted -ne $false) {
+        throw "invalid notification dry run"
+    }
+    $record = [ordered]@{
+        version = "0.3"
+        revalidation = $parsedRevalidation
+        public_route_health = $parsedHealth
+        failure_notification_dry_run = $parsedNotificationDry
+    }
+    $record | ConvertTo-Json -Depth 6 -Compress |
         Set-Content -LiteralPath $LogPath -Encoding UTF8 -NoNewline
 }
 catch {
@@ -71,4 +92,5 @@ catch {
 
 if ($revalidationExitCode -ne 0) { exit $revalidationExitCode }
 if ($healthExitCode -ne 0) { exit 30 }
+if ($notificationDryExitCode -ne 0) { exit 31 }
 exit 0

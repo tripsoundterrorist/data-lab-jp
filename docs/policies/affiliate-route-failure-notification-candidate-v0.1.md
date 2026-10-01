@@ -15,3 +15,10 @@ notification-send operation.
 Pushover LIVE delivery remains disabled. Connecting this candidate to the
 existing sender requires a separate explicit approval and must preserve the
 sender's no-retry and credential-redaction controls.
+
+The 20:00 JST wrapper invokes the sender in `DRY_RUN` only after building the
+aggregate revalidation and route-health result. Healthy runs are suppressed
+without reading notification credentials. Failure candidates validate only the
+presence of the two required `.env` values and never attempt delivery. The
+aggregate DRY_RUN result is stored with the local task log; malformed output or
+any attempted delivery fails the wrapper.
