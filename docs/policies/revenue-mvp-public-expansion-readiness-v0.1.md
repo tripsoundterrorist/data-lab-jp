@@ -48,17 +48,22 @@ This evidence records that the quality decision was made; it does not authorize
 indexing, sitemap changes, detail-page generation, or publication. Evidence is
 at `runtime/evidence/revenue-mvp-expansion-seo-quality-20261001.json`.
 
-The Cloudflare Free capacity review is prepared but deliberately not marked
-verified. Official limits reviewed on 2026-10-01 were 100,000 Worker requests
+The Cloudflare Free capacity review was completed from the authenticated,
+read-only dashboard on 2026-10-02 JST. Official limits reviewed on 2026-10-02
+were 100,000 Worker requests
 per day, 10 ms CPU per HTTP request, 5,000,000 D1 rows read per day, 100,000 D1
 rows written per day, 500 MB per Free database, and 5 GB total Free D1 storage.
 The current CTA path is statically bounded to one Worker invocation and one
 public-ID lookup per click, while lifecycle processing remains capped at five
 items. Nothing in the static design requires a paid plan. Dashboard observation
-is still required for actual request, CPU, row-read, row-write, storage, and
-Cron-trigger usage, so `CLOUDFLARE_FREE_CAPACITY_UNVERIFIED` remains blocking.
-The 300-item activation scope is also not changed by this review. Evidence is at
-`runtime/evidence/revenue-mvp-cloudflare-free-capacity-static-review-20261001.json`.
+recorded 421 Worker invocations in the preceding 24 hours, zero CPU-limit
+errors, 53,380 D1 rows read, 1,040 rows written, 421,890 bytes stored, and no
+Cloudflare Cron trigger. This clears only
+`CLOUDFLARE_FREE_CAPACITY_UNVERIFIED`; the observation expires after 24 hours
+and must be refreshed for a later expansion decision. The 300-item activation
+scope, publication, paid-plan, and Production permissions are unchanged.
+Evidence is at
+`runtime/evidence/revenue-mvp-cloudflare-dashboard-observation.json`.
 
 The product-funnel window is now deterministic and remains open. GA4 product
 dimensions were registered on 2026-10-01, are non-retroactive, and have a
