@@ -39,6 +39,21 @@ def _result(status: str, *, failure: bool = False, event: bool = False,
     )
 
 
+def failure_event(occurred_at: Any):
+    """Build the one fixed safe event used by DRY_RUN and LIVE bridges."""
+    return queue.create_event(
+        event_version=queue.EVENT_VERSION,
+        event_type="JOB_FAILED_SAFE",
+        job_id="affiliate-route-health",
+        job_type="affiliate_revalidation",
+        severity="ERROR",
+        state=queue.FAILED_SAFE,
+        approval_required=False,
+        summary_code="AFFILIATE_ROUTE_HEALTH_FAILED",
+        occurred_at=occurred_at,
+    )
+
+
 def prepare(wrapper_result: Any, *, occurred_at: Any) -> tuple[CandidateResult, adapter.PushoverNotification | None]:
     """Return a safe summary plus an in-memory fixed notification contract."""
 
@@ -61,17 +76,7 @@ def prepare(wrapper_result: Any, *, occurred_at: Any) -> tuple[CandidateResult, 
         )
         if healthy:
             return _result("SUPPRESSED_HEALTHY", reason="NO_FAILURE_NOTIFICATION"), None
-        event = queue.create_event(
-            event_version=queue.EVENT_VERSION,
-            event_type="JOB_FAILED_SAFE",
-            job_id="affiliate-route-health",
-            job_type="affiliate_revalidation",
-            severity="ERROR",
-            state=queue.FAILED_SAFE,
-            approval_required=False,
-            summary_code="AFFILIATE_ROUTE_HEALTH_FAILED",
-            occurred_at=occurred_at,
-        )
+        event = failure_event(occurred_at)
         if event is None:
             return _result(
                 "FAILED_SAFE", failure=True,
@@ -99,4 +104,4 @@ def build(wrapper_result: Any, *, occurred_at: Any) -> CandidateResult:
     return prepare(wrapper_result, occurred_at=occurred_at)[0]
 
 
-__all__ = ["CandidateResult", "VERSION", "build", "prepare"]
+__all__ = ["CandidateResult", "VERSION", "build", "failure_event", "prepare"]

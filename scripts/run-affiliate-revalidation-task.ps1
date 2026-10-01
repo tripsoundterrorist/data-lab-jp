@@ -9,6 +9,7 @@ $PythonExecutable = "C:\Users\User\AppData\Local\Programs\Python\Python310\pytho
 $RunnerPath = Join-Path $RepoRoot "scripts\affiliate_local_lifecycle_revalidation.py"
 $HealthPath = Join-Path $RepoRoot "scripts\affiliate_public_route_health.py"
 $NotificationDryRunPath = Join-Path $RepoRoot "scripts\affiliate_route_failure_notification_dry_run.py"
+$NotificationLivePath = Join-Path $RepoRoot "scripts\affiliate_route_failure_notification_live.py"
 $LogDirectory = Join-Path $RepoRoot "logs\affiliate-revalidation"
 $RetentionDays = 30
 
@@ -27,6 +28,10 @@ if (-not (Test-Path -LiteralPath $HealthPath -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath $NotificationDryRunPath -PathType Leaf)) {
     [Console]::Error.WriteLine("wrapper_error=NOTIFICATION_DRY_RUN_MISSING")
     exit 25
+}
+if (-not (Test-Path -LiteralPath $NotificationLivePath -PathType Leaf)) {
+    [Console]::Error.WriteLine("wrapper_error=NOTIFICATION_LIVE_MISSING")
+    exit 26
 }
 
 try {
@@ -76,11 +81,19 @@ try {
         $parsedNotificationDry.delivery_attempted -ne $false) {
         throw "invalid notification dry run"
     }
+    $notificationLiveResult = $wrapperJson |
+        & $PythonExecutable -B $NotificationLivePath 2>$null
+    $notificationLiveExitCode = $LASTEXITCODE
+    $parsedNotificationLive = $notificationLiveResult | ConvertFrom-Json -ErrorAction Stop
+    if ($parsedNotificationLive.status -notin @("SUPPRESSED_HEALTHY", "DELIVERED", "DUPLICATE_SUPPRESSED")) {
+        throw "invalid notification live result"
+    }
     $record = [ordered]@{
-        version = "0.3"
+        version = "0.4"
         revalidation = $parsedRevalidation
         public_route_health = $parsedHealth
         failure_notification_dry_run = $parsedNotificationDry
+        failure_notification_live = $parsedNotificationLive
     }
     $record | ConvertTo-Json -Depth 6 -Compress |
         Set-Content -LiteralPath $LogPath -Encoding UTF8 -NoNewline
@@ -93,4 +106,5 @@ catch {
 if ($revalidationExitCode -ne 0) { exit $revalidationExitCode }
 if ($healthExitCode -ne 0) { exit 30 }
 if ($notificationDryExitCode -ne 0) { exit 31 }
+if ($notificationLiveExitCode -ne 0) { exit 32 }
 exit 0

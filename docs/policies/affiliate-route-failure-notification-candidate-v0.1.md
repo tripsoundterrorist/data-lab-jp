@@ -22,3 +22,12 @@ without reading notification credentials. Failure candidates validate only the
 presence of the two required `.env` values and never attempt delivery. The
 aggregate DRY_RUN result is stored with the local task log; malformed output or
 any attempted delivery fails the wrapper.
+
+After explicit owner approval, the wrapper also invokes the existing
+`LIVE_NOTIFICATION` runtime only for a validated failure candidate. The
+persistent notification Ledger must be healthy. Successful delivery is recorded
+without message text or credentials. The incident timestamp is fixed to UTC
+midnight for the current day, so repeat executions on the same UTC day are
+suppressed by the Ledger; an unresolved incident may notify at most once on the
+next UTC day. There is no retry, emergency priority, automatic Ledger repair, or
+fallback transport. Healthy runs never invoke the sender.
