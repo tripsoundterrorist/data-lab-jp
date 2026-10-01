@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -179,9 +180,47 @@ class PublicExpansionReadinessTests(unittest.TestCase):
             self.assertFalse(current.compliance_publication_confirmed)
             self.assertFalse(current.product_funnel_window_closed)
 
-    def test_compliance_remains_false_without_separate_decision_contract(self):
+    def test_compliance_remains_false_without_separate_decision_receipt(self):
         current = subject.current_evidence()
         self.assertFalse(current.compliance_publication_confirmed)
+
+    def test_only_hash_pinned_ready_packet_and_explicit_receipt_confirm_compliance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            packet = root / "packet.json"
+            packet_value = {
+                "version": "0.1",
+                "status": "READY_FOR_MANUAL_COMPLIANCE_DECISION",
+                "target_item_count": 300,
+                "official_lifecycle_core_confirmed": True,
+                "candidate_lookup_ready_count": 300,
+                "candidate_redirect_ready_count": 300,
+                "candidate_runtime_ready_count": 300,
+                "presentation_policy_verified": True,
+                "product_funnel_window_closed": True,
+                "compliance_publication_confirmed": False,
+                "publication_allowed": False,
+                "production_write_allowed": False,
+                "reason_codes": [],
+                "required_manual_checks": [],
+            }
+            packet.write_bytes(json.dumps(
+                packet_value, ensure_ascii=False, sort_keys=True
+            ).encode("utf-8"))
+            receipt = root / "receipt.json"
+            receipt.write_text(json.dumps({
+                "version": "0.1",
+                "decision": "CONFIRM_EXPANSION_COMPLIANCE",
+                "decided_at": "2026-10-10T12:00:00+09:00",
+                "packet_sha256": hashlib.sha256(packet.read_bytes()).hexdigest(),
+                "reviewer_role": "DATA_LAB_OWNER",
+            }), encoding="utf-8")
+            with (
+                mock.patch.object(subject, "COMPLIANCE_PACKET_EVIDENCE", packet),
+                mock.patch.object(subject, "COMPLIANCE_DECISION_RECEIPT", receipt),
+            ):
+                current = subject.current_evidence()
+            self.assertTrue(current.compliance_publication_confirmed)
 
     def test_only_the_next_300_item_stage_is_accepted(self):
         result = subject.assess(evidence(target_public_item_count=500))

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import revenue_mvp_cloudflare_dashboard_observation as cloudflare_dashboard
+import revenue_mvp_expansion_compliance_decision as compliance_decision
 
 
 VERSION = "0.1"
@@ -23,6 +24,8 @@ SITEMAP_CAPACITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansi
 ROLLBACK_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-rollback-rehearsal-20261001.json"
 SEO_QUALITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-seo-quality-20261001.json"
 CLOUDFLARE_CAPACITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-cloudflare-dashboard-observation.json"
+COMPLIANCE_PACKET_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-compliance-packet-20261001.json"
+COMPLIANCE_DECISION_RECEIPT = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-compliance-decision.json"
 FUNNEL_WINDOW_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-product-funnel-window-20261001.json"
 
 
@@ -201,6 +204,7 @@ def current_evidence() -> ExpansionEvidence:
     rollback_verified = False
     seo_quality_reviewed = False
     cloudflare_capacity_verified = False
+    compliance_confirmed = False
     funnel_window_closed = False
     try:
         value = json.loads(COLLECTION_EVIDENCE.read_text(encoding="utf-8"))
@@ -229,6 +233,20 @@ def current_evidence() -> ExpansionEvidence:
         if evidence_valid:
             verified_count = NEXT_STAGE_ITEM_COUNT
             surface_preserved = True
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        pass
+
+    try:
+        packet_bytes = COMPLIANCE_PACKET_EVIDENCE.read_bytes()
+        receipt = json.loads(COMPLIANCE_DECISION_RECEIPT.read_text(encoding="utf-8"))
+        decision = compliance_decision.validate(packet_bytes, receipt)
+        compliance_confirmed = (
+            decision.status == compliance_decision.CONFIRMED
+            and decision.compliance_publication_confirmed is True
+            and decision.publication_allowed is False
+            and decision.production_write_allowed is False
+            and decision.deployment_allowed is False
+        )
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
         pass
 
@@ -386,7 +404,7 @@ def current_evidence() -> ExpansionEvidence:
         sitemap_capacity_verified=sitemap_capacity,
         seo_quality_reviewed=seo_quality_reviewed,
         cloudflare_free_plan_capacity_verified=cloudflare_capacity_verified,
-        compliance_publication_confirmed=False,
+        compliance_publication_confirmed=compliance_confirmed,
         product_funnel_window_closed=funnel_window_closed,
         rollback_plan_verified=rollback_verified,
     )

@@ -297,3 +297,13 @@ the COMPLIANCE flag remains hard-false until a separate explicit decision
 contract is defined. Even fully verified prerequisites yield only manual
 expansion-review readiness. Publication, deployment, and production writes
 remain `false` in the gate result.
+
+`scripts/revenue_mvp_expansion_compliance_decision.py` defines the separate
+explicit decision contract without creating a receipt. A decision must be made
+by the DATA LAB owner, be timezone-aware, and pin the byte-exact SHA-256 of a
+packet whose lookup, redirect, runtime, presentation, lifecycle, and closed
+funnel evidence are all complete. The current blocked packet cannot be
+confirmed. Hash mismatch, malformed input, a non-confirming decision, or any
+permissive flag fails closed. A valid future decision confirms only the
+COMPLIANCE prerequisite; publication, deployment, and production writes remain
+`false`.
