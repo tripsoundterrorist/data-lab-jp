@@ -31,6 +31,7 @@ def evidence(**changes):
         "cloudflare_free_plan_capacity_verified": False,
         "compliance_publication_confirmed": False,
         "product_funnel_window_closed": False,
+        "product_funnel_review_completed": False,
         "rollback_plan_verified": False,
     }
     values.update(changes)
@@ -163,6 +164,28 @@ class PublicExpansionReadinessTests(unittest.TestCase):
         current = subject.current_evidence()
         self.assertFalse(current.compliance_publication_confirmed)
         self.assertFalse(current.product_funnel_window_closed)
+        self.assertFalse(current.product_funnel_review_completed)
+
+    def test_completed_aggregate_funnel_review_is_consumed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = Path(directory) / "funnel-review.json"
+            receipt.write_text(json.dumps({
+                "version": "0.1",
+                "status": "PRODUCT_FUNNEL_REVIEW_COMPLETED",
+                "period_start": "2026-10-02",
+                "period_end": "2026-10-08",
+                "product_funnel_review_completed": True,
+                "total_outbound_product_clicks": 0,
+                "observed_product_count": 0,
+                "zero_click_period_confirmed": True,
+                "expansion_decision_allowed": False,
+                "production_write_allowed": False,
+                "external_write_performed": False,
+                "reason_codes": [],
+            }), encoding="utf-8")
+            with mock.patch.object(subject, "FUNNEL_REVIEW_EVIDENCE", receipt):
+                current = subject.current_evidence()
+            self.assertTrue(current.product_funnel_review_completed)
 
     def test_invalid_external_evidence_cannot_self_authorize_publication(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -179,6 +202,7 @@ class PublicExpansionReadinessTests(unittest.TestCase):
             self.assertFalse(current.cloudflare_free_plan_capacity_verified)
             self.assertFalse(current.compliance_publication_confirmed)
             self.assertFalse(current.product_funnel_window_closed)
+            self.assertFalse(current.product_funnel_review_completed)
 
     def test_compliance_remains_false_without_separate_decision_receipt(self):
         current = subject.current_evidence()
@@ -198,6 +222,7 @@ class PublicExpansionReadinessTests(unittest.TestCase):
                 "candidate_runtime_ready_count": 300,
                 "presentation_policy_verified": True,
                 "product_funnel_window_closed": True,
+                "product_funnel_review_completed": True,
                 "compliance_publication_confirmed": False,
                 "publication_allowed": False,
                 "production_write_allowed": False,
@@ -275,6 +300,7 @@ class PublicExpansionReadinessTests(unittest.TestCase):
             "cloudflare_free_plan_capacity_verified": True,
             "compliance_publication_confirmed": True,
             "product_funnel_window_closed": True,
+            "product_funnel_review_completed": True,
             "rollback_plan_verified": True,
         }
         values.update(changes)

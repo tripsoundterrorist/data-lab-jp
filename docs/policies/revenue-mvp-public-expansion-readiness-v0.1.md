@@ -293,8 +293,8 @@ product-funnel window independently. It revalidates Cloudflare freshness at
 read time; a stored observation older than 24 hours becomes `false`. Missing,
 malformed, incomplete, or merely review-ready evidence also maps to `false`.
 The current COMPLIANCE packet is decision material, not an approval receipt, so
-the COMPLIANCE flag remains hard-false until a separate explicit decision
-contract is defined. Even fully verified prerequisites yield only manual
+the COMPLIANCE flag remains false unless the separate explicit decision
+contract validates a hash-pinned ready packet and owner receipt. Even fully verified prerequisites yield only manual
 expansion-review readiness. Publication, deployment, and production writes
 remain `false` in the gate result.
 
@@ -307,3 +307,10 @@ confirmed. Hash mismatch, malformed input, a non-confirming decision, or any
 permissive flag fails closed. A valid future decision confirms only the
 COMPLIANCE prerequisite; publication, deployment, and production writes remain
 `false`.
+
+Closing the seven-complete-day product-funnel window does not complete the
+review. `scripts/revenue_mvp_product_funnel_review_receipt.py` requires the
+processed GA4 export for exactly 2026-10-02 through 2026-10-08 and produces an
+aggregate-only receipt. Missing data is not treated as zero; a processed empty
+result is recorded explicitly as zero. Public expansion remains blocked until
+both the window and this review receipt are complete.

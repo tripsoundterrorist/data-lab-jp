@@ -17,6 +17,7 @@ OFFICIAL_RESPONSE = ROOT / "runtime" / "evidence" / "revenue-mvp-official-respon
 COVERAGE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-initial-batch-000-live-success-20261001.json"
 SEO_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-seo-quality-20261001.json"
 FUNNEL_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-product-funnel-window-20261001.json"
+FUNNEL_REVIEW_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-product-funnel-review.json"
 TARGET_COUNT = 300
 REQUIRED_LIFECYCLE_CONFIRMATIONS = frozenset({
     "CID_ZERO_RESULT_MEANING",
@@ -41,6 +42,7 @@ class ExpansionCompliancePacket:
     candidate_runtime_ready_count: int
     presentation_policy_verified: bool
     product_funnel_window_closed: bool
+    product_funnel_review_completed: bool
     compliance_publication_confirmed: bool
     publication_allowed: bool
     production_write_allowed: bool
@@ -63,6 +65,7 @@ def build_packet(
     coverage: Any,
     seo: Any,
     funnel: Any,
+    funnel_review: Any,
 ) -> ExpansionCompliancePacket:
     try:
         if type(official) is not list or len(official) < 1:
@@ -82,7 +85,10 @@ def build_packet(
             and not lifecycle.get("ambiguity_flags")
             and REQUIRED_LIFECYCLE_CONFIRMATIONS <= confirmed
         )
-        if type(coverage) is not dict or type(seo) is not dict or type(funnel) is not dict:
+        if (
+            type(coverage) is not dict or type(seo) is not dict
+            or type(funnel) is not dict or type(funnel_review) is not dict
+        ):
             raise ValueError
         lookup = coverage.get("candidate_lookup_ready_count")
         redirects = coverage.get("candidate_redirect_ready_count")
@@ -99,10 +105,20 @@ def build_packet(
             and seo.get("publication_allowed") is False
         )
         funnel_closed = funnel.get("product_funnel_window_closed") is True
+        funnel_review_completed = (
+            funnel_review.get("status") == "PRODUCT_FUNNEL_REVIEW_COMPLETED"
+            and funnel_review.get("period_start") == "2026-10-02"
+            and funnel_review.get("period_end") == "2026-10-08"
+            and funnel_review.get("product_funnel_review_completed") is True
+            and funnel_review.get("expansion_decision_allowed") is False
+            and funnel_review.get("production_write_allowed") is False
+            and funnel_review.get("external_write_performed") is False
+            and funnel_review.get("reason_codes") == []
+        )
     except (TypeError, ValueError, KeyError):
         return ExpansionCompliancePacket(
             VERSION, FAIL_CLOSED, TARGET_COUNT, False, 0, 0, 0, False,
-            False, False, False, False, ("COMPLIANCE_EVIDENCE_INVALID",),
+            False, False, False, False, False, ("COMPLIANCE_EVIDENCE_INVALID",),
             ("REBUILD_SANITIZED_EVIDENCE_PACKET",),
         )
 
@@ -119,6 +135,8 @@ def build_packet(
         reasons.add("PRESENTATION_POLICY_UNVERIFIED")
     if not funnel_closed:
         reasons.add("PRODUCT_FUNNEL_WINDOW_OPEN")
+    if not funnel_review_completed:
+        reasons.add("PRODUCT_FUNNEL_REVIEW_INCOMPLETE")
 
     ready = not reasons
     return ExpansionCompliancePacket(
@@ -131,6 +149,7 @@ def build_packet(
         runtime,
         presentation,
         funnel_closed,
+        funnel_review_completed,
         False,
         False,
         False,
@@ -147,12 +166,17 @@ def build_packet(
 
 def current_packet() -> ExpansionCompliancePacket:
     try:
+        try:
+            funnel_review = _load(FUNNEL_REVIEW_EVIDENCE)
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            funnel_review = {}
         return build_packet(
             _load(OFFICIAL_RESPONSE), _load(COVERAGE_EVIDENCE),
             _load(SEO_EVIDENCE), _load(FUNNEL_EVIDENCE),
+            funnel_review,
         )
     except (OSError, UnicodeError, json.JSONDecodeError):
-        return build_packet(None, None, None, None)
+        return build_packet(None, None, None, None, None)
 
 
 def main() -> int:

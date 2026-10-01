@@ -21,6 +21,7 @@ def ready_packet():
         "candidate_runtime_ready_count": 300,
         "presentation_policy_verified": True,
         "product_funnel_window_closed": True,
+        "product_funnel_review_completed": True,
         "compliance_publication_confirmed": False,
         "publication_allowed": False,
         "production_write_allowed": False,

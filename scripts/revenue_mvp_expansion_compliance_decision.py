@@ -80,6 +80,7 @@ def validate(packet_bytes: Any, receipt: Any) -> ComplianceDecision:
         and packet.get("candidate_runtime_ready_count") == 300
         and packet.get("presentation_policy_verified") is True
         and packet.get("product_funnel_window_closed") is True
+        and packet.get("product_funnel_review_completed") is True
         and packet.get("compliance_publication_confirmed") is False
         and packet.get("publication_allowed") is False
         and packet.get("production_write_allowed") is False

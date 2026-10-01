@@ -27,6 +27,7 @@ CLOUDFLARE_CAPACITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-clou
 COMPLIANCE_PACKET_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-compliance-packet-20261001.json"
 COMPLIANCE_DECISION_RECEIPT = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-compliance-decision.json"
 FUNNEL_WINDOW_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-product-funnel-window-20261001.json"
+FUNNEL_REVIEW_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-product-funnel-review.json"
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,7 @@ class ExpansionEvidence:
     cloudflare_free_plan_capacity_verified: bool
     compliance_publication_confirmed: bool
     product_funnel_window_closed: bool
+    product_funnel_review_completed: bool
     rollback_plan_verified: bool
 
 
@@ -155,6 +157,7 @@ def assess(evidence: Any) -> ExpansionReadiness:
         "CLOUDFLARE_FREE_CAPACITY_UNVERIFIED": evidence.cloudflare_free_plan_capacity_verified,
         "COMPLIANCE_PUBLICATION_UNCONFIRMED": evidence.compliance_publication_confirmed,
         "PRODUCT_FUNNEL_WINDOW_NOT_CLOSED": evidence.product_funnel_window_closed,
+        "PRODUCT_FUNNEL_REVIEW_NOT_COMPLETED": evidence.product_funnel_review_completed,
         "ROLLBACK_PLAN_UNVERIFIED": evidence.rollback_plan_verified,
     }
     reasons.update(reason for reason, passed in boolean_checks.items() if passed is not True)
@@ -182,7 +185,11 @@ def assess(evidence: Any) -> ExpansionReadiness:
         actions.append("REVIEW_CANONICAL_SITEMAP_AND_PAGE_QUALITY")
     if not evidence.cloudflare_free_plan_capacity_verified:
         actions.append("VERIFY_CLOUDFLARE_FREE_PLAN_CAPACITY")
-    if not evidence.compliance_publication_confirmed or not evidence.product_funnel_window_closed:
+    if (
+        not evidence.compliance_publication_confirmed
+        or not evidence.product_funnel_window_closed
+        or not evidence.product_funnel_review_completed
+    ):
         actions.append("OBTAIN_MANUAL_COMPLIANCE_AND_REVENUE_REVIEW")
 
     return _result(
@@ -206,6 +213,7 @@ def current_evidence() -> ExpansionEvidence:
     cloudflare_capacity_verified = False
     compliance_confirmed = False
     funnel_window_closed = False
+    funnel_review_completed = False
     try:
         value = json.loads(COLLECTION_EVIDENCE.read_text(encoding="utf-8"))
         evidence_valid = (
@@ -272,6 +280,27 @@ def current_evidence() -> ExpansionEvidence:
             and value.get("expansion_decision_allowed") is False
             and value.get("production_write_allowed") is False
             and value.get("reason_codes") == ["MANUAL_GA4_EXPORT_REQUIRED"]
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        pass
+
+    try:
+        value = json.loads(FUNNEL_REVIEW_EVIDENCE.read_text(encoding="utf-8"))
+        funnel_review_completed = (
+            type(value) is dict
+            and value.get("version") == "0.1"
+            and value.get("status") == "PRODUCT_FUNNEL_REVIEW_COMPLETED"
+            and value.get("period_start") == "2026-10-02"
+            and value.get("period_end") == "2026-10-08"
+            and value.get("product_funnel_review_completed") is True
+            and type(value.get("total_outbound_product_clicks")) is int
+            and value["total_outbound_product_clicks"] >= 0
+            and type(value.get("observed_product_count")) is int
+            and value["observed_product_count"] >= 0
+            and value.get("expansion_decision_allowed") is False
+            and value.get("production_write_allowed") is False
+            and value.get("external_write_performed") is False
+            and value.get("reason_codes") == []
         )
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
         pass
@@ -406,6 +435,7 @@ def current_evidence() -> ExpansionEvidence:
         cloudflare_free_plan_capacity_verified=cloudflare_capacity_verified,
         compliance_publication_confirmed=compliance_confirmed,
         product_funnel_window_closed=funnel_window_closed,
+        product_funnel_review_completed=funnel_review_completed,
         rollback_plan_verified=rollback_verified,
     )
 
