@@ -18,3 +18,11 @@ Any disagreement between component counts or an unexpectedly permissive
 component fails the aggregate status closed rather than inferring progress.
 The sanitized 2026-10-01 snapshot is recorded at
 `runtime/evidence/revenue-mvp-control-center-status-20261001.json`.
+
+A read-only live smoke observation at 2026-10-01T06:27:15Z verified that the
+served 100-item artifact is byte-exact with the repository artifact and retains
+100 CTA disclosures, 100 image elements, noindex/nofollow, the exact canonical,
+and a nine-URL sitemap that excludes item-detail and `/go/` routes. An invalid
+opaque route returned 404; no valid affiliate route was requested, avoiding
+measurement contamination. Evidence is at
+`runtime/evidence/revenue-mvp-live-surface-smoke-20261001.json`.
