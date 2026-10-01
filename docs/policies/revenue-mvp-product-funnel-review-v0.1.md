@@ -16,3 +16,10 @@ null total; it is never interpreted as zero. A completed empty window is an
 explicit zero-click observation. Results are ordered deterministically for
 manual review only and always require additional confirmation before any site,
 SNS, product ordering, or publication decision.
+
+The first review uses the exact 2026-10-02 through 2026-10-08 window and must
+not begin before 2026-10-10 JST. The fail-closed input template is at
+`docs/examples/revenue-mvp-ga4-product-funnel-input-v0.1.json`; it defaults to
+processing incomplete and therefore cannot be interpreted as a zero-click
+period. Operational steps are at
+`docs/runbooks/revenue-mvp-ga4-product-funnel-review-v0.1.md`.
