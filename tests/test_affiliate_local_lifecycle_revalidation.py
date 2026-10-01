@@ -87,7 +87,7 @@ class LocalLifecycleTests(unittest.TestCase):
         self.assertLess(sql_seen[0].index("INSERT INTO affiliate_redirect_target"),
                         sql_seen[0].index("affiliate_enabled=1"))
 
-    def test_upstream_failure_disables_in_same_bounded_write(self):
+    def test_upstream_failure_aborts_batch_without_state_change(self):
         calls = []
         def runner(command, **kwargs):
             calls.append(command)
@@ -96,9 +96,54 @@ class LocalLifecycleTests(unittest.TestCase):
                           side_effect=subject.AffiliateRuntimeConnectorError("private network detail")):
             result = subject.run_cycle(execute=True, confirmed=True, runner=runner,
                                        checked_at="2026-09-29T15:00:00Z")
-        self.assertEqual("COMPLETED", result.status)
-        self.assertEqual(1, result.disabled)
+        self.assertEqual("FAILED_SAFE", result.status)
+        self.assertEqual(0, result.disabled)
+        self.assertFalse(result.database_write_performed)
+        self.assertTrue(result.temporary_sql_deleted)
+        self.assertEqual(1, len(calls))
+        self.assertIn("UPSTREAM_UNCONFIRMED_NO_STATE_CHANGE", result.reason_codes)
         self.assertNotIn("private", json.dumps(result.to_dict()))
+
+    def test_mixed_valid_and_upstream_failure_is_atomic_no_write(self):
+        calls = []
+        def runner(command, **kwargs):
+            calls.append(command)
+            return Process(stdout=selection())
+        responses = [
+            {"result": {"items": [{
+                "content_id": ROWS[0]["content_id"],
+                "affiliateURL": "https://example.fanza.co.jp/link/a",
+            }]}},
+            subject.AffiliateRuntimeConnectorError("transient"),
+        ]
+        with patch.object(subject, "fetch_item_response", side_effect=responses):
+            result = subject.run_cycle(execute=True, confirmed=True, runner=runner,
+                                       checked_at="2026-10-01T15:00:00Z")
+        self.assertEqual("FAILED_SAFE", result.status)
+        self.assertEqual(1, result.valid)
+        self.assertEqual(0, result.disabled)
+        self.assertFalse(result.database_write_performed)
+        self.assertEqual(1, len(calls))
+
+    def test_confirmed_empty_itemlist_disables_exact_item(self):
+        calls = []
+        sql_seen = []
+        def runner(command, **kwargs):
+            calls.append(command)
+            if "--file" in command:
+                sql_seen.append(Path(command[command.index("--file") + 1]).read_text(encoding="utf-8"))
+                return Process(stdout=write_success())
+            return Process(stdout=selection(ROWS[:1]))
+        with patch.object(subject, "fetch_item_response",
+                          return_value={"result": {"items": []}}):
+            result = subject.run_cycle(execute=True, confirmed=True, runner=runner,
+                                       checked_at="2026-10-01T15:00:00Z")
+        self.assertEqual("COMPLETED", result.status)
+        self.assertEqual(0, result.valid)
+        self.assertEqual(1, result.disabled)
+        self.assertTrue(result.database_write_performed)
+        self.assertIn("verification_status='FAILED',affiliate_enabled=0", sql_seen[0])
+        self.assertIn("OFFICIAL_API_ITEM_UNAVAILABLE", sql_seen[0])
 
     def test_malformed_selection_fails_without_write(self):
         result = subject.run_cycle(runner=lambda *a, **k: Process(stdout="{}"))

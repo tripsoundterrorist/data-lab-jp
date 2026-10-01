@@ -202,16 +202,16 @@ def _statements(rows: list[dict[str, str]], outcomes: list[tuple[str, str | None
                 f"updated_at={checked} WHERE public_id={public_id} AND content_id={content_id} "
                 "AND rights_status='CONDITIONALLY_APPROVED' AND lifecycle_status='RESOLVED';",
             ))
-        else:
-            reason = "OFFICIAL_API_ITEM_UNAVAILABLE" if outcome == "NOT_AVAILABLE" else "LOCAL_UPSTREAM_UNCONFIRMED"
-            verification = "FAILED" if outcome == "NOT_AVAILABLE" else "PENDING"
+        elif outcome == "NOT_AVAILABLE":
             statements.extend((
-                f"UPDATE affiliate_item_lookup SET verification_status='{verification}',affiliate_enabled=0,"
+                "UPDATE affiliate_item_lookup SET verification_status='FAILED',affiliate_enabled=0,"
                 f"updated_at={checked} WHERE public_id={public_id} AND content_id={content_id};",
                 "INSERT INTO affiliate_lifecycle_revalidation_event "
                 "(public_id,checked_at,outcome,affiliate_enabled_after,reason_code) "
-                f"VALUES ({public_id},{checked},{_quote(outcome)},0,{_quote(reason)});",
+                f"VALUES ({public_id},{checked},'NOT_AVAILABLE',0,'OFFICIAL_API_ITEM_UNAVAILABLE');",
             ))
+        else:
+            raise ValueError("unconfirmed outcome must not reach D1 statements")
     return "\n".join(statements) + "\n"
 
 
@@ -255,6 +255,19 @@ def run_cycle(*, execute: bool = False, confirmed: bool = False,
             except AffiliateRuntimeConnectorError:
                 outcomes.append(("UNCONFIRMED", None))
 
+        # A transport/provider failure is not evidence that a previously
+        # verified product became unavailable. Abort the whole bounded batch
+        # before creating SQL so existing eligibility remains unchanged and a
+        # later run can retry. Confirmed empty ItemList responses still take
+        # the NOT_AVAILABLE path and disable the exact item.
+        if any(outcome == "UNCONFIRMED" for outcome, _ in outcomes):
+            return _result(
+                "FAILED_SAFE", mode, "UPSTREAM_UNCONFIRMED_NO_STATE_CHANGE",
+                selected=len(rows), valid=sum(value[0] == "VALID" for value in outcomes),
+                disabled=0, database_write_performed=False,
+                temporary_sql_deleted=True,
+            )
+
         timestamp = checked_at or datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
         if not isinstance(timestamp, str) or not timestamp.endswith("Z"):
             return _result("BLOCKED", mode, "CHECKED_AT_INVALID", selected=len(rows))
@@ -276,12 +289,12 @@ def run_cycle(*, execute: bool = False, confirmed: bool = False,
         if not write_succeeded:
             return _result("FAILED_SAFE", mode, "D1_WRITE_FAILED", selected=len(rows),
                            valid=sum(value[0] == "VALID" for value in outcomes),
-                           disabled=sum(value[0] != "VALID" for value in outcomes),
+                           disabled=sum(value[0] == "NOT_AVAILABLE" for value in outcomes),
                            temporary_sql_deleted=not temporary_path.exists())
         return _result(
             "COMPLETED", mode, "BOUNDED_REVALIDATION_COMPLETED", selected=len(rows),
             valid=sum(value[0] == "VALID" for value in outcomes),
-            disabled=sum(value[0] != "VALID" for value in outcomes),
+            disabled=sum(value[0] == "NOT_AVAILABLE" for value in outcomes),
             database_write_performed=True, temporary_sql_deleted=True,
         )
     except Exception:
