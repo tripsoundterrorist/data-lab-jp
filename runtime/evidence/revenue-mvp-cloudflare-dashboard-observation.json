@@ -1,0 +1,11 @@
+{
+  "version": "0.1",
+  "observed_at": "2026-10-01T13:38:50Z",
+  "workers_requests_24h": 32,
+  "workers_cpu_limit_errors_24h": 0,
+  "d1_rows_read_24h": 41730,
+  "d1_rows_written_24h": 1080,
+  "d1_database_storage_bytes": 405500,
+  "d1_account_storage_bytes": 405500,
+  "active_cron_triggers": []
+}

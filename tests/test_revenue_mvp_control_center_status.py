@@ -21,7 +21,7 @@ class RevenueMvpControlCenterStatusTests(unittest.TestCase):
         self.assertEqual(result.expansion_lookup_ready_count, 300)
         self.assertEqual(result.expansion_redirect_ready_count, 124)
         self.assertEqual(result.expansion_runtime_ready_count, 49)
-        self.assertFalse(result.next_batch_preparation_allowed)
+        self.assertTrue(result.next_batch_preparation_allowed)
         self.assertFalse(result.next_batch_live_execution_allowed)
         self.assertFalse(result.product_funnel_window_closed)
         self.assertFalse(result.product_funnel_review_completed)
@@ -29,7 +29,7 @@ class RevenueMvpControlCenterStatusTests(unittest.TestCase):
         self.assertFalse(result.expansion_publication_allowed)
         self.assertFalse(result.ranking_implementation_review_candidate)
         self.assertFalse(result.production_write_allowed)
-        self.assertIn(
+        self.assertNotIn(
             "CAPTURE_CURRENT_CLOUDFLARE_CAPACITY_AND_CRON_OBSERVATION",
             result.next_actions,
         )

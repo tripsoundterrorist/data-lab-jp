@@ -68,10 +68,11 @@ class ExpansionResumeGateTests(unittest.TestCase):
             subject.BLOCKED,
         )
 
-    def test_current_private_export_remains_blocked_without_dashboard_evidence(self):
+    def test_current_private_export_allows_preparation_with_verified_dashboard(self):
         result = subject.current_gate()
         self.assertTrue(result.historical_cadence_detected)
-        self.assertEqual(result.status, subject.BLOCKED)
+        self.assertEqual(result.status, subject.READY)
+        self.assertTrue(result.next_batch_preparation_allowed)
         self.assertFalse(result.live_execution_allowed)
 
 
