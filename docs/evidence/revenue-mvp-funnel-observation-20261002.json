@@ -1,0 +1,65 @@
+{
+  "version": "0.1",
+  "status": "EARLY_OBSERVATION_ONLY",
+  "observed_at": "2026-10-02",
+  "sources": [
+    "GA4_AUTHENTICATED_UI_READ_ONLY",
+    "DMM_AFFILIATE_AUTHENTICATED_UI_READ_ONLY"
+  ],
+  "ga4": {
+    "period_label": "過去7日間",
+    "active_users": 2,
+    "event_count": 54,
+    "key_events": 0,
+    "sessions_by_channel": {
+      "Direct": 10,
+      "Organic Social": 2,
+      "Unassigned": 1
+    },
+    "page_views": [
+      {
+        "page_title": "DATA LAB | 作品データ分析",
+        "views": 9
+      },
+      {
+        "page_title": "確認時点の商品情報 | DATA LAB",
+        "views": 10
+      },
+      {
+        "page_title": "DATA LABが目指すデータスコアの考え方 | DATA LAB",
+        "views": 1
+      },
+      {
+        "page_title": "作品データ | DATA LAB",
+        "views": 0
+      }
+    ],
+    "recent_event_names_observed": [
+      "first_visit",
+      "page_view",
+      "scroll",
+      "select_item",
+      "session_start",
+      "user_engagement",
+      "view_item",
+      "view_item_list"
+    ],
+    "outbound_product_click_recent_event_present": false
+  },
+  "dmm_affiliate": {
+    "period": "2026-10-01",
+    "report_top_status": "NO_DATA",
+    "product_report_status": "NO_DATA"
+  },
+  "interpretation": [
+    "The GA4 property is receiving sessions and allowlisted product-funnel events.",
+    "The outbound_product_click event is implemented in the repository but was not visible in the recent-event list at observation time.",
+    "No affiliate click, conversion, or revenue count is inferred from an absent recent-event row or a DMM no-data report.",
+    "The formal product-funnel review remains scheduled after the 2026-10-02 through 2026-10-08 measurement window and processing delay."
+  ],
+  "follow_up": {
+    "formal_review_not_before": "2026-10-10",
+    "runbook": "docs/runbooks/revenue-mvp-ga4-product-funnel-review-v0.1.md"
+  },
+  "external_write_performed": false
+}
