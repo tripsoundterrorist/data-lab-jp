@@ -26,6 +26,7 @@ STALE_THRESHOLD_MINUTES = 60
 
 TASK_NAMES = {
     "collector": "DATA LAB Daily Collector",
+    "affiliate_revalidation": "DATA LAB Daily Affiliate Revalidation",
     "backup": "DATA LAB Daily Backup",
     "stale_check": "DATA LAB Daily Stale Check",
 }
@@ -594,6 +595,10 @@ def print_human(result: dict[str, Any]) -> None:
     print()
     print("Tasks:")
     print(f"  Collector: {display_task(tasks['collector'])}")
+    print(
+        "  Affiliate Revalidation: "
+        f"{display_task(tasks['affiliate_revalidation'])}"
+    )
     print(f"  Backup: {display_task(tasks['backup'])}")
     print(f"  Stale Check: {display_task(tasks['stale_check'])}")
     print()
