@@ -16,3 +16,10 @@ This does not automatically unlock, repair, or retry. The caller receives
 `FAILED_SAFE` with `UPSTREAM_UNCONFIRMED_NO_STATE_CHANGE`; scheduled execution
 must remain separately controlled. Confirmed unavailability continues to fail
 closed. A future freshness-expiry policy requires a separate reviewed Gate.
+
+The Windows schedule candidate is inert by default. After a separate explicit
+approval, `configure-affiliate-revalidation-schedule.ps1 -Apply` may create one
+daily 20:00 JST task. Each run processes at most five rows, ignores overlapping
+starts, has a ten-minute execution limit, stores aggregate-only local logs, and
+does not contain an automatic retry loop. It refuses to replace or modify an
+existing mismatched task. Cloudflare Cron remains absent.
