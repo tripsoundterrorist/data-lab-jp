@@ -60,6 +60,17 @@ Cron-trigger usage, so `CLOUDFLARE_FREE_CAPACITY_UNVERIFIED` remains blocking.
 The 300-item activation scope is also not changed by this review. Evidence is at
 `runtime/evidence/revenue-mvp-cloudflare-free-capacity-static-review-20261001.json`.
 
+The product-funnel window is now deterministic and remains open. GA4 product
+dimensions were registered on 2026-10-01, are non-retroactive, and have a
+documented 24-to-48-hour reporting delay. The first accepted window therefore
+uses seven complete JST dates from 2026-10-02 through 2026-10-08, followed by
+two processing days. The earliest manual GA4 export review is 2026-10-10.
+Before that date, missing product-level clicks are unknown rather than zero and
+must not drive expansion or ranking decisions. Even after the window closes,
+only a manual export becomes eligible; publication and Production changes stay
+closed. Evidence is at
+`runtime/evidence/revenue-mvp-product-funnel-window-20261001.json`.
+
 Expansion work is P1 behind P0 revenue measurement. If Cloudflare Free capacity
 cannot be verified, work stops and any paid requirement must be reported before
 the plan changes.

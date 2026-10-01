@@ -1,0 +1,17 @@
+{
+  "earliest_manual_review_date": "2026-10-10",
+  "expansion_decision_allowed": false,
+  "ga4_export_allowed": false,
+  "minimum_complete_days": 7,
+  "period_end": "2026-10-08",
+  "period_start": "2026-10-02",
+  "processing_delay_days": 2,
+  "product_funnel_window_closed": false,
+  "production_change_allowed": false,
+  "reason_codes": [
+    "MINIMUM_COMPLETE_WINDOW_OR_PROCESSING_DELAY_PENDING"
+  ],
+  "registration_date": "2026-10-01",
+  "status": "WAITING_FOR_PRODUCT_FUNNEL_WINDOW",
+  "version": "0.1"
+}
