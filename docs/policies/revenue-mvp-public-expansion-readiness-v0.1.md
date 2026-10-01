@@ -278,3 +278,12 @@ the PR disclosure and opaque first-party route, and record an explicit decision.
 The packet never turns that decision into permission: COMPLIANCE confirmation,
 publication, and production writes all remain `false`. Sanitized evidence is at
 `runtime/evidence/revenue-mvp-expansion-compliance-packet-20261001.json`.
+
+`scripts/revenue_mvp_cloudflare_dashboard_observation.py` validates the five
+manual dashboard checks from the static capacity review as a strict,
+aggregate-only JSON input. The observation must be timezone-aware and no more
+than 24 hours old. Invalid counts, a reached Free limit, CPU-limit errors, or
+any active Cron trigger block verification. A passing observation verifies
+capacity only; it never permits a paid-plan change, production change, batch
+execution, or publication. No real dashboard value is recorded until it has
+been observed directly.
