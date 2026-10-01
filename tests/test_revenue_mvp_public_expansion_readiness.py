@@ -53,7 +53,9 @@ class PublicExpansionReadinessTests(unittest.TestCase):
         self.assertEqual(current.affiliate_redirect_ready_count, 124)
         self.assertEqual(current.runtime_revalidation_ready_count, 49)
         self.assertTrue(current.sitemap_capacity_verified)
+        self.assertTrue(current.rollback_plan_verified)
         self.assertNotIn("SITEMAP_CAPACITY_UNVERIFIED", result.reason_codes)
+        self.assertNotIn("ROLLBACK_PLAN_UNVERIFIED", result.reason_codes)
         self.assertIn("AFFILIATE_REDIRECT_NOT_EXACT", result.reason_codes)
         self.assertIn("COMPLIANCE_PUBLICATION_UNCONFIRMED", result.reason_codes)
 
@@ -86,6 +88,14 @@ class PublicExpansionReadinessTests(unittest.TestCase):
             with mock.patch.object(subject, "SITEMAP_CAPACITY_EVIDENCE", invalid):
                 current = subject.current_evidence()
             self.assertFalse(current.sitemap_capacity_verified)
+
+    def test_invalid_rollback_evidence_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            invalid = Path(directory) / "invalid.json"
+            invalid.write_text("{}", encoding="utf-8")
+            with mock.patch.object(subject, "ROLLBACK_EVIDENCE", invalid):
+                current = subject.current_evidence()
+            self.assertFalse(current.rollback_plan_verified)
 
     def test_only_the_next_300_item_stage_is_accepted(self):
         result = subject.assess(evidence(target_public_item_count=500))

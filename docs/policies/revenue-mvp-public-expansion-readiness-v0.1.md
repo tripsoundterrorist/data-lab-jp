@@ -29,6 +29,15 @@ sitemap changes nor publication. SEO content-quality review remains separate
 and blocked. Aggregate evidence is recorded at
 `runtime/evidence/revenue-mvp-expansion-sitemap-capacity-20261001.json`.
 
+The current 100-item static surface also completed an isolated rollback
+rehearsal. All 21 allowlisted public files were hash-bound, a changed candidate
+was atomically installed only below an OS temporary directory, and the original
+surface was restored twice with byte-exact and digest-exact results. The source
+tree remained unchanged. This verifies the artifact rollback plan for manual
+expansion review; it does not deploy, call Cloudflare, authorize publication,
+or permit automatic production rollback. Aggregate evidence is recorded at
+`runtime/evidence/revenue-mvp-expansion-rollback-rehearsal-20261001.json`.
+
 Expansion work is P1 behind P0 revenue measurement. If Cloudflare Free capacity
 cannot be verified, work stops and any paid requirement must be reported before
 the plan changes.

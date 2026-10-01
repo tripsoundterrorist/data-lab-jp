@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COLLECTION_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-collection-20261001.json"
 D1_COVERAGE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-initial-batch-000-live-success-20261001.json"
 SITEMAP_CAPACITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-sitemap-capacity-20261001.json"
+ROLLBACK_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-rollback-rehearsal-20261001.json"
 
 
 @dataclass(frozen=True)
@@ -192,6 +193,7 @@ def current_evidence() -> ExpansionEvidence:
     redirect_ready = 0
     runtime_ready = 0
     sitemap_capacity = False
+    rollback_verified = False
     try:
         value = json.loads(COLLECTION_EVIDENCE.read_text(encoding="utf-8"))
         evidence_valid = (
@@ -219,6 +221,33 @@ def current_evidence() -> ExpansionEvidence:
         if evidence_valid:
             verified_count = NEXT_STAGE_ITEM_COUNT
             surface_preserved = True
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        pass
+
+    try:
+        value = json.loads(ROLLBACK_EVIDENCE.read_text(encoding="utf-8"))
+        rollback_verified = (
+            type(value) is dict
+            and value.get("version") == "0.1"
+            and value.get("status") == "ROLLBACK_REHEARSAL_VERIFIED"
+            and value.get("source_file_count") == 21
+            and value.get("source_item_count") == CURRENT_PUBLIC_ITEM_COUNT
+            and value.get("candidate_differed_from_source") is True
+            and value.get("restore_byte_exact") is True
+            and value.get("repeated_restore_deterministic") is True
+            and value.get("source_unchanged") is True
+            and value.get("rollback_plan_verified") is True
+            and value.get("publication_allowed") is False
+            and value.get("deployment_allowed") is False
+            and value.get("external_io_performed") is False
+            and type(value.get("source_snapshot_sha256")) is str
+            and len(value["source_snapshot_sha256"]) == 64
+            and all(
+                character in "0123456789abcdef"
+                for character in value["source_snapshot_sha256"]
+            )
+            and value.get("reason_codes") == []
+        )
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
         pass
 
@@ -294,7 +323,7 @@ def current_evidence() -> ExpansionEvidence:
         cloudflare_free_plan_capacity_verified=False,
         compliance_publication_confirmed=False,
         product_funnel_window_closed=False,
-        rollback_plan_verified=False,
+        rollback_plan_verified=rollback_verified,
     )
 
 
