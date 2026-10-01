@@ -9,20 +9,33 @@ $WrapperPath = "C:\github\data-lab-jp\scripts\run-affiliate-revalidation-task.ps
 $PowerShellPath = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
 $Arguments = '-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $WrapperPath + '"'
 $PlannedTime = "20:00"
-$existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 $result = [ordered]@{
     version = "0.1"
     task_name = $TaskName
     apply_requested = [bool]$Apply
     planned_time_jst = $PlannedTime
     batch_size = 5
-    existing = $null -ne $existing
+    existing = $false
     action_matches = $false
     daily_trigger_matches = $false
     created = $false
     live_revalidation_scheduled = $false
     production_write_performed_now = $false
     automatic_retry_enabled = $false
+}
+
+try {
+    $matches = @(Get-ScheduledTask -ErrorAction Stop | Where-Object { $_.TaskName -eq $TaskName })
+    if ($matches.Count -gt 1) {
+        throw "duplicate task names"
+    }
+    $existing = if ($matches.Count -eq 1) { $matches[0] } else { $null }
+    $result.existing = $null -ne $existing
+}
+catch {
+    $result.status = "BLOCKED_TASK_INSPECTION_FAILED"
+    $result | ConvertTo-Json -Compress
+    exit 5
 }
 
 if ($null -ne $existing) {

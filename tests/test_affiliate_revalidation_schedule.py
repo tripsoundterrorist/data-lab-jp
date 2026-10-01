@@ -20,6 +20,9 @@ class AffiliateRevalidationScheduleTests(unittest.TestCase):
 
     def test_refuses_mismatch_and_prevents_overlap_or_retry_loop(self):
         self.assertIn("BLOCKED_EXISTING_TASK_MISMATCH", self.source)
+        self.assertIn("BLOCKED_TASK_INSPECTION_FAILED", self.source)
+        self.assertIn("Get-ScheduledTask -ErrorAction Stop", self.source)
+        self.assertNotIn("Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue", self.source)
         self.assertIn("-MultipleInstances IgnoreNew", self.source)
         self.assertIn("automatic_retry_enabled = $false", self.source)
         for forbidden in (
