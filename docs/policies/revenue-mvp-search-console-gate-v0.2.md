@@ -17,3 +17,9 @@ URL検査でトップページがGoogleに登録済みかつHTTPS配信である
 
 この確認はトップページ以外の全URLがindex済みであることを意味しない。
 商品一覧・商品詳細のindexingは引き続き禁止する。
+
+2026-10-02のread-only確認では、sitemapは2026-09-29に正常読込され、
+固定ページ9件を検出していた。一方、Search Consoleの集計では登録済み1件、
+未登録9件（redirect 1件、`検出 - インデックス未登録` 8件）であり、後者8件は
+前回クロールなしだった。再送信、修正検証、index登録リクエストは行わない。
+詳細は `docs/evidence/revenue-mvp-search-console-observation-20261002.json` を正とする。

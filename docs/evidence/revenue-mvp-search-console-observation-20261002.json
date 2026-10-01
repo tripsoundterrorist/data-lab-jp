@@ -1,0 +1,77 @@
+{
+  "version": "0.1",
+  "status": "INDEX_COVERAGE_OBSERVED",
+  "observed_at": "2026-10-02",
+  "source": "SEARCH_CONSOLE_AUTHENTICATED_UI_READ_ONLY",
+  "property": "datalabx.jp",
+  "performance": {
+    "three_months": {
+      "clicks": 3,
+      "impressions": 18,
+      "ctr_percent": 16.7,
+      "average_position": 4.2
+    },
+    "seven_day_report_range": {
+      "start": "2026-09-22",
+      "end": "2026-09-28",
+      "clicks": 1,
+      "impressions": 6,
+      "ctr_percent": 16.7,
+      "average_position": 4.3
+    },
+    "observed_page_rows": [
+      {
+        "url": "https://datalabx.jp/",
+        "clicks": 1,
+        "impressions": 6
+      }
+    ]
+  },
+  "index_coverage": {
+    "last_updated": "2026-09-21",
+    "indexed": 1,
+    "not_indexed": 9,
+    "not_indexed_reasons": {
+      "redirect": 1,
+      "discovered_currently_not_indexed": 8
+    },
+    "discovered_currently_not_indexed_urls": [
+      "https://datalabx.jp/about",
+      "https://datalabx.jp/column-price",
+      "https://datalabx.jp/column-score",
+      "https://datalabx.jp/column-trend",
+      "https://datalabx.jp/contact",
+      "https://datalabx.jp/disclosure",
+      "https://datalabx.jp/privacy",
+      "https://datalabx.jp/terms"
+    ],
+    "last_crawl_for_discovered_urls": "NONE_REPORTED"
+  },
+  "sitemap": {
+    "url": "https://datalabx.jp/sitemap.xml",
+    "submitted_at": "2026-09-05",
+    "last_read_at": "2026-09-29",
+    "status": "SUCCESS",
+    "discovered_pages": 9,
+    "discovered_videos": 0
+  },
+  "interpretation": [
+    "The sitemap is readable and successful, so no sitemap resubmission is indicated by this observation.",
+    "Eight submitted static pages remain discovered but not crawled; only the home page appeared in the observed seven-day page performance table.",
+    "Search exposure is too small to attribute performance to rank, CTR, or an algorithm change.",
+    "No product-list or product-detail indexing is authorized or inferred from this observation."
+  ],
+  "next_action": {
+    "priority": "P1",
+    "owner": "DEV/SEO",
+    "action": "Recheck coverage after Google recrawls naturally; assess the eight static pages for distinct user value and internal discoverability before proposing any content change."
+  },
+  "prohibited_actions_preserved": [
+    "No indexing request",
+    "No sitemap resubmission",
+    "No Search Console setting change",
+    "No product page indexing"
+  ],
+  "external_write_performed": false,
+  "identifiers_redacted": true
+}
