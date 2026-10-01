@@ -63,6 +63,16 @@ provider API request or D1 write and did not grant LIVE execution. Aggregate
 evidence is stored at
 `runtime/evidence/revenue-mvp-expansion-current-pending-batch-000-dry-run-20261002.json`.
 
+After separate explicit approval, the same hash-pinned five-item selection was
+executed once. All five exact official API responses contained allowlisted
+affiliate URLs, and the bounded D1 write completed. Post-write aggregate review
+recorded 127 active runtime redirects, 147 stored targets, and 150 untouched
+initial-validation rows. The public artifact remains 100 items and no deployment
+or Publication Gate change occurred. Additional LIVE batches remain prohibited
+without a new current-state selection, dry run, and explicit approval. Evidence
+is stored at
+`runtime/evidence/revenue-mvp-expansion-current-pending-batch-000-live-success-20261002.json`.
+
 Before preparing or executing another LIVE batch, run
 `scripts/revenue_mvp_revalidation_cadence_guard.py` against the latest private
 D1 SQL export. The guard emits aggregate-only output and blocks when it observes
