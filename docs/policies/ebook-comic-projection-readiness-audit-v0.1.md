@@ -8,6 +8,7 @@
 
 商品ID、public ID、タイトル、URL、価格、review、entity値は出力しない。候補artifactも生成しない。
 blockedが存在する場合はvalidatorの固定理由コード別件数だけを出力し、商品を特定できる値は出力しない。
+review平均と件数の片方だけが存在する場合は、値を補完せず`PROJECTION_REVIEW_PAIR_INCOMPLETE`として集計する。
 
 ## 入力境界
 

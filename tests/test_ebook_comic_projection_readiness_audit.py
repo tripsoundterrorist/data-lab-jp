@@ -17,7 +17,12 @@ SCHEMA = ROOT / "db" / "category-collection-schema.sql"
 CONFIG = ROOT / "config" / "category-collection-v0.1.json"
 
 
-def build_database(path: Path, *, missing_author: bool = False) -> None:
+def build_database(
+    path: Path,
+    *,
+    missing_author: bool = False,
+    incomplete_review: bool = False,
+) -> None:
     now = datetime.now(timezone.utc).isoformat()
     connection = sqlite3.connect(path)
     connection.executescript(SCHEMA.read_text(encoding="utf-8"))
@@ -50,8 +55,8 @@ def build_database(path: Path, *, missing_author: bool = False) -> None:
     )
     connection.execute(
         "INSERT INTO category_item_snapshots(item_id,run_id,observed_at,current_price_min,review_average,review_count,source_sort,source_position,sanitized_raw_json) "
-        "VALUES(1,'run-1',?,100,4.0,3,'date',1,'{}')",
-        (now,),
+        "VALUES(1,'run-1',?,100,?,3,'date',1,'{}')",
+        (now, None if incomplete_review else 4.0),
     )
     connection.commit()
     connection.close()
@@ -109,6 +114,23 @@ class EbookComicProjectionReadinessAuditTests(unittest.TestCase):
                 result = subject.assess(Path(directory) / "missing.db", CONFIG)
         self.assertEqual(result.status, subject.FAIL_CLOSED)
         self.assertFalse(result.publication_allowed)
+
+    def test_incomplete_review_pair_gets_fixed_aggregate_reason(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "category.db"
+            build_database(database, incomplete_review=True)
+            with mock.patch.object(
+                subject.health,
+                "assess",
+                return_value=mock.Mock(status=health.HEALTHY),
+            ):
+                result = subject.assess(database, CONFIG)
+        self.assertEqual(result.structure_blocked_count, 1)
+        self.assertEqual(
+            result.blocker_reasons[0].reason_code,
+            "PROJECTION_REVIEW_PAIR_INCOMPLETE",
+        )
+        self.assertEqual(result.blocker_reasons[0].count, 1)
 
 
 if __name__ == "__main__":

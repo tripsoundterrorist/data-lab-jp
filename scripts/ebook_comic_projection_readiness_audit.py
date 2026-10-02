@@ -116,6 +116,22 @@ def _candidate(row: sqlite3.Row) -> dict[str, Any]:
     }
 
 
+def _aggregate_blocker_reason(
+    candidate: dict[str, Any],
+    decision: projection.EbookComicProjectionCandidateResult,
+) -> str:
+    reason = decision.reason_codes[0]
+    if reason != "PROJECTION_CORE_FIELD_INVALID":
+        return reason
+    review = candidate.get("review")
+    if isinstance(review, dict) and frozenset(review) == projection.REVIEW_FIELDS:
+        average = review["average"]
+        count = review["count"]
+        if (average is None) != (count is None):
+            return "PROJECTION_REVIEW_PAIR_INCOMPLETE"
+    return reason
+
+
 def assess(
     database: Path = health.DATABASE,
     config: Path = health.CONFIG,
@@ -141,11 +157,12 @@ def assess(
             "JOIN category_item_snapshots x ON x.snapshot_id=l.snapshot_id "
             "WHERE s.content_type='ebook_comic' ORDER BY i.item_id"
         ).fetchall()
-        decisions = [projection.assess(_candidate(row)) for row in rows]
+        candidates = [_candidate(row) for row in rows]
+        decisions = [projection.assess(candidate) for candidate in candidates]
         ready_count = sum(result.status == projection.READY for result in decisions)
         blocker_counts = Counter(
-            result.reason_codes[0]
-            for result in decisions
+            _aggregate_blocker_reason(candidate, result)
+            for candidate, result in zip(candidates, decisions)
             if result.status != projection.READY
         )
         blocker_reasons = tuple(
