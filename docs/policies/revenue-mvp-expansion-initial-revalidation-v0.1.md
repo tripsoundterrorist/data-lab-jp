@@ -249,6 +249,14 @@ runtime redirects, 292 stored targets, and 5 untouched initial-validation
 rows. The public artifact remains 100 items. Evidence is stored at
 `runtime/evidence/revenue-mvp-expansion-current-pending-batch-029-live-success-20261002.json`.
 
+A thirty-first separately approved current-state batch completed five of five
+exact official API validations. Post-write aggregate review recorded 277 active
+runtime redirects, 297 stored targets, and zero untouched initial-validation
+rows. All 178 expansion rows in the initial-validation queue are now complete.
+The 20 retry-waiting rows and 3 legacy-pending rows remain separate and were not
+changed. The public artifact remains 100 items. Evidence is stored at
+`runtime/evidence/revenue-mvp-expansion-current-pending-batch-030-live-success-20261002.json`.
+
 Before preparing or executing another LIVE batch, run
 `scripts/revenue_mvp_revalidation_cadence_guard.py` against the latest private
 D1 SQL export. The guard emits aggregate-only output and blocks when it observes
