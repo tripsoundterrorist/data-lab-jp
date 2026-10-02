@@ -288,11 +288,11 @@ product-funnel measurement window into one aggregate-only manual review packet.
 It contains no item identifiers, URLs, credentials, or mutable production
 instructions. Missing or malformed inputs fail closed.
 
-As of 2026-10-01, the official lifecycle core and the current presentation
-policy are verified. The exact 300-item candidate has 300 lookup mappings, 124
-stored redirect targets, and 49 currently runtime-ready redirects. The product
-funnel window is still open. Redirect coverage, runtime eligibility, and the
-closed measurement window therefore remain blocking.
+The official lifecycle core and the current presentation policy are verified.
+The exact 300-item candidate now has 300 lookup mappings, 300 stored redirect
+targets, and 300 runtime-ready redirects. The product funnel window is still
+open, so the processed GA4 review and subsequent manual COMPLIANCE decision
+remain blocking independently.
 
 Before a manual COMPLIANCE decision, the operator must also account for the
 unexpected Cloudflare recurring trigger, confirm exact 300-item runtime

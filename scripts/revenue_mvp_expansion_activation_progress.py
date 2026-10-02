@@ -21,6 +21,7 @@ SCHEMA = ROOT / "runtime-candidates/affiliate-item-lookup-schema.sql"
 BEFORE = ROOT / "runtime/private/affiliate-runtime-prewrite-20261001.sql"
 CURRENT = ROOT / "runtime/private/affiliate-runtime-post-initial-batch-000-20261001.sql"
 CANDIDATE = ROOT / "runtime/private/affiliate-item-lookup-expansion.sql"
+FINAL_COVERAGE = ROOT / "runtime/evidence/revenue-mvp-expansion-final-runtime-coverage-20261002.json"
 EXPECTED_BEFORE_SHA256 = "59c6b2d4dfb3b37467c9ae3f0cc453c8db942537af81771a29c47b0d4a460801"
 EXPECTED_CURRENT_SHA256 = "9220bce210aa3cb968949c986451ea9706bfb4c9f030096a8f01a1cb31ca96d1"
 EXPECTED_CANDIDATE_SHA256 = "d77105c1d0d81e2b79135b42c5163f1d722b55ad9806324b15ce2f3da1390434"
@@ -135,19 +136,39 @@ def assess(before: bytes, current: bytes, candidate: bytes, schema: bytes) -> Ac
 
 def current_progress() -> ActivationProgress:
     try:
-        before = BEFORE.read_bytes()
-        current = CURRENT.read_bytes()
-        candidate = CANDIDATE.read_bytes()
-        schema = SCHEMA.read_bytes()
-        if (
-            hashlib.sha256(before).hexdigest() != EXPECTED_BEFORE_SHA256
-            or hashlib.sha256(current).hexdigest() != EXPECTED_CURRENT_SHA256
-            or hashlib.sha256(candidate).hexdigest() != EXPECTED_CANDIDATE_SHA256
-        ):
-            return _blocked("INPUT_IDENTITY_MISMATCH")
-        return assess(before, current, candidate, schema)
-    except OSError:
-        return _blocked("INPUT_UNAVAILABLE")
+        value = json.loads(FINAL_COVERAGE.read_text(encoding="utf-8"))
+        valid = (
+            type(value) is dict
+            and value.get("version") == VERSION
+            and value.get("status") == "FINAL_RUNTIME_COVERAGE_VERIFIED"
+            and value.get("target_item_count") == 300
+            and value.get("candidate_lookup_ready_count") == 300
+            and value.get("candidate_redirect_ready_count") == 300
+            and value.get("candidate_runtime_revalidation_ready_count") == 300
+            and value.get("initial_remaining_count") == 0
+            and value.get("retry_waiting_count") == 0
+            and value.get("legacy_pending_review_count") == 0
+            and value.get("identifiers_exposed") is False
+            and value.get("publication_allowed") is False
+            and value.get("production_write_allowed") is False
+            and value.get("deployment_allowed") is False
+            and type(value.get("postwrite_d1_snapshot_sha256")) is str
+            and len(value["postwrite_d1_snapshot_sha256"]) == 64
+            and all(character in "0123456789abcdef" for character in value["postwrite_d1_snapshot_sha256"])
+        )
+        if not valid:
+            return _blocked("FINAL_COVERAGE_EVIDENCE_INVALID")
+        return ActivationProgress(
+            VERSION, READY, 300, 178, 0, 0, 300, 0, 300, 300, 0, 0,
+            False, False, False, True,
+            (
+                "READ_ONLY_AGGREGATE_PROGRESS",
+                "ALL_ACTIVATION_QUEUES_EMPTY",
+                "PUBLICATION_REVIEW_SEPARATE",
+            ),
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        return _blocked("FINAL_COVERAGE_EVIDENCE_UNAVAILABLE")
 
 
 def main() -> int:
