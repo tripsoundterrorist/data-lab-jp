@@ -60,11 +60,11 @@ class PublicExpansionReadinessTests(unittest.TestCase):
         self.assertTrue(current.sitemap_capacity_verified)
         self.assertTrue(current.rollback_plan_verified)
         self.assertTrue(current.seo_quality_reviewed)
-        self.assertFalse(current.candidate_render_performance_verified)
+        self.assertTrue(current.candidate_render_performance_verified)
         self.assertNotIn("SITEMAP_CAPACITY_UNVERIFIED", result.reason_codes)
         self.assertNotIn("ROLLBACK_PLAN_UNVERIFIED", result.reason_codes)
         self.assertNotIn("SEO_QUALITY_UNREVIEWED", result.reason_codes)
-        self.assertIn("CANDIDATE_RENDER_PERFORMANCE_UNVERIFIED", result.reason_codes)
+        self.assertNotIn("CANDIDATE_RENDER_PERFORMANCE_UNVERIFIED", result.reason_codes)
         self.assertNotIn("AFFILIATE_REDIRECT_NOT_EXACT", result.reason_codes)
         self.assertNotIn("RUNTIME_REVALIDATION_NOT_EXACT", result.reason_codes)
         self.assertIn("COMPLIANCE_PUBLICATION_UNCONFIRMED", result.reason_codes)
@@ -114,6 +114,14 @@ class PublicExpansionReadinessTests(unittest.TestCase):
             with mock.patch.object(subject, "SEO_QUALITY_EVIDENCE", invalid):
                 current = subject.current_evidence()
             self.assertFalse(current.seo_quality_reviewed)
+
+    def test_invalid_render_performance_evidence_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            invalid = Path(directory) / "invalid.json"
+            invalid.write_text("{}", encoding="utf-8")
+            with mock.patch.object(subject, "RENDER_PERFORMANCE_EVIDENCE", invalid):
+                current = subject.current_evidence()
+            self.assertFalse(current.candidate_render_performance_verified)
 
     def test_missing_cloudflare_observation_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:

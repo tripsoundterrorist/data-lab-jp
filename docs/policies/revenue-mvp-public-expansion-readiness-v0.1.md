@@ -42,8 +42,15 @@ SEO quality has been reviewed for the staged expansion structure, with a
 fail-closed conclusion: keep the item surface `noindex,nofollow`, do not add the
 item surface to the sitemap, and do not generate thin detail pages. The current
 100 cards each retain one title, official image, price, observation time,
-proximate PR disclosure, and unique opaque first-party CTA route. A separate
-300-item render-performance check is still required before publication review.
+proximate PR disclosure, and unique opaque first-party CTA route. The separate
+300-item render-performance check has now passed in memory against the
+hash-pinned collection-only database. The renderer produced the exact 300-card
+`noindex,nofollow` artifact five times with byte-identical output. The slowest
+render was 4.97 ms and the artifact was 71,783 bytes, below the fail-closed
+2,000 ms and 2,000,000-byte ceilings. No artifact was written, no candidate
+identifier was recorded, and the existing 100-item public files were unchanged.
+Aggregate evidence is at
+`runtime/evidence/revenue-mvp-expansion-render-performance-20261002.json`.
 This evidence records that the quality decision was made; it does not authorize
 indexing, sitemap changes, detail-page generation, or publication. Evidence is
 at `runtime/evidence/revenue-mvp-expansion-seo-quality-20261001.json`.
@@ -259,8 +266,9 @@ records exact lookup, stored redirect, and runtime eligibility coverage for all
 COMPLIANCE packet readers now consume the dedicated aggregate-only final
 coverage evidence rather than the historical partial-batch receipt. This clears
 the D1 coverage blockers only; publication, deployment, and Production remain
-false. The readiness gate also treats the still-unverified 300-item render
-performance check as an explicit fail-closed blocker.
+false. The readiness gate now also consumes the aggregate-only render evidence;
+malformed, missing, oversized, slow, structurally invalid, or nondeterministic
+results fail closed.
 
 `scripts/revenue_mvp_expansion_activation_batch_plan.py` compares the immutable
 pre/post-write exports and separates the 300-item candidate into 178 newly

@@ -1,0 +1,18 @@
+{
+  "version": "0.1",
+  "status": "CANDIDATE_RENDER_PERFORMANCE_VERIFIED",
+  "candidate_item_count": 300,
+  "repetitions": 5,
+  "maximum_render_milliseconds": 4.97,
+  "artifact_bytes": 71783,
+  "deterministic_output": true,
+  "rendered_structure_verified": true,
+  "source_database_sha256": "6d1ea77411d1aa631c807ad4f76394e7aa00a3af0abdd20c920af75119d9a042",
+  "artifact_sha256": "01b56675a3b00a6a5280537a8cab64980ec3ddc61f354919801b14d0b1ffe564",
+  "candidate_identifiers_exposed": false,
+  "output_written": false,
+  "publication_allowed": false,
+  "production_write_allowed": false,
+  "deployment_allowed": false,
+  "reason_codes": []
+}

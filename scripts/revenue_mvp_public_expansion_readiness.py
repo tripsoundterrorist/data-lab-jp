@@ -23,6 +23,7 @@ D1_COVERAGE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-fi
 SITEMAP_CAPACITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-sitemap-capacity-20261001.json"
 ROLLBACK_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-rollback-rehearsal-20261001.json"
 SEO_QUALITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-seo-quality-20261001.json"
+RENDER_PERFORMANCE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-render-performance-20261002.json"
 CLOUDFLARE_CAPACITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-cloudflare-dashboard-observation.json"
 COMPLIANCE_PACKET_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-compliance-packet-20261001.json"
 COMPLIANCE_DECISION_RECEIPT = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-compliance-decision.json"
@@ -370,6 +371,34 @@ def current_evidence() -> ExpansionEvidence:
                 for character in value["source_snapshot_sha256"]
             )
             and value.get("reason_codes") == []
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        pass
+
+    try:
+        value = json.loads(RENDER_PERFORMANCE_EVIDENCE.read_text(encoding="utf-8"))
+        candidate_render_performance_verified = (
+            type(value) is dict
+            and value.get("version") == "0.1"
+            and value.get("status") == "CANDIDATE_RENDER_PERFORMANCE_VERIFIED"
+            and value.get("candidate_item_count") == NEXT_STAGE_ITEM_COUNT
+            and value.get("repetitions") == 5
+            and type(value.get("maximum_render_milliseconds")) in {int, float}
+            and value["maximum_render_milliseconds"] <= 2_000
+            and type(value.get("artifact_bytes")) is int
+            and value["artifact_bytes"] <= 2_000_000
+            and value.get("deterministic_output") is True
+            and value.get("rendered_structure_verified") is True
+            and value.get("candidate_identifiers_exposed") is False
+            and value.get("output_written") is False
+            and value.get("publication_allowed") is False
+            and value.get("production_write_allowed") is False
+            and value.get("deployment_allowed") is False
+            and value.get("reason_codes") == []
+            and type(value.get("source_database_sha256")) is str
+            and len(value["source_database_sha256"]) == 64
+            and type(value.get("artifact_sha256")) is str
+            and len(value["artifact_sha256"]) == 64
         )
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
         pass
