@@ -55,6 +55,14 @@ review. This list is not a publication allowlist:
 Review, campaign, sample-image, raw response, and affiliate-link fields remain
 outside the candidate public projection unless separately approved.
 
+`scripts/doujin_publication_projection_candidate.py` now encodes this exact
+structure as a pure, in-memory validator. Unknown or missing fields, incomplete
+source namespaces, invalid typed entity references, missing core values, and
+invalid freshness states fail closed. A structurally valid result is only
+`READY_FOR_FIELD_REVIEW`: field rights are still unconfirmed and publication,
+affiliate activation, sitemap changes, and Production writes always remain
+false. The validator does not read the category database or emit an artifact.
+
 ## URL and SEO candidate
 
 Do not change existing Revenue MVP URLs. If publication is later approved, the
