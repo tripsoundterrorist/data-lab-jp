@@ -86,6 +86,13 @@ result cannot change any Gate and always keeps field-rights confirmation and
 publication false until 03 COMPLIANCE reviews the exact doujin source scope and
 the unmapped fields against current official evidence.
 
+`scripts/doujin_compliance_handoff.py` composes the entity, projection, and
+rights-scope audits into one sanitized, non-sending handoff. It emits only
+aggregate readiness counts and fixed question IDs covering exact-source rights,
+retention, lifecycle, image requirements, and deeplink handling. It contains no
+product identities, titles, URLs, raw response, or official-response text. A
+successful handoff is not COMPLIANCE approval and cannot authorize publication.
+
 ## URL and SEO candidate
 
 Do not change existing Revenue MVP URLs. If publication is later approved, the
