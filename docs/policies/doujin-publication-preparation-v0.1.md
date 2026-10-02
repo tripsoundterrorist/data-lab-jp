@@ -30,6 +30,14 @@ These are collection facts, not evidence that any field may be published.
 - Equal display names do not establish identity across sources or categories.
 - Series and genre identities remain scoped to their official source type.
 
+The aggregate-only entity integrity audit on 2026-10-02 found that every
+observed `maker`, series, and genre entry in the three doujin sources carried
+both an official source ID and a name, with no malformed entries and no
+within-audit name variants for the same ID. Some IDs occur in more than one
+content type. This supports source-scoped typed references, but does not prove
+that cross-category identities may be merged. The audit intentionally emits
+counts only and never entity IDs or names.
+
 ## Candidate normalized projection
 
 The following fields may be prepared internally for later field-by-field
