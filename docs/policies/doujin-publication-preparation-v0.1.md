@@ -63,6 +63,13 @@ invalid freshness states fail closed. A structurally valid result is only
 affiliate activation, sitemap changes, and Production writes always remain
 false. The validator does not read the category database or emit an artifact.
 
+`scripts/doujin_projection_readiness_audit.py` applies that validator in memory
+to the latest collected snapshot for each doujin-family item and emits only
+per-category aggregate counts. It never emits item or entity identities and
+never writes the database or a candidate artifact. A ready structure count is
+preparation evidence only; field rights and every publication control remain
+closed.
+
 ## URL and SEO candidate
 
 Do not change existing Revenue MVP URLs. If publication is later approved, the
