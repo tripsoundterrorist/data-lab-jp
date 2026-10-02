@@ -70,6 +70,22 @@ never writes the database or a candidate artifact. A ready structure count is
 preparation evidence only; field rights and every publication control remain
 closed.
 
+## Rights-scope handoff
+
+The existing Rights Decision Matrix can be reused as prior official evidence
+for the candidate mappings covering title, current price, maker, series, genre,
+FANZA product main image, product page URL, and derived discount comparison.
+This reuse is evidence for review, not automatic proof that every doujin source
+scope is included.
+
+`scripts/doujin_rights_scope_audit.py` checks those mappings against the current
+rights policy and fails closed if that policy drifts. It keeps `public_id`,
+release date, list price, observation time, and freshness display in explicit
+scope review. Source identity and projection version remain internal-only. The
+result cannot change any Gate and always keeps field-rights confirmation and
+publication false until 03 COMPLIANCE reviews the exact doujin source scope and
+the unmapped fields against current official evidence.
+
 ## URL and SEO candidate
 
 Do not change existing Revenue MVP URLs. If publication is later approved, the
