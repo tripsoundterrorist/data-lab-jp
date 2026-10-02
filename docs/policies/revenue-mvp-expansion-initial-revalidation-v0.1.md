@@ -267,6 +267,14 @@ remains complete, the 3 legacy-pending rows remain separate, and the public
 artifact remains 100 items. Evidence is stored at
 `runtime/evidence/revenue-mvp-expansion-retry-batch-000-live-success-20261002.json`.
 
+The second separately approved bounded retry batch completed five of five exact
+official API validations with zero disabled rows and no automatic retry.
+Post-write aggregate review recorded 287 active runtime redirects, 297 stored
+targets, and 10 retry-waiting rows. Initial validation remains complete, the 3
+legacy-pending rows remain separate, and the public artifact remains 100 items.
+Evidence is stored at
+`runtime/evidence/revenue-mvp-expansion-retry-batch-001-live-success-20261002.json`.
+
 Before preparing or executing another LIVE batch, run
 `scripts/revenue_mvp_revalidation_cadence_guard.py` against the latest private
 D1 SQL export. The guard emits aggregate-only output and blocks when it observes
