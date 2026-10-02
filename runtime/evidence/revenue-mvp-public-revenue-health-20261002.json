@@ -1,0 +1,19 @@
+{
+  "version": "0.1",
+  "status": "PUBLIC_REVENUE_SURFACE_HEALTHY",
+  "observed_at": "2026-10-02T04:10:54Z",
+  "source_domain": "datalabx.jp",
+  "items_http_status": 200,
+  "items_artifact_sha256": "21cebab8b202129658fe192055cd72b6cf3cd197765a18cc5b92378104457db1",
+  "published_cta_count": 100,
+  "redirect_http_302_count": 100,
+  "redirect_failure_count": 0,
+  "destination_host_verified": true,
+  "published_image_count": 100,
+  "healthy_image_count": 100,
+  "image_failure_count": 0,
+  "official_image_host_verified": true,
+  "valid_affiliate_redirect_followed": false,
+  "external_write_performed": false,
+  "production_change_performed": false
+}

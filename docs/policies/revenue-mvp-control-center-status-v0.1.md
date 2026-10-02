@@ -28,3 +28,11 @@ and a nine-URL sitemap that excludes item-detail and `/go/` routes. An invalid
 opaque route returned 404; no valid affiliate route was requested, avoiding
 measurement contamination. Evidence is at
 `runtime/evidence/revenue-mvp-live-surface-smoke-20261001.json`.
+
+A second read-only revenue-surface observation at 2026-10-02T04:10:54Z
+verified all 100 published opaque CTA routes as non-followed HTTP 302 responses
+to the approved destination host and all 100 official product images as healthy
+image responses. No affiliate redirect was followed, no item identifier or URL
+was retained, and no external write or Production change occurred. Aggregate
+evidence is at
+`runtime/evidence/revenue-mvp-public-revenue-health-20261002.json`.
