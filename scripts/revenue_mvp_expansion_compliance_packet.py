@@ -14,7 +14,7 @@ BLOCKED = "BLOCKED_PENDING_EXPANSION_EVIDENCE"
 FAIL_CLOSED = "COMPLIANCE_PACKET_FAIL_CLOSED"
 ROOT = Path(__file__).resolve().parents[1]
 OFFICIAL_RESPONSE = ROOT / "runtime" / "evidence" / "revenue-mvp-official-response-20260916.json"
-COVERAGE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-initial-batch-000-live-success-20261001.json"
+COVERAGE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-final-runtime-coverage-20261002.json"
 SEO_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-seo-quality-20261001.json"
 FUNNEL_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-product-funnel-window-20261001.json"
 FUNNEL_REVIEW_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-product-funnel-review.json"
@@ -93,8 +93,21 @@ def build_packet(
         lookup = coverage.get("candidate_lookup_ready_count")
         redirects = coverage.get("candidate_redirect_ready_count")
         runtime = coverage.get("candidate_runtime_revalidation_ready_count")
+        coverage_verified = (
+            coverage.get("version") == "0.1"
+            and coverage.get("status") == "FINAL_RUNTIME_COVERAGE_VERIFIED"
+            and coverage.get("target_item_count") == TARGET_COUNT
+            and coverage.get("initial_remaining_count") == 0
+            and coverage.get("retry_waiting_count") == 0
+            and coverage.get("legacy_pending_review_count") == 0
+            and coverage.get("publication_allowed") is False
+            and coverage.get("production_write_allowed") is False
+            and coverage.get("deployment_allowed") is False
+            and type(coverage.get("postwrite_d1_snapshot_sha256")) is str
+            and len(coverage["postwrite_d1_snapshot_sha256"]) == 64
+        )
         if any(type(value) is not int or not 0 <= value <= TARGET_COUNT
-               for value in (lookup, redirects, runtime)):
+               for value in (lookup, redirects, runtime)) or not coverage_verified:
             raise ValueError
         presentation = (
             seo.get("status") == "SEO_QUALITY_REVIEWED_KEEP_NOINDEX"

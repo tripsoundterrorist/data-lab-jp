@@ -252,6 +252,16 @@ is therefore complete, but redirect and fresh runtime coverage remain blocking;
 stored targets must not be treated as eligible when revalidation has disabled
 their lookup rows.
 
+On 2026-10-02, bounded initial validation, separately controlled retry checks,
+and separate legacy-row review completed. A final private D1 snapshot now
+records exact lookup, stored redirect, and runtime eligibility coverage for all
+300 candidate rows, with all activation queues empty. The readiness and
+COMPLIANCE packet readers now consume the dedicated aggregate-only final
+coverage evidence rather than the historical partial-batch receipt. This clears
+the D1 coverage blockers only; publication, deployment, and Production remain
+false. The readiness gate also treats the still-unverified 300-item render
+performance check as an explicit fail-closed blocker.
+
 `scripts/revenue_mvp_expansion_activation_batch_plan.py` compares the immutable
 pre/post-write exports and separates the 300-item candidate into 178 newly
 inserted initial-validation rows, 50 pre-existing upstream-unconfirmed retry

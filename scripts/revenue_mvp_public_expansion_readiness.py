@@ -19,7 +19,7 @@ BLOCKED = "BLOCKED"
 FAIL_CLOSED = "FAIL_CLOSED"
 ROOT = Path(__file__).resolve().parents[1]
 COLLECTION_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-collection-20261001.json"
-D1_COVERAGE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-initial-batch-000-live-success-20261001.json"
+D1_COVERAGE_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-final-runtime-coverage-20261002.json"
 SITEMAP_CAPACITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-sitemap-capacity-20261001.json"
 ROLLBACK_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-rollback-rehearsal-20261001.json"
 SEO_QUALITY_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-seo-quality-20261001.json"
@@ -45,6 +45,7 @@ class ExpansionEvidence:
     existing_surface_preservation_verified: bool
     sitemap_capacity_verified: bool
     seo_quality_reviewed: bool
+    candidate_render_performance_verified: bool
     cloudflare_free_plan_capacity_verified: bool
     compliance_publication_confirmed: bool
     product_funnel_window_closed: bool
@@ -154,6 +155,7 @@ def assess(evidence: Any) -> ExpansionReadiness:
         "EXISTING_SURFACE_PRESERVATION_UNVERIFIED": evidence.existing_surface_preservation_verified,
         "SITEMAP_CAPACITY_UNVERIFIED": evidence.sitemap_capacity_verified,
         "SEO_QUALITY_UNREVIEWED": evidence.seo_quality_reviewed,
+        "CANDIDATE_RENDER_PERFORMANCE_UNVERIFIED": evidence.candidate_render_performance_verified,
         "CLOUDFLARE_FREE_CAPACITY_UNVERIFIED": evidence.cloudflare_free_plan_capacity_verified,
         "COMPLIANCE_PUBLICATION_UNCONFIRMED": evidence.compliance_publication_confirmed,
         "PRODUCT_FUNNEL_WINDOW_NOT_CLOSED": evidence.product_funnel_window_closed,
@@ -181,7 +183,11 @@ def assess(evidence: Any) -> ExpansionReadiness:
         actions.append("BUILD_EXACT_300_ITEM_D1_AND_RUNTIME_COVERAGE")
     if not evidence.existing_surface_preservation_verified or not evidence.rollback_plan_verified:
         actions.append("VERIFY_EXISTING_100_ITEM_SURFACE_AND_ROLLBACK")
-    if not evidence.sitemap_capacity_verified or not evidence.seo_quality_reviewed:
+    if (
+        not evidence.sitemap_capacity_verified
+        or not evidence.seo_quality_reviewed
+        or not evidence.candidate_render_performance_verified
+    ):
         actions.append("REVIEW_CANONICAL_SITEMAP_AND_PAGE_QUALITY")
     if not evidence.cloudflare_free_plan_capacity_verified:
         actions.append("VERIFY_CLOUDFLARE_FREE_PLAN_CAPACITY")
@@ -210,6 +216,7 @@ def current_evidence() -> ExpansionEvidence:
     sitemap_capacity = False
     rollback_verified = False
     seo_quality_reviewed = False
+    candidate_render_performance_verified = False
     cloudflare_capacity_verified = False
     compliance_confirmed = False
     funnel_window_closed = False
@@ -320,7 +327,7 @@ def current_evidence() -> ExpansionEvidence:
             and value.get("detail_page_generation_allowed") is False
             and value.get("sitemap_change_allowed") is False
             and value.get("publication_allowed") is False
-            and value.get("candidate_render_performance_verified") is False
+            and type(value.get("candidate_render_performance_verified")) is bool
             and type(value.get("source_sha256")) is dict
             and set(value["source_sha256"]) == {
                 "sitemap.xml", "items/index.html", "items/item.html",
@@ -332,6 +339,10 @@ def current_evidence() -> ExpansionEvidence:
                 for digest in value["source_sha256"].values()
             )
             and value.get("reason_codes") == []
+        )
+        candidate_render_performance_verified = (
+            seo_quality_reviewed
+            and value.get("candidate_render_performance_verified") is True
         )
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
         pass
@@ -397,19 +408,23 @@ def current_evidence() -> ExpansionEvidence:
         d1_evidence_valid = (
             type(value) is dict
             and value.get("version") == "0.1"
-            and value.get("status") == "INITIAL_BATCH_000_VERIFIED"
-            and value.get("lookup_row_count") == 1287
+            and value.get("status") == "FINAL_RUNTIME_COVERAGE_VERIFIED"
+            and value.get("target_item_count") == NEXT_STAGE_ITEM_COUNT
             and value.get("candidate_lookup_ready_count") == 300
-            and type(value.get("candidate_redirect_ready_count")) is int
-            and 0 <= value["candidate_redirect_ready_count"] <= 300
-            and type(value.get("candidate_runtime_revalidation_ready_count")) is int
-            and 0 <= value["candidate_runtime_revalidation_ready_count"] <= 300
-            and value.get("candidate_mapping_conflict_count") == 0
-            and value.get("selected_count") == 5
-            and value.get("valid_count") == 5
-            and value.get("selected_rows_conditionally_approved") is True
-            and value.get("selected_redirects_added") == 5
+            and value.get("candidate_redirect_ready_count") == 300
+            and value.get("candidate_runtime_revalidation_ready_count") == 300
+            and value.get("initial_remaining_count") == 0
+            and value.get("retry_waiting_count") == 0
+            and value.get("legacy_pending_review_count") == 0
+            and value.get("production_write_allowed") is False
+            and value.get("deployment_allowed") is False
             and value.get("publication_allowed") is False
+            and type(value.get("postwrite_d1_snapshot_sha256")) is str
+            and len(value["postwrite_d1_snapshot_sha256"]) == 64
+            and all(
+                character in "0123456789abcdef"
+                for character in value["postwrite_d1_snapshot_sha256"]
+            )
         )
         if d1_evidence_valid:
             lookup_ready = value["candidate_lookup_ready_count"]
@@ -432,6 +447,7 @@ def current_evidence() -> ExpansionEvidence:
         existing_surface_preservation_verified=surface_preserved,
         sitemap_capacity_verified=sitemap_capacity,
         seo_quality_reviewed=seo_quality_reviewed,
+        candidate_render_performance_verified=candidate_render_performance_verified,
         cloudflare_free_plan_capacity_verified=cloudflare_capacity_verified,
         compliance_publication_confirmed=compliance_confirmed,
         product_funnel_window_closed=funnel_window_closed,

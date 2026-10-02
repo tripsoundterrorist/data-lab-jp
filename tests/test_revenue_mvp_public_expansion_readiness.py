@@ -28,6 +28,7 @@ def evidence(**changes):
         "existing_surface_preservation_verified": False,
         "sitemap_capacity_verified": False,
         "seo_quality_reviewed": False,
+        "candidate_render_performance_verified": False,
         "cloudflare_free_plan_capacity_verified": False,
         "compliance_publication_confirmed": False,
         "product_funnel_window_closed": False,
@@ -54,15 +55,18 @@ class PublicExpansionReadinessTests(unittest.TestCase):
         self.assertNotIn("FRESHNESS_NOT_EXACT", result.reason_codes)
         self.assertNotIn("AFFILIATE_LOOKUP_NOT_EXACT", result.reason_codes)
         self.assertEqual(current.affiliate_lookup_ready_count, 300)
-        self.assertEqual(current.affiliate_redirect_ready_count, 124)
-        self.assertEqual(current.runtime_revalidation_ready_count, 49)
+        self.assertEqual(current.affiliate_redirect_ready_count, 300)
+        self.assertEqual(current.runtime_revalidation_ready_count, 300)
         self.assertTrue(current.sitemap_capacity_verified)
         self.assertTrue(current.rollback_plan_verified)
         self.assertTrue(current.seo_quality_reviewed)
+        self.assertFalse(current.candidate_render_performance_verified)
         self.assertNotIn("SITEMAP_CAPACITY_UNVERIFIED", result.reason_codes)
         self.assertNotIn("ROLLBACK_PLAN_UNVERIFIED", result.reason_codes)
         self.assertNotIn("SEO_QUALITY_UNREVIEWED", result.reason_codes)
-        self.assertIn("AFFILIATE_REDIRECT_NOT_EXACT", result.reason_codes)
+        self.assertIn("CANDIDATE_RENDER_PERFORMANCE_UNVERIFIED", result.reason_codes)
+        self.assertNotIn("AFFILIATE_REDIRECT_NOT_EXACT", result.reason_codes)
+        self.assertNotIn("RUNTIME_REVALIDATION_NOT_EXACT", result.reason_codes)
         self.assertIn("COMPLIANCE_PUBLICATION_UNCONFIRMED", result.reason_codes)
 
     def test_missing_or_invalid_collection_evidence_fails_closed_to_zero_counts(self):
@@ -297,6 +301,7 @@ class PublicExpansionReadinessTests(unittest.TestCase):
             "existing_surface_preservation_verified": True,
             "sitemap_capacity_verified": True,
             "seo_quality_reviewed": True,
+            "candidate_render_performance_verified": True,
             "cloudflare_free_plan_capacity_verified": True,
             "compliance_publication_confirmed": True,
             "product_funnel_window_closed": True,

@@ -1,7 +1,7 @@
 {
   "candidate_lookup_ready_count": 300,
-  "candidate_redirect_ready_count": 124,
-  "candidate_runtime_ready_count": 49,
+  "candidate_redirect_ready_count": 300,
+  "candidate_runtime_ready_count": 300,
   "compliance_publication_confirmed": false,
   "official_lifecycle_core_confirmed": true,
   "presentation_policy_verified": true,
@@ -11,9 +11,7 @@
   "publication_allowed": false,
   "reason_codes": [
     "PRODUCT_FUNNEL_REVIEW_INCOMPLETE",
-    "PRODUCT_FUNNEL_WINDOW_OPEN",
-    "REDIRECT_COVERAGE_INCOMPLETE",
-    "RUNTIME_ELIGIBILITY_INCOMPLETE"
+    "PRODUCT_FUNNEL_WINDOW_OPEN"
   ],
   "required_manual_checks": [
     "CONFIRM_UNEXPECTED_CLOUDFLARE_CRON_REMOVED_OR_ACCOUNTED_FOR",

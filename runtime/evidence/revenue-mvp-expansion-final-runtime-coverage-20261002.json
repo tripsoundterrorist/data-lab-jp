@@ -1,0 +1,24 @@
+{
+  "version": "0.1",
+  "status": "FINAL_RUNTIME_COVERAGE_VERIFIED",
+  "observed_at": "2026-10-02",
+  "target_item_count": 300,
+  "candidate_lookup_ready_count": 300,
+  "candidate_redirect_ready_count": 300,
+  "candidate_runtime_revalidation_ready_count": 300,
+  "initial_remaining_count": 0,
+  "retry_waiting_count": 0,
+  "legacy_pending_review_count": 0,
+  "postwrite_d1_snapshot_sha256": "8fde71fbaeb3fa809591f454b5119823935f178bc1320c5c73b603a04a945383",
+  "identifiers_exposed": false,
+  "publication_allowed": false,
+  "production_write_allowed": false,
+  "deployment_allowed": false,
+  "reason_codes": [
+    "ALL_300_CANDIDATE_MAPPINGS_VERIFIED",
+    "ALL_300_REDIRECT_TARGETS_VERIFIED",
+    "ALL_300_RUNTIME_REDIRECTS_VERIFIED",
+    "ALL_ACTIVATION_QUEUES_EMPTY",
+    "PUBLICATION_REMAINS_SEPARATELY_GATED"
+  ]
+}
