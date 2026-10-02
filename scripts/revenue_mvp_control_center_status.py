@@ -7,7 +7,6 @@ import json
 
 import revenue_mvp_current_state as live_state
 import revenue_mvp_expansion_activation_progress as activation_progress
-import revenue_mvp_expansion_resume_gate as resume_gate
 import revenue_mvp_public_expansion_readiness as expansion
 import revenue_mvp_ranking_readiness as ranking
 
@@ -50,7 +49,6 @@ def current_status() -> ControlCenterStatus:
         live = live_state.current_state()
         evidence = expansion.current_evidence()
         expansion_result = expansion.assess(evidence)
-        resume = resume_gate.current_gate()
         progress = activation_progress.current_progress()
         ranking_result = ranking.assess(ranking.current_evidence())
         valid = (
@@ -64,14 +62,11 @@ def current_status() -> ControlCenterStatus:
             and progress.runtime_redirect_count == evidence.runtime_revalidation_ready_count
             and expansion_result.publication_allowed is False
             and expansion_result.production_write_allowed is False
-            and resume.live_execution_allowed is False
             and ranking_result.publication_allowed is False
         )
         if not valid:
             raise ValueError
         actions = ["KEEP_100_ITEM_REVENUE_SURFACE_LIVE_AND_MEASURED"]
-        if not resume.next_batch_preparation_allowed:
-            actions.append("CAPTURE_CURRENT_CLOUDFLARE_CAPACITY_AND_CRON_OBSERVATION")
         if not evidence.product_funnel_window_closed:
             actions.append("WAIT_FOR_PRODUCT_FUNNEL_WINDOW_END")
         if not evidence.product_funnel_review_completed:
@@ -84,7 +79,7 @@ def current_status() -> ControlCenterStatus:
             evidence.affiliate_lookup_ready_count,
             evidence.affiliate_redirect_ready_count,
             evidence.runtime_revalidation_ready_count,
-            resume.next_batch_preparation_allowed,
+            False,
             False,
             evidence.product_funnel_window_closed,
             evidence.product_funnel_review_completed,

@@ -31,6 +31,8 @@ class IsolatedCollectionTests(unittest.TestCase):
 
     def test_collector_failure_is_bounded_and_source_unchanged(self):
         source = ROOT / "data" / "data-lab.db"
+        if not source.is_file():
+            self.skipTest("private production database is not present")
         before = subject._sha256(source)
         with mock.patch.object(subject, "_run_collector", return_value=7):
             result = subject.assess(source, ROOT / ".env", evaluated_at=NOW)

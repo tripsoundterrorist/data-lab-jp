@@ -15,7 +15,7 @@
     "OBTAIN_HASH_PINNED_OWNER_COMPLIANCE_DECISION_WHEN_READY"
   ],
   "next_batch_live_execution_allowed": false,
-  "next_batch_preparation_allowed": true,
+  "next_batch_preparation_allowed": false,
   "product_funnel_review_completed": false,
   "product_funnel_window_closed": false,
   "production_write_allowed": false,

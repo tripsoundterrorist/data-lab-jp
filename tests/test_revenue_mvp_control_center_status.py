@@ -21,7 +21,7 @@ class RevenueMvpControlCenterStatusTests(unittest.TestCase):
         self.assertEqual(result.expansion_lookup_ready_count, 300)
         self.assertEqual(result.expansion_redirect_ready_count, 300)
         self.assertEqual(result.expansion_runtime_ready_count, 300)
-        self.assertTrue(result.next_batch_preparation_allowed)
+        self.assertFalse(result.next_batch_preparation_allowed)
         self.assertFalse(result.next_batch_live_execution_allowed)
         self.assertFalse(result.product_funnel_window_closed)
         self.assertFalse(result.product_funnel_review_completed)

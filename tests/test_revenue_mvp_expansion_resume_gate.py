@@ -69,6 +69,8 @@ class ExpansionResumeGateTests(unittest.TestCase):
         )
 
     def test_current_private_export_allows_preparation_with_verified_dashboard(self):
+        if not subject.DEFAULT_EXPORT.is_file():
+            self.skipTest("private D1 export is not present")
         result = subject.current_gate()
         self.assertTrue(result.historical_cadence_detected)
         self.assertEqual(result.status, subject.READY)

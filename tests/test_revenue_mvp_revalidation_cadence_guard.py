@@ -65,7 +65,8 @@ class RevalidationCadenceGuardTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual(completed.returncode, 2)
-        self.assertIn('"status": "BLOCKED"', completed.stdout)
+        expected = '"status": "BLOCKED"' if subject.DEFAULT_EXPORT.is_file() else '"status": "FAIL_CLOSED"'
+        self.assertIn(expected, completed.stdout)
         self.assertNotIn("itm_", completed.stdout)
         self.assertNotIn("https://", completed.stdout)
 
