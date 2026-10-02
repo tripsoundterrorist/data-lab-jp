@@ -1,0 +1,43 @@
+{
+  "version": "0.1",
+  "status": "COMPLETED",
+  "mode": "LIVE",
+  "observed_at": "2026-10-02",
+  "selection_sha256": "98abc0638d649c79e721b396229814907a5005ff54a9dc07e13201d12c82207a",
+  "postwrite_d1_snapshot_sha256": "ae389d6f5f6ab3dae879e53b22682610ca20225b24ac499479ecaa4a5e12515a",
+  "selected_count": 5,
+  "valid_count": 5,
+  "unavailable_count": 0,
+  "unconfirmed_count": 0,
+  "official_api_request_count": 5,
+  "database_write_performed": true,
+  "temporary_sql_deleted": true,
+  "identifiers_exposed": false,
+  "before": {
+    "active_count": 222,
+    "redirect_target_count": 242,
+    "runtime_redirect_count": 222,
+    "initial_remaining_count": 55
+  },
+  "after": {
+    "active_count": 227,
+    "redirect_target_count": 247,
+    "runtime_redirect_count": 227,
+    "initial_remaining_count": 50,
+    "retry_waiting_count": 20,
+    "legacy_pending_review_count": 3
+  },
+  "publication_change_performed": false,
+  "deployment_performed": false,
+  "public_item_count_unchanged": 100,
+  "additional_live_execution_allowed": false,
+  "explicit_approval_required_for_next_batch": true,
+  "reason_codes": [
+    "CURRENT_PENDING_SCOPE_VERIFIED",
+    "INITIAL_SELECTION_VALIDATED",
+    "BOUNDED_INITIAL_REVALIDATION_COMPLETED",
+    "FIVE_OF_FIVE_OFFICIAL_API_EXACT_MATCH",
+    "POSTWRITE_AGGREGATE_VERIFIED",
+    "PUBLICATION_UNCHANGED"
+  ]
+}
