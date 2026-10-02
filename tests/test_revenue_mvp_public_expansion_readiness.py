@@ -186,6 +186,7 @@ class PublicExpansionReadinessTests(unittest.TestCase):
                 "status": "PRODUCT_FUNNEL_REVIEW_COMPLETED",
                 "period_start": "2026-10-02",
                 "period_end": "2026-10-08",
+                "reviewed_on": "2026-10-10",
                 "product_funnel_review_completed": True,
                 "total_outbound_product_clicks": 0,
                 "observed_product_count": 0,
@@ -198,6 +199,28 @@ class PublicExpansionReadinessTests(unittest.TestCase):
             with mock.patch.object(subject, "FUNNEL_REVIEW_EVIDENCE", receipt):
                 current = subject.current_evidence()
             self.assertTrue(current.product_funnel_review_completed)
+
+    def test_invalid_funnel_review_date_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = Path(directory) / "funnel-review.json"
+            receipt.write_text(json.dumps({
+                "version": "0.1",
+                "status": "PRODUCT_FUNNEL_REVIEW_COMPLETED",
+                "period_start": "2026-10-02",
+                "period_end": "2026-10-08",
+                "reviewed_on": "not-a-date",
+                "product_funnel_review_completed": True,
+                "total_outbound_product_clicks": 0,
+                "observed_product_count": 0,
+                "zero_click_period_confirmed": True,
+                "expansion_decision_allowed": False,
+                "production_write_allowed": False,
+                "external_write_performed": False,
+                "reason_codes": [],
+            }), encoding="utf-8")
+            with mock.patch.object(subject, "FUNNEL_REVIEW_EVIDENCE", receipt):
+                current = subject.current_evidence()
+            self.assertFalse(current.product_funnel_review_completed)
 
     def test_invalid_external_evidence_cannot_self_authorize_publication(self):
         with tempfile.TemporaryDirectory() as directory:

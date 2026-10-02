@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import date
 import json
 from typing import Any
 
@@ -13,6 +14,7 @@ COMPLETED = "PRODUCT_FUNNEL_REVIEW_COMPLETED"
 BLOCKED = "PRODUCT_FUNNEL_REVIEW_RECEIPT_BLOCKED"
 PERIOD_START = "2026-10-02"
 PERIOD_END = "2026-10-08"
+EARLIEST_REVIEW_DATE = date(2026, 10, 10)
 
 
 @dataclass(frozen=True)
@@ -21,6 +23,7 @@ class FunnelReviewReceipt:
     status: str
     period_start: str | None
     period_end: str | None
+    reviewed_on: str
     product_funnel_review_completed: bool
     total_outbound_product_clicks: int | None
     observed_product_count: int
@@ -36,18 +39,24 @@ class FunnelReviewReceipt:
         return value
 
 
-def build(payload: Any) -> FunnelReviewReceipt:
+def build(payload: Any, *, evaluated_on: date | None = None) -> FunnelReviewReceipt:
+    review_date = date.today() if evaluated_on is None else evaluated_on
     result = review.build_review(payload)
     exact_period = result.period_start == PERIOD_START and result.period_end == PERIOD_END
-    complete = result.status == review.READY and exact_period
+    review_date_valid = type(review_date) is date and review_date >= EARLIEST_REVIEW_DATE
+    complete = result.status == review.READY and exact_period and review_date_valid
     reasons: set[str] = set()
     if result.status != review.READY:
         reasons.add("GA4_REVIEW_NOT_READY")
     if not exact_period:
         reasons.add("MEASUREMENT_PERIOD_NOT_EXACT")
+    if not review_date_valid:
+        reasons.add("EARLIEST_REVIEW_DATE_NOT_REACHED")
     return FunnelReviewReceipt(
         VERSION, COMPLETED if complete else BLOCKED,
-        result.period_start, result.period_end, complete,
+        result.period_start, result.period_end,
+        review_date.isoformat() if type(review_date) is date else "INVALID",
+        complete,
         result.total_outbound_product_clicks if complete else None,
         result.observed_product_count if complete else 0,
         complete and result.total_outbound_product_clicks == 0,

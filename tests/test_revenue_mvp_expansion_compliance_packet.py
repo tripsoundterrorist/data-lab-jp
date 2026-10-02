@@ -49,6 +49,7 @@ class ExpansionCompliancePacketTests(unittest.TestCase):
             "status": "PRODUCT_FUNNEL_REVIEW_COMPLETED",
             "period_start": "2026-10-02",
             "period_end": "2026-10-08",
+            "reviewed_on": "2026-10-10",
             "product_funnel_review_completed": True,
             "expansion_decision_allowed": False,
             "production_write_allowed": False,
@@ -74,6 +75,26 @@ class ExpansionCompliancePacketTests(unittest.TestCase):
             official, self.coverage, self.seo, self.funnel, self.funnel_review
         )
         self.assertIn("OFFICIAL_LIFECYCLE_CORE_UNCONFIRMED", result.reason_codes)
+
+    def test_invalid_review_date_does_not_complete_funnel_review(self):
+        funnel = dict(self.funnel)
+        funnel["product_funnel_window_closed"] = True
+        review = {
+            "status": "PRODUCT_FUNNEL_REVIEW_COMPLETED",
+            "period_start": "2026-10-02",
+            "period_end": "2026-10-08",
+            "reviewed_on": "not-a-date",
+            "product_funnel_review_completed": True,
+            "expansion_decision_allowed": False,
+            "production_write_allowed": False,
+            "external_write_performed": False,
+            "reason_codes": [],
+        }
+        result = subject.build_packet(
+            self.official, self.coverage, self.seo, funnel, review
+        )
+        self.assertFalse(result.product_funnel_review_completed)
+        self.assertIn("PRODUCT_FUNNEL_REVIEW_INCOMPLETE", result.reason_codes)
 
     def test_malformed_evidence_fails_closed(self):
         result = subject.build_packet(

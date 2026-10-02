@@ -4,6 +4,10 @@ Do not perform this review before 2026-10-10 JST. The measurement period is
 2026-10-02 through 2026-10-08, followed by two processing days. The custom
 dimensions are non-retroactive and were registered on 2026-10-01.
 
+The aggregate receipt independently records and validates the local review
+date. Even structurally valid processed rows remain blocked through
+2026-10-09; do not edit that boundary or pre-create a completion receipt.
+
 Use the authenticated DATA LAB GA4 property and select:
 
 - event name: `outbound_product_click`;

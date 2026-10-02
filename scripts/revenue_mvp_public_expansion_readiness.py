@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import date
 import json
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,15 @@ COMPLIANCE_PACKET_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-expans
 COMPLIANCE_DECISION_RECEIPT = ROOT / "runtime" / "evidence" / "revenue-mvp-expansion-compliance-decision.json"
 FUNNEL_WINDOW_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-product-funnel-window-20261001.json"
 FUNNEL_REVIEW_EVIDENCE = ROOT / "runtime" / "evidence" / "revenue-mvp-product-funnel-review.json"
+
+
+def _reviewed_on_valid(value: Any) -> bool:
+    if type(value) is not str:
+        return False
+    try:
+        return date.fromisoformat(value) >= date(2026, 10, 10)
+    except ValueError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -300,6 +310,7 @@ def current_evidence() -> ExpansionEvidence:
             and value.get("status") == "PRODUCT_FUNNEL_REVIEW_COMPLETED"
             and value.get("period_start") == "2026-10-02"
             and value.get("period_end") == "2026-10-08"
+            and _reviewed_on_valid(value.get("reviewed_on"))
             and value.get("product_funnel_review_completed") is True
             and type(value.get("total_outbound_product_clicks")) is int
             and value["total_outbound_product_clicks"] >= 0

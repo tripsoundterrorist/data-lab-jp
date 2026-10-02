@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import date
 import json
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,15 @@ REQUIRED_LIFECYCLE_CONFIRMATIONS = frozenset({
     "NONVISIBLE_PAGE_HANDLING",
     "NONVISIBLE_LINK_HANDLING",
 })
+
+
+def _reviewed_on_valid(value: Any) -> bool:
+    if type(value) is not str:
+        return False
+    try:
+        return date.fromisoformat(value) >= date(2026, 10, 10)
+    except ValueError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -122,6 +132,7 @@ def build_packet(
             funnel_review.get("status") == "PRODUCT_FUNNEL_REVIEW_COMPLETED"
             and funnel_review.get("period_start") == "2026-10-02"
             and funnel_review.get("period_end") == "2026-10-08"
+            and _reviewed_on_valid(funnel_review.get("reviewed_on"))
             and funnel_review.get("product_funnel_review_completed") is True
             and funnel_review.get("expansion_decision_allowed") is False
             and funnel_review.get("production_write_allowed") is False

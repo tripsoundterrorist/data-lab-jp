@@ -1,10 +1,13 @@
 from pathlib import Path
+from datetime import date
 import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import revenue_mvp_product_funnel_review_receipt as subject  # noqa: E402
+
+REVIEW_DATE = date(2026, 10, 10)
 
 
 def payload(rows=None):
@@ -23,7 +26,7 @@ class ProductFunnelReviewReceiptTests(unittest.TestCase):
             "item_id": "itm_111111111111111111111111",
             "surface": "product_card",
             "outbound_product_clicks": 3,
-        }]))
+        }]), evaluated_on=REVIEW_DATE)
         self.assertEqual(result.status, subject.COMPLETED)
         self.assertTrue(result.product_funnel_review_completed)
         self.assertEqual(result.total_outbound_product_clicks, 3)
@@ -34,7 +37,7 @@ class ProductFunnelReviewReceiptTests(unittest.TestCase):
         self.assertNotIn("item_id", result.to_dict())
 
     def test_processed_zero_is_explicit_not_missing(self):
-        result = subject.build(payload())
+        result = subject.build(payload(), evaluated_on=REVIEW_DATE)
         self.assertTrue(result.product_funnel_review_completed)
         self.assertEqual(result.total_outbound_product_clicks, 0)
         self.assertTrue(result.zero_click_period_confirmed)
@@ -44,10 +47,15 @@ class ProductFunnelReviewReceiptTests(unittest.TestCase):
         pending = payload(); pending["ga4_processing_complete"] = False
         for value in (wrong, pending, None):
             with self.subTest(value=value):
-                result = subject.build(value)
+                result = subject.build(value, evaluated_on=REVIEW_DATE)
                 self.assertEqual(result.status, subject.BLOCKED)
                 self.assertFalse(result.product_funnel_review_completed)
                 self.assertIsNone(result.total_outbound_product_clicks)
+
+    def test_review_before_processing_boundary_blocks(self):
+        result = subject.build(payload(), evaluated_on=date(2026, 10, 9))
+        self.assertEqual(result.status, subject.BLOCKED)
+        self.assertIn("EARLIEST_REVIEW_DATE_NOT_REACHED", result.reason_codes)
 
 
 if __name__ == "__main__":
