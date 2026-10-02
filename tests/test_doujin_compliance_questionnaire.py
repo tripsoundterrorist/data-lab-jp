@@ -25,7 +25,7 @@ class DoujinComplianceQuestionnaireTests(unittest.TestCase):
 
     def test_prior_evidence_is_reviewed_before_recontact(self):
         reusable = {row.question_id for row in subject.QUESTIONS if row.prior_evidence_candidate}
-        self.assertIn("DOUJIN_SOURCE_SCOPE_APPLICABILITY", reusable)
+        self.assertNotIn("DOUJIN_SOURCE_SCOPE_APPLICABILITY", reusable)
         self.assertIn("DOUJIN_DEEPLINK_AFFILIATE_METHOD", reusable)
         self.assertNotIn("SANITIZED_RAW_RETENTION_DURATION", reusable)
 

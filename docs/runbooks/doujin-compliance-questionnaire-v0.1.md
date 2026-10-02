@@ -20,3 +20,11 @@ Any remaining DMM questions must be manually reviewed, minimized, and approved
 before external submission. This questionnaire neither sends a message nor
 changes COMPLIANCE, Publication Gate, affiliate activation, sitemap, or
 Production state.
+
+`scripts/doujin_prior_evidence_reuse_audit.py` validates the routing against the
+current sanitized rights, lifecycle/image, history/retention, and link-policy
+records. The current result routes seven questions to exact-source scope review,
+five to additional DMM confirmation, and two to internal COMPLIANCE review. It
+auto-resolves none. Existing history and retention records use different scopes
+for public history use and private raw/database retention, so private retention
+must not be inferred from the broader history decision.

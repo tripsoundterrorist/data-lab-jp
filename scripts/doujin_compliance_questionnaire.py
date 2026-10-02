@@ -39,7 +39,7 @@ class DoujinComplianceQuestionnaire:
 
 QUESTIONS = (
     ReviewQuestion(
-        "DOUJIN_SOURCE_SCOPE_APPLICABILITY", DMM_SUPPORT, True,
+        "DOUJIN_SOURCE_SCOPE_APPLICABILITY", DMM_SUPPORT, False,
         "既存のAPI取得情報の表示可否に関する回答は、FANZA同人・BL同人・TL同人の商品情報にも適用されますか。",
     ),
     ReviewQuestion(
