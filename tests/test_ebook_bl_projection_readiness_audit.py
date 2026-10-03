@@ -1,0 +1,155 @@
+from datetime import datetime, timezone
+from pathlib import Path
+import sqlite3
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import category_collection_health as health  # noqa: E402
+import ebook_bl_projection_readiness_audit as subject  # noqa: E402
+
+
+SCHEMA = ROOT / "db" / "category-collection-schema.sql"
+CONFIG = ROOT / "config" / "category-collection-v0.1.json"
+
+
+def build_database(
+    path: Path,
+    *,
+    missing_author: bool = False,
+    incomplete_review: bool = False,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    connection = sqlite3.connect(path)
+    connection.executescript(SCHEMA.read_text(encoding="utf-8"))
+    connection.execute(
+        "INSERT INTO category_sources(source_id,content_type,site,service,floor,collection_mode) "
+        "VALUES(1,'ebook_bl','FANZA','ebook','bl','COLLECTION_ONLY')"
+    )
+    connection.execute(
+        "INSERT INTO category_collection_runs(run_id,source_id,started_at,finished_at,status,source_sort,requested_hits,fetched_items,response_sha256) "
+        "VALUES('run-1',1,?,?,'success','date',1,1,?)",
+        (now, now, "0" * 64),
+    )
+    contributors = (
+        '{"manufacture":[{"id":"2","name":"Source"}]}'
+        if missing_author
+        else '{"author":[{"id":"1","name":"Author"}],"manufacture":[{"id":"2","name":"Source"}]}'
+    )
+    connection.execute(
+        "INSERT INTO category_items(item_id,source_id,content_id,title,release_date_raw,item_url,image_json,contributors_json,series_json,genre_json,source_extension_json,first_observed_at,last_observed_at,normalizer_version) "
+        "VALUES(1,1,'fixture','Title','2026-01-01','https://book.dmm.co.jp/item',?,?,?,?,?,?,?,'0.1')",
+        (
+            '{"large":"https://example.invalid/image.jpg"}',
+            contributors,
+            '[{"id":"3","name":"Series"}]',
+            '[{"id":"4","name":"Genre"}]',
+            '{}',
+            now,
+            now,
+        ),
+    )
+    connection.execute(
+        "INSERT INTO category_item_snapshots(item_id,run_id,observed_at,current_price_min,review_average,review_count,source_sort,source_position,sanitized_raw_json) "
+        "VALUES(1,'run-1',?,100,?,3,'date',1,'{}')",
+        (now, None if incomplete_review else 4.0),
+    )
+    connection.commit()
+    connection.close()
+
+
+class EbookBlProjectionReadinessAuditTests(unittest.TestCase):
+    def test_ready_row_is_aggregate_only_and_all_gates_stay_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "category.db"
+            build_database(database)
+            with mock.patch.object(
+                subject.health, "assess", return_value=mock.Mock(status=health.HEALTHY)
+            ):
+                result = subject.assess(database, CONFIG)
+        self.assertEqual(result.status, subject.READY)
+        self.assertEqual(result.item_count, 1)
+        self.assertEqual(result.structure_ready_count, 1)
+        self.assertEqual(result.structure_blocked_count, 0)
+        self.assertTrue(result.rights_scope_review_ready)
+        self.assertTrue(result.compliance_questionnaire_ready)
+        self.assertFalse(result.artifact_created)
+        self.assertFalse(result.database_write_performed)
+        self.assertFalse(result.image_scope_confirmed)
+        self.assertFalse(result.compliance_approved)
+        self.assertFalse(result.publication_allowed)
+        self.assertFalse(result.affiliate_activation_allowed)
+        self.assertFalse(result.production_write_allowed)
+
+    def test_blocked_row_reports_only_aggregate_reason(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "category.db"
+            build_database(database, missing_author=True)
+            with mock.patch.object(
+                subject.health, "assess", return_value=mock.Mock(status=health.HEALTHY)
+            ):
+                result = subject.assess(database, CONFIG)
+        self.assertEqual(result.structure_ready_count, 0)
+        self.assertEqual(result.structure_blocked_count, 1)
+        self.assertEqual(
+            result.blocker_reasons[0].reason_code,
+            "PROJECTION_ENTITY_REFERENCE_INVALID",
+        )
+        rendered = str(result.to_dict())
+        self.assertNotIn("fixture", rendered)
+        self.assertNotIn("Author", rendered)
+
+    def test_incomplete_review_pair_has_specific_aggregate_reason(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "category.db"
+            build_database(database, incomplete_review=True)
+            with mock.patch.object(
+                subject.health, "assess", return_value=mock.Mock(status=health.HEALTHY)
+            ):
+                result = subject.assess(database, CONFIG)
+        self.assertEqual(result.structure_blocked_count, 1)
+        self.assertEqual(
+            result.blocker_reasons[0].reason_code,
+            "PROJECTION_REVIEW_PAIR_INCOMPLETE",
+        )
+
+    def test_unhealthy_collection_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(
+                subject.health,
+                "assess",
+                return_value=mock.Mock(status=health.FAIL_CLOSED),
+            ):
+                result = subject.assess(Path(directory) / "missing.db", CONFIG)
+        self.assertEqual(result.status, subject.FAIL_CLOSED)
+        self.assertFalse(result.publication_allowed)
+
+    def test_unsafe_upstream_state_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "category.db"
+            build_database(database)
+            unsafe = mock.Mock(
+                status=subject.rights_scope.READY,
+                exact_ebook_bl_scope_confirmed=True,
+                contributor_semantics_confirmed=False,
+                image_scope_confirmed=False,
+                field_rights_confirmed=False,
+                publication_allowed=False,
+            )
+            with (
+                mock.patch.object(
+                    subject.health, "assess", return_value=mock.Mock(status=health.HEALTHY)
+                ),
+                mock.patch.object(subject.rights_scope, "assess", return_value=unsafe),
+            ):
+                result = subject.assess(database, CONFIG)
+        self.assertEqual(result.status, subject.FAIL_CLOSED)
+        self.assertIn("EBOOK_BL_UPSTREAM_GATE_STATE_UNSAFE", result.reason_codes)
+
+
+if __name__ == "__main__":
+    unittest.main()
