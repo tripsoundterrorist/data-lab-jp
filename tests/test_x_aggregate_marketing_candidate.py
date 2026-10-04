@@ -90,6 +90,27 @@ class AggregateMarketingCandidateTests(unittest.TestCase):
         self.assertEqual(result.status, recorded["status"])
         self.assertFalse(result.manual_post_candidate)
 
+    def test_recorded_batch_is_unique_and_stops_at_compliance(self):
+        path = ROOT / "docs" / "evidence" / "x-aggregate-candidate-batch-20261004.json"
+        batch = json.loads(path.read_text(encoding="utf-8"))
+        identities = [row["content_id"] for row in batch["candidates"]]
+        texts = [row["candidate_text"] for row in batch["candidates"]]
+        self.assertEqual(len(identities), len(set(identities)))
+        self.assertEqual(len(texts), len(set(texts)))
+        self.assertFalse(batch["manual_post_candidate"])
+        self.assertFalse(batch["distribution_allowed"])
+        for row in batch["candidates"]:
+            result = subject.build_candidate(
+                fact_text=row["candidate_text"],
+                theme=row["theme"],
+                source_type=batch["source_type"],
+                source_ids=batch["source_ids"],
+                source_checked_at=batch["source_checked_at"],
+                aggregate_facts=row["aggregate_facts"],
+            )
+            self.assertEqual(result.status, subject.READY_FOR_COMPLIANCE_REVIEW)
+            self.assertFalse(result.manual_post_candidate)
+
 
 if __name__ == "__main__":
     unittest.main()

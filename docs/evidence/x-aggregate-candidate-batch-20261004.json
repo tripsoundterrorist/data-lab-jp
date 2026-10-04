@@ -1,0 +1,48 @@
+{
+  "status": "READY_FOR_COMPLIANCE_REVIEW",
+  "batch_id": "x-aggregate-20261004-a",
+  "source_type": "public_site_snapshot",
+  "source_ids": ["public:datalabx.jp/items/20260930t070013z"],
+  "source_checked_at": "2026-09-30T16:00:13+09:00",
+  "template_id": "aggregate-price-black-v1",
+  "manual_post_candidate": false,
+  "posting_performed": false,
+  "candidates": [
+    {
+      "content_id": "price-distribution-100-20260930",
+      "theme": "price_distribution",
+      "candidate_text": "公開中のFANZA動画100作品を価格帯で集計。1,000円未満33作品、1,000〜1,999円45作品、2,000〜2,999円22作品。中央値は1,730円でした。確認時刻：2026/9/30 16:00 JST",
+      "aggregate_facts": {
+        "item_count": 100,
+        "under_1000": 33,
+        "from_1000_to_1999": 45,
+        "from_2000_to_2999": 22,
+        "median_yen": 1730
+      }
+    },
+    {
+      "content_id": "price-range-100-20260930",
+      "theme": "catalog_snapshot",
+      "candidate_text": "公開中のFANZA動画100作品を確認。価格は400円〜2,980円、中央値は1,730円でした。価格は取得時点の記録で、現在の表示と異なる場合があります。確認時刻：2026/9/30 16:00 JST",
+      "aggregate_facts": {
+        "item_count": 100,
+        "minimum_yen": 400,
+        "maximum_yen": 2980,
+        "median_yen": 1730
+      }
+    },
+    {
+      "content_id": "under-2000-share-20260930",
+      "theme": "price_distribution",
+      "candidate_text": "公開中のFANZA動画100作品では、2,000円未満が78作品、2,000〜2,999円が22作品でした。価格帯で探すときの参考用データです。確認時刻：2026/9/30 16:00 JST",
+      "aggregate_facts": {
+        "item_count": 100,
+        "under_2000": 78,
+        "from_2000_to_2999": 22
+      }
+    }
+  ],
+  "compliance_review_required": true,
+  "distribution_allowed": false,
+  "external_post_authorized": false
+}

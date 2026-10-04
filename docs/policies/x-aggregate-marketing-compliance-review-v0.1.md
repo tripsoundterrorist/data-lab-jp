@@ -24,3 +24,18 @@ The technical proposal gate has no approval input and cannot produce a manual
 post candidate. Its highest state is `READY_FOR_COMPLIANCE_REVIEW`. A favorable
 review would still require a reviewed policy change and action-time user
 approval; it would not authorize automatic posting.
+
+## Exact review packet
+
+Review all three completed drafts in
+`docs/evidence/x-aggregate-candidate-batch-20261004.json` together with the
+selected `aggregate-price-black-v1` card. Decide separately:
+
+- `TEXT_AGGREGATE_ALLOWED`: link-free aggregate text may proceed to manual review.
+- `BRAND_CHART_ALLOWED`: the matching aggregate-only image may be attached.
+- `PROFILE_WEBSITE_FIELD_ALLOWED`: the existing profile website field may remain.
+- `POST_LINK_ALLOWED`: a neutral site link may be included. Keep this `BLOCKED`
+  unless the exact X adult paid-partnership scope is affirmatively cleared.
+
+Each decision must cite its current source and review time. An `ALLOWED` result
+for one item must not imply approval for the others.
