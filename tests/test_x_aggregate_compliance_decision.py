@@ -8,6 +8,9 @@ from scripts import x_aggregate_compliance_decision as decision
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKET = ROOT / "docs" / "evidence" / "x-aggregate-candidate-batch-20261004.json"
+OBSERVATION = (
+    ROOT / "docs" / "evidence" / "x-aggregate-official-policy-observation-20261004.json"
+)
 
 
 def receipt(packet_bytes: bytes) -> dict:
@@ -67,6 +70,21 @@ class XAggregateComplianceDecisionTests(unittest.TestCase):
         result = decision.validate(self.packet_bytes, value)
         self.assertEqual(result.status, decision.BLOCKED)
         self.assertIn("POST_LINK_ALLOWED_SOURCE_INVALID", result.reason_codes)
+
+    def test_policy_observation_is_hash_bound_and_fail_closed(self) -> None:
+        observation = json.loads(OBSERVATION.read_text(encoding="utf-8"))
+        self.assertEqual(
+            observation["packet_sha256"],
+            hashlib.sha256(self.packet_bytes).hexdigest(),
+        )
+        self.assertEqual(
+            set(observation["review_questions"]),
+            decision.FINDING_KEYS,
+        )
+        self.assertFalse(observation["compliance_approved"])
+        self.assertFalse(observation["posting_allowed"])
+        self.assertFalse(observation["external_send_allowed"])
+        self.assertFalse(observation["profile_change_allowed"])
 
 
 if __name__ == "__main__":

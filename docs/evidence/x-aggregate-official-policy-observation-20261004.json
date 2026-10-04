@@ -1,0 +1,40 @@
+{
+  "version": "0.1",
+  "status": "READY_FOR_03_COMPLIANCE_REVIEW",
+  "observed_at": "2026-10-04T23:59:56+09:00",
+  "packet_sha256": "82c31e97dda1715317e52402030192fd7ab19fbe124043869dd915f2b0dc7a28",
+  "sources": [
+    {
+      "authority": "X_HELP_CENTER",
+      "url": "https://help.x.com/en/rules-and-policies/paid-partnerships-policy.html",
+      "observation": "Affiliate commissions are included in X's definition of paid partnerships, and adult or sexual products and services are listed as a prohibited industry for paid-partnership promotion."
+    },
+    {
+      "authority": "X_HELP_CENTER",
+      "url": "https://help.x.com/en/rules-and-policies/adult-content",
+      "observation": "Consensually produced adult media may be posted when properly labeled, but adult media is restricted from highly visible profile areas. This policy does not affirmatively clear affiliate promotion or a DATA LAB profile website field."
+    },
+    {
+      "authority": "X_HELP_CENTER",
+      "url": "https://help.x.com/en/business-and-advertising/adult-or-sexual-products-and-services",
+      "observation": "X's paid advertising policy prohibits promotion of adult sexual content globally. The page states that it applies to monetization on X and paid advertising products, so it is not treated as direct approval or prohibition for every organic, link-free DATA LAB aggregate post."
+    }
+  ],
+  "review_questions": {
+    "TEXT_AGGREGATE_ALLOWED": "UNCONFIRMED",
+    "BRAND_CHART_ALLOWED": "UNCONFIRMED",
+    "PROFILE_WEBSITE_FIELD_ALLOWED": "UNCONFIRMED",
+    "POST_LINK_ALLOWED": "BLOCKED_PENDING_EXACT_CLEARANCE"
+  },
+  "reason_codes": [
+    "AFFILIATE_COMMISSION_IS_PAID_PARTNERSHIP",
+    "ADULT_PAID_PARTNERSHIP_INDUSTRY_PROHIBITED",
+    "LINK_FREE_AGGREGATE_SCOPE_NOT_EXPLICITLY_RESOLVED",
+    "PROFILE_WEBSITE_FIELD_SCOPE_NOT_EXPLICITLY_RESOLVED",
+    "SEPARATE_03_COMPLIANCE_DECISIONS_REQUIRED"
+  ],
+  "compliance_approved": false,
+  "posting_allowed": false,
+  "external_send_allowed": false,
+  "profile_change_allowed": false
+}
