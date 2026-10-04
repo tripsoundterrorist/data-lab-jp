@@ -1,0 +1,67 @@
+{
+  "version": "0.1",
+  "status": "RECEIPT_CANDIDATE_ALL_FINDINGS_BLOCKED",
+  "reviewed_at": "2026-10-05T00:05:36+09:00",
+  "github_main_sha": "2ca7f01ca99391165a95678adee59a2a3f41f0e2",
+  "packet_sha256": "82c31e97dda1715317e52402030192fd7ab19fbe124043869dd915f2b0dc7a28",
+  "selected_card_preview_sha256": "db2ad91c112f5a9c5b25bde28603beeb4cbd3aa2ea5e0aff25d5bbe6bc75aaa4",
+  "sources": [
+    {
+      "url": "https://help.x.com/en/rules-and-policies/paid-partnerships-policy",
+      "confirmed": "The definition covers third-party compensated promotion, including mentions or endorsements of products generating affiliate sales commissions. Adult and sexual products and services are ineligible for paid-partnership promotion. Organic paid-partnership posts require disclosure. X may consider case-specific exceptions on request; no applicable X exception evidence is present in this packet.",
+      "scope_limit": "The page does not specifically classify these three aggregate drafts, a neutral DATA LAB chart, or a profile website field. Lack of a post link alone does not establish exclusion from compensated promotion.",
+      "published_or_effective_date": null
+    },
+    {
+      "url": "https://help.x.com/en/rules-and-policies/adult-content",
+      "confirmed": "The policy defines adult content by depictions of nudity or sexual behavior and restricts it in highly visible areas such as profile photos and headers.",
+      "scope_limit": "This does not establish that a neutral chart is adult media, nor does it explicitly decide the adult affiliate website-field configuration. Its media permission does not clear paid-partnership promotion.",
+      "displayed_policy_month": "2024-05",
+      "published_or_effective_date": null
+    },
+    {
+      "url": "https://help.x.com/en/business-and-advertising/adult-or-sexual-products-and-services",
+      "confirmed": "This policy applies to X monetization and paid advertising products and prohibits promotion of adult sexual content globally.",
+      "scope_limit": "It is not used as a blanket prohibition of every organic aggregate post.",
+      "published_or_effective_date": null
+    }
+  ],
+  "findings": {
+    "TEXT_AGGREGATE_ALLOWED": {
+      "status": "BLOCKED",
+      "knowledge_status": "UNCONFIRMED",
+      "reason": "All drafts explicitly mention FANZA video prices. The third describes the data as useful for searching by price. In this adult affiliate marketing configuration, exact exclusion from compensated promotion is not established. No product names, links or purchase CTA are present; those facts alone do not resolve the policy scope. This finding covers the complete three-draft batch."
+    },
+    "BRAND_CHART_ALLOWED": {
+      "status": "BLOCKED",
+      "knowledge_status": "UNCONFIRMED",
+      "reason": "Neutral aggregate counts, prices and DATA LAB branding alone do not establish adult-media content, but the accompanying affiliate promotion scope remains unresolved. The selection records a preview hash; the actual preview pixels were not supplied in the tracked review packet and were not visually verified. Design selection is not compliance approval."
+    },
+    "PROFILE_WEBSITE_FIELD_ALLOWED": {
+      "status": "BLOCKED",
+      "knowledge_status": "UNCONFIRMED",
+      "reason": "The adult-content profile-media restriction does not explicitly decide a website field linking to this adult affiliate site. The paid-partnership treatment of the exact retained-profile-link configuration is unresolved. This finding does not instruct removal or authorize a profile change."
+    },
+    "POST_LINK_ALLOWED": {
+      "status": "BLOCKED",
+      "knowledge_status": "UNCONFIRMED",
+      "reason": "A neutral datalabx.jp link can direct users to the adult affiliate surface. Exact classification under compensated promotion is unresolved; if it is paid-partnership promotion, the adult-industry restriction applies. Omitting a purchase CTA or using an indirect site link does not establish an exception."
+    }
+  },
+  "interpretation_limits": [
+    "BLOCKED means insufficient scope-specific evidence under fail-closed, not a finding that X definitively prohibits every neutral aggregate post.",
+    "No finding propagates permission to another finding.",
+    "X Premium, DMM approval and user approval are not evidence of an X policy exception.",
+    "No original X scope-specific official answer, with question, subject and response time, is present in the reviewed packet.",
+    "DMM/FANZA permission for reuse of these aggregate data outside the approved site was not independently established in this X-focused review.",
+    "The source snapshot and aggregate arithmetic were not independently refreshed; this is a policy-scope review, not current price certification.",
+    "Official page text was reviewed online; no byte-for-byte official-page archive is claimed."
+  ],
+  "posting_allowed": false,
+  "external_send_allowed": false,
+  "profile_change_allowed": false,
+  "production_change_allowed": false,
+  "publication_gate_change_allowed": false,
+  "external_inquiry_sent": false,
+  "push_performed_at_review_time": false
+}

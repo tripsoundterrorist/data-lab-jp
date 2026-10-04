@@ -1,0 +1,29 @@
+{
+  "version": "0.1",
+  "decision": "RECORD_X_AGGREGATE_COMPLIANCE_DECISIONS",
+  "decided_at": "2026-10-05T00:05:36+09:00",
+  "packet_sha256": "82c31e97dda1715317e52402030192fd7ab19fbe124043869dd915f2b0dc7a28",
+  "reviewer_role": "03_COMPLIANCE",
+  "findings": {
+    "TEXT_AGGREGATE_ALLOWED": {
+      "status": "BLOCKED",
+      "source_url": "https://help.x.com/en/rules-and-policies/paid-partnerships-policy",
+      "reviewed_at": "2026-10-05T00:05:36+09:00"
+    },
+    "BRAND_CHART_ALLOWED": {
+      "status": "BLOCKED",
+      "source_url": "https://help.x.com/en/rules-and-policies/paid-partnerships-policy",
+      "reviewed_at": "2026-10-05T00:05:36+09:00"
+    },
+    "PROFILE_WEBSITE_FIELD_ALLOWED": {
+      "status": "BLOCKED",
+      "source_url": "https://help.x.com/en/rules-and-policies/adult-content",
+      "reviewed_at": "2026-10-05T00:05:36+09:00"
+    },
+    "POST_LINK_ALLOWED": {
+      "status": "BLOCKED",
+      "source_url": "https://help.x.com/en/rules-and-policies/paid-partnerships-policy",
+      "reviewed_at": "2026-10-05T00:05:36+09:00"
+    }
+  }
+}
