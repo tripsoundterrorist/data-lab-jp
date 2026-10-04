@@ -1,0 +1,16 @@
+{
+  "selected_at": "2026-10-04",
+  "selected_at_precision": "date_only_jst",
+  "template_id": "aggregate-price-black-v1",
+  "dimensions": {
+    "width": 1200,
+    "height": 1500
+  },
+  "background": "#000000",
+  "preview_sha256": "db2ad91c112f5a9c5b25bde28603beeb4cbd3aa2ea5e0aff25d5bbe6bc75aaa4",
+  "owner_design_selection_confirmed": true,
+  "compliance_approved": false,
+  "distribution_allowed": false,
+  "posting_performed": false,
+  "external_post_authorized": false
+}

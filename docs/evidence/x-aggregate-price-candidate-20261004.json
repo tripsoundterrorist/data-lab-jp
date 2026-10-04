@@ -1,0 +1,21 @@
+{
+  "status": "READY_FOR_COMPLIANCE_REVIEW",
+  "manual_post_candidate": false,
+  "posting_performed": false,
+  "candidate_text": "公開中のFANZA動画100作品を価格帯で集計。1,000円未満33作品、1,000〜1,999円45作品、2,000〜2,999円22作品。中央値は1,730円でした。確認時刻：2026/9/30 16:00 JST",
+  "theme": "price_distribution",
+  "source_type": "public_site_snapshot",
+  "source_ids": ["public:datalabx.jp/items/20260930t070013z"],
+  "source_checked_at": "2026-09-30T16:00:13+09:00",
+  "aggregate_facts": {
+    "item_count": 100,
+    "under_1000": 33,
+    "from_1000_to_1999": 45,
+    "from_2000_to_2999": 22,
+    "median_yen": 1730
+  },
+  "compliance_review_required": true,
+  "link_included": false,
+  "affiliate_promotion_allowed": false,
+  "product_media_allowed": false
+}

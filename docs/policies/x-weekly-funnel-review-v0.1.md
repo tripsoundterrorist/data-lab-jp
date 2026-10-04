@@ -17,6 +17,10 @@ metrics, and clicks above impressions. Output is always
 `ADDITIONAL_CONFIRMATION_REQUIRED`; it never declares a winning time, theme, or
 link strategy from a small sample and never changes operations automatically.
 
+`price_distribution` is an accepted measurement label for a reviewed aggregate
+catalog snapshot. Accepting the label does not authorize generating or posting
+that content; it only prevents an approved experiment from becoming unmeasurable.
+
 The weekly rows connect:
 
 `X post -> UTM campaign -> consented GA4 session -> outbound_product_click`

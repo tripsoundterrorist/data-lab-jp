@@ -14,7 +14,7 @@ READY = "READY_FOR_MANUAL_REVIEW"
 BLOCKED = "BLOCKED"
 NOT_ACQUIRED = "NOT_ACQUIRED"
 THEMES = frozenset({
-    "price_change", "ranking_change", "new_or_updated", "data_literacy",
+    "price_change", "price_distribution", "ranking_change", "new_or_updated", "data_literacy",
     "transparency", "weekly_summary", "site_update",
 })
 METRICS = (

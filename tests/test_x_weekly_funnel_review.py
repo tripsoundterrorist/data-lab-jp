@@ -29,6 +29,12 @@ def payload():
 
 
 class WeeklyFunnelReviewTests(unittest.TestCase):
+    def test_price_distribution_is_a_measurable_theme(self):
+        value = payload()
+        value["posts"][0]["theme"] = "price_distribution"
+        result = subject.build_review(value)
+        self.assertEqual(result.status, subject.READY)
+
     def test_missing_values_are_preserved_without_partial_total(self):
         result = subject.build_review(payload())
         self.assertEqual(result.status, subject.READY)
