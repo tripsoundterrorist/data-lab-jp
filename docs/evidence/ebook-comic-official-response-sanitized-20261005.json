@@ -1,0 +1,50 @@
+{
+  "version": "0.1",
+  "status": "PARTIAL_OFFICIAL_RESPONSE",
+  "recorded_at": "2026-10-06T17:13:54+09:00",
+  "received_at": "2026-10-05T16:15:00+09:00",
+  "source_type": "DIRECT_SUPPORT_CONFIRMATION",
+  "source_authority": "DMM_AFFILIATE_SUPPORT",
+  "safe_reference": "DMM_SUPPORT_EBOOK_COMIC_20261005",
+  "exact_scope": {
+    "site": "FANZA",
+    "service": "ebook",
+    "floor": "comic",
+    "content_type": "ebook_comic"
+  },
+  "group_states": {
+    "FIELD_USE": "RESOLVED_REQUIREMENTS",
+    "IMAGE": "RESOLVED_REQUIREMENTS",
+    "CONTRIBUTOR": "UNRESOLVED",
+    "RETENTION": "RESOLVED_REQUIREMENTS"
+  },
+  "confirmed_semantics": {
+    "author": "AUTHOR_NAME",
+    "manufacture": "PUBLISHER_NAME"
+  },
+  "unresolved_points": [
+    "CONTRIBUTOR_NAME_DISPLAY_PERMISSION_NOT_EXPLICIT"
+  ],
+  "image_requirements": {
+    "service_label": "FANZA_BOOKS",
+    "product_main_image_listed_as_usable": true,
+    "sample_small_listed_as_usable": true,
+    "sample_large_listed_as_usable": true,
+    "resize_only": true,
+    "crop_or_overlay_allowed": false,
+    "service_specific_restrictions_apply": true,
+    "official_sources": [
+      "https://affiliate.dmm.com/guide/diagram/ad/use",
+      "https://affiliate.dmm.com/guide/diagram/ad/restriction"
+    ],
+    "displayed_permission_snapshot": "2024-09",
+    "current_support_directed_to_sources": true
+  },
+  "raw_response_stored": false,
+  "compliance_approved": false,
+  "publication_allowed": false,
+  "affiliate_activation_allowed": false,
+  "external_send_allowed": false,
+  "database_write_allowed": false,
+  "production_write_allowed": false
+}
