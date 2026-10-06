@@ -72,3 +72,12 @@ sanitized raw、正規化データ、価格履歴について、保存期間、�
 `READY_FOR_MANUAL_COMPLIANCE_REVIEW`、`READY_FOR_OFFICIAL_RESPONSE`、
 または技術テスト成功は、送信、公開、affiliate、sitemap、robots、Productionの
 許可を意味しない。
+
+## 2026-10-05 電子コミック回答の反映
+
+電子コミックへの公式回答は、`ebook_comic`のexact scopeだけへsanitized intakeした。
+取得項目、画像、保存・履歴は条件付き解決、contributorは意味だけ確認済みで名称表示
+可否が未解決のため、全体状態は`PARTIAL_OFFICIAL_RESPONSE`である。
+
+この回答をBLまたは写真集へ自動適用しない。次の問い合わせは、電子コミックの
+contributor表示可否と、BL固有scopeを重複なく確認する順序を維持する。
