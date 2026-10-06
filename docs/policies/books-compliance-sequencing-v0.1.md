@@ -1,6 +1,6 @@
 # BOOKS Compliance確認順序 v0.1
 
-更新日: 2026-10-04 JST
+更新日: 2026-10-06 JST
 
 ## 目的
 
@@ -81,3 +81,10 @@ sanitized raw、正規化データ、価格履歴について、保存期間、�
 
 この回答をBLまたは写真集へ自動適用しない。次の問い合わせは、電子コミックの
 contributor表示可否と、BL固有scopeを重複なく確認する順序を維持する。
+
+## 2026-10-06 次回問い合わせ準備
+
+次回パケットは、電子コミックのcontributor名称表示可否1問と、BL固有scopeの
+4問だけに限定する。`scripts/books_next_compliance_followup_packet.py`は内部レビュー用の
+非送信パケットを生成するだけであり、送信、承認、公開、affiliate、Productionを
+許可しない。写真集の問い合わせは、このパケットへの回答評価後に別scopeで扱う。
