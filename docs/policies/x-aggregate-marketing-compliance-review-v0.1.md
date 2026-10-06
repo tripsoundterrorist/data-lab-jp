@@ -39,3 +39,19 @@ selected `aggregate-price-black-v1` card. Decide separately:
 
 Each decision must cite its current source and review time. An `ALLOWED` result
 for one item must not imply approval for the others.
+
+## 2026-10-06 decision-scope clarification
+
+The 2026-10-05 decision is hash-bound to batch `x-aggregate-20261004-a` and its
+three FANZA video price-aggregate drafts. Its four `BLOCKED` findings preserve
+the hold on that packet, its matching chart, the reviewed profile-field
+configuration, and its post-link model. They are not evidence of an X-wide ban
+on every future draft.
+
+The scheduled task must not turn this packet-specific receipt into a global
+draft-generation stop. If no packet-cleared DATA LAB fact is available, it may
+produce one `PREVIEW_ONLY` generic data-literacy draft for manual review only.
+That fallback must omit DMM/FANZA, adult categories, products or services,
+site/domain references, links, affiliate or PR wording, CTAs, actual product
+prices/rankings/reviews, product images, and brand charts. Posting, scheduling,
+profile changes, and automatic distribution remain prohibited.
