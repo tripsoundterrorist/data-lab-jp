@@ -1,0 +1,56 @@
+{
+  "version": "0.1",
+  "status": "SCOPE_FIX_APPLIED_AND_VERIFIED",
+  "recorded_at": "2026-10-06T20:00:20+09:00",
+  "source_type": "DIRECT_CHATGPT_SCHEDULED_UI_OBSERVATION",
+  "source_authority": "ACCOUNT_OWNER_APPROVED_CONFIGURATION",
+  "repository_basis_sha": "f0ecdc4b032cc1e483e0411b8480a62ecb861852",
+  "active_draft_tasks": [
+    {
+      "name": "Xテスト 9:30",
+      "days": ["MONDAY", "THURSDAY"],
+      "time": "09:30",
+      "timezone": "Asia/Tokyo",
+      "end_date": "2026-10-25",
+      "scope_fix_present": true
+    },
+    {
+      "name": "Xテスト 12:30",
+      "days": ["TUESDAY", "FRIDAY"],
+      "time": "12:30",
+      "timezone": "Asia/Tokyo",
+      "end_date": "2026-10-25",
+      "scope_fix_present": true
+    },
+    {
+      "name": "Xテスト 19:30",
+      "days": ["WEDNESDAY", "SUNDAY"],
+      "time": "19:30",
+      "timezone": "Asia/Tokyo",
+      "end_date": "2026-10-25",
+      "scope_fix_present": true
+    }
+  ],
+  "paused_duplicate_tasks": [
+    {
+      "name": "Xテスト P2 9:30",
+      "previous_days": ["WEDNESDAY", "SUNDAY"],
+      "previous_time": "09:30",
+      "timezone": "Asia/Tokyo",
+      "paused": true,
+      "deleted": false
+    }
+  ],
+  "scope_fix_behavior": {
+    "packet_specific_blocks_are_not_global": true,
+    "generic_data_literacy_fallback": "PREVIEW_ONLY",
+    "link_or_affiliate_promotion_blocked": true,
+    "adult_or_product_specific_content_blocked": true,
+    "manual_posting_only": true
+  },
+  "task_run_performed_for_verification": false,
+  "x_post_performed": false,
+  "x_schedule_or_profile_change_performed": false,
+  "new_task_created": false,
+  "secret_or_private_identifier_stored": false
+}
