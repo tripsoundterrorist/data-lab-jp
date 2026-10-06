@@ -76,7 +76,7 @@ class PhotoBookComplianceQuestionnaireTests(unittest.TestCase):
             result.reason_codes,
         )
         self.assertIn(
-            "SEND_DEFERRED_UNTIL_EBOOK_COMIC_RESPONSE_REVIEWED",
+            "SEND_DEFERRED_UNTIL_BOOKS_NEXT_RESPONSE_REVIEWED",
             result.reason_codes,
         )
 
