@@ -1,0 +1,56 @@
+{
+  "version": "0.1",
+  "status": "OVERBROAD_DECISION_APPLICATION_CONFIRMED",
+  "observed_at": "2026-10-06T17:39:00+09:00",
+  "source_type": "USER_SUPPLIED_SCHEDULED_TASK_OUTPUT_AND_REPOSITORY_REVIEW",
+  "github_main_sha_at_review": "b9ef5c75e511978744bd6fbacb20aec56a71413c",
+  "blocked_packet": {
+    "batch_id": "x-aggregate-20261004-a",
+    "packet_sha256": "82c31e97dda1715317e52402030192fd7ab19fbe124043869dd915f2b0dc7a28",
+    "candidate_count": 3,
+    "candidate_scope": "FANZA_VIDEO_PRICE_AGGREGATES",
+    "decision_status": "ALL_FOUR_FINDINGS_BLOCKED"
+  },
+  "diagnosis": {
+    "scheduled_task_failure": false,
+    "fail_closed_behavior_triggered": true,
+    "packet_specific_decision_applied_globally": true,
+    "global_x_posting_prohibition_established": false,
+    "safe_fallback_missing": true
+  },
+  "required_scope_behavior": {
+    "blocked_packet_must_remain_blocked": true,
+    "link_bearing_or_affiliate_promotional_content_must_remain_blocked": true,
+    "adult_or_product_specific_content_must_remain_blocked": true,
+    "generic_data_literacy_draft_may_be_generated_for_manual_review": true,
+    "generic_fallback_may_be_posted_automatically": false,
+    "manual_review_required": true
+  },
+  "generic_fallback_forbidden_elements": [
+    "DMM_OR_FANZA_REFERENCE",
+    "ADULT_CATEGORY_REFERENCE",
+    "PRODUCT_OR_SERVICE_REFERENCE",
+    "SITE_URL_OR_DOMAIN",
+    "LINK",
+    "AFFILIATE_OR_PR_WORDING",
+    "PURCHASE_OR_SITE_VISIT_CTA",
+    "PRODUCT_PRICE_RANKING_OR_REVIEW_FACT",
+    "PRODUCT_IMAGE_OR_BRAND_CHART"
+  ],
+  "official_sources": [
+    {
+      "url": "https://help.x.com/en/rules-and-policies/paid-partnerships-policy.html",
+      "checked_on": "2026-10-06",
+      "scope": "PAID_PARTNERSHIPS_AND_PROHIBITED_ADULT_INDUSTRY"
+    },
+    {
+      "url": "https://help.x.com/en/rules-and-policies/authenticity",
+      "checked_on": "2026-10-06",
+      "scope": "DUPLICATIVE_OR_SPAMMY_POSTING"
+    }
+  ],
+  "posting_allowed": false,
+  "automatic_posting_allowed": false,
+  "schedule_change_performed": false,
+  "external_send_performed": false
+}
