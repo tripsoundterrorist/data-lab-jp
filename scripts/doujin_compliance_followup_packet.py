@@ -73,6 +73,7 @@ def build() -> DoujinComplianceFollowupPacket:
         False,
         (
             "MINIMAL_UNRESOLVED_SCOPE_ONLY",
+            "SEND_DEFERRED_UNTIL_BOOKS_NEXT_RESPONSE_REVIEWED",
             "MANUAL_REVIEW_REQUIRED_BEFORE_SEND",
             "NO_EXTERNAL_SEND",
             "PUBLICATION_REMAINS_CLOSED",
