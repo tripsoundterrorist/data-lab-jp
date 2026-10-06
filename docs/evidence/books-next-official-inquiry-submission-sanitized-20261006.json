@@ -1,0 +1,32 @@
+{
+  "version": "0.1",
+  "status": "SUBMITTED_AWAITING_OFFICIAL_RESPONSE",
+  "recorded_at": "2026-10-06T17:34:32+09:00",
+  "submitted_on": "2026-10-06",
+  "source_type": "OPERATOR_ATTESTATION",
+  "source_authority": "USER_CONFIRMED_MANUAL_SUBMISSION",
+  "safe_reference": "DMM_SUPPORT_BOOKS_NEXT_20261006",
+  "exact_scopes": [
+    "FANZA/ebook/comic/ebook_comic",
+    "FANZA/ebook/BL"
+  ],
+  "question_ids": [
+    "EBOOK_COMIC_CONTRIBUTOR_DISPLAY_PERMISSION",
+    "EBOOK_BL_SOURCE_SCOPE_APPLICABILITY",
+    "EBOOK_BL_IMAGE_SCOPE_REQUIREMENTS",
+    "EBOOK_BL_CONTRIBUTOR_ROLE_SEMANTICS",
+    "EBOOK_BL_RETENTION_SCOPE_APPLICABILITY"
+  ],
+  "question_count": 5,
+  "submitted_by_user": true,
+  "external_send_performed_by_codex": false,
+  "response_received": false,
+  "raw_submission_stored": false,
+  "private_inquiry_url_stored": false,
+  "account_identifier_stored": false,
+  "compliance_approved": false,
+  "publication_allowed": false,
+  "affiliate_activation_allowed": false,
+  "database_write_allowed": false,
+  "production_write_allowed": false
+}

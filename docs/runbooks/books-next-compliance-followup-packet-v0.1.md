@@ -37,3 +37,9 @@ python scripts/books_next_compliance_followup_packet.py
 
 送信後も、回答のsanitized intakeとscope別判定が完了するまで、BLの公開、
 affiliate導線、sitemap、robots、Productionへの反映を行わない。
+
+## 2026-10-06 送信状況
+
+ユーザーによる手動送信完了の申告を、本文、アカウント情報、問い合わせURLを含めず
+sanitized evidenceへ記録した。状態は`SUBMITTED_AWAITING_OFFICIAL_RESPONSE`であり、
+回答受領と03 COMPLIANCE評価までは全release gateを閉じたままとする。
