@@ -18,6 +18,10 @@ class DoujinComplianceFollowupPacketTests(unittest.TestCase):
         self.assertFalse(packet.send_authorized)
         self.assertFalse(packet.external_send_performed)
         self.assertFalse(packet.publication_allowed)
+        self.assertIn(
+            "SEND_DEFERRED_UNTIL_BOOKS_NEXT_RESPONSE_REVIEWED",
+            packet.reason_codes,
+        )
 
     def test_internal_and_scope_review_questions_are_excluded(self):
         packet_ids = {row.question_id for row in subject.build().questions}
