@@ -49,6 +49,15 @@ class RevenueMvpItemUiTests(unittest.TestCase):
         narrow = self.styles.split("@media (max-width: 430px)", 1)[1]
         self.assertIn(".affiliate-cta-link { min-height: 52px; }", narrow)
 
+    def test_product_images_use_uncropped_scaling(self):
+        image_rules = re.findall(r"\.card-image\s*\{([^}]*)\}", self.styles)
+        self.assertTrue(image_rules)
+        for rule in image_rules:
+            self.assertIn("object-fit: contain", rule)
+            self.assertNotIn("object-fit: cover", rule)
+        wrapper_rule = self.styles.split(".card-image-wrap", 1)[1].split("}", 1)[0]
+        self.assertIn("background: #080a0d", wrapper_rule)
+
     def test_dynamic_results_use_bounded_live_regions(self):
         self.assertIn('id="result-count" role="status" aria-live="polite"', self.index)
         self.assertIn('id="page-status" aria-live="polite"', self.index)
