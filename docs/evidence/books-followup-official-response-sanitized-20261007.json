@@ -1,7 +1,10 @@
 {
   "version": "0.1",
   "status": "READY_FOR_SEPARATE_COMPLIANCE_DECISION",
-  "received_at": "2026-10-07T17:33:00+09:00",
+  "received_at": "2026-10-06T14:29:00+09:00",
+  "response_date_basis": "USER_CONFIRMED_20261006",
+  "response_time_basis": "USER_SUPPLIED_RESPONSE_SCREENSHOT_1429",
+  "recorded_on": "2026-10-07",
   "source_type": "DIRECT_SUPPORT_CONFIRMATION",
   "source_authority": "DMM_AFFILIATE_SUPPORT",
   "acquisition_method": "USER_SUPPLIED_QUESTION_AND_RESPONSE",
