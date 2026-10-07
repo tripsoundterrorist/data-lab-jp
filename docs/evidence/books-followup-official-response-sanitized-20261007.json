@@ -1,0 +1,49 @@
+{
+  "version": "0.1",
+  "status": "READY_FOR_SEPARATE_COMPLIANCE_DECISION",
+  "received_at": "2026-10-07T17:33:00+09:00",
+  "source_type": "DIRECT_SUPPORT_CONFIRMATION",
+  "source_authority": "DMM_AFFILIATE_SUPPORT",
+  "acquisition_method": "USER_SUPPLIED_QUESTION_AND_RESPONSE",
+  "safe_reference": "DMM_SUPPORT_BOOKS_FOLLOWUP_20261007",
+  "comic_contributor_display": "RESOLVED_ALLOW",
+  "comic_prior_evidence": "docs/evidence/ebook-comic-official-response-sanitized-20261005.json",
+  "bl_exact_scope": {"site": "FANZA", "service": "ebook", "floor": "bl", "content_type": "ebook_bl"},
+  "bl_group_states": {
+    "FIELD_USE": "RESOLVED_REQUIREMENTS",
+    "IMAGE": "RESOLVED_REQUIREMENTS",
+    "CONTRIBUTOR": "RESOLVED_REQUIREMENTS",
+    "RETENTION": "RESOLVED_REQUIREMENTS"
+  },
+  "bl_contributor_interpretation": "AUTHOR_AND_PUBLISHER_DISPLAY_ALLOWED_BY_EXPLICIT_REFERENCE_TO_ANSWER_1",
+  "prior_conditions_must_be_preserved": true,
+  "image_rule_verification": "USER_SUPPLIED_OFFICIAL_PAGE_SCREENSHOTS",
+  "image_rule_observed_on": "2026-10-07",
+  "image_requirements": {
+    "service_label": "FANZA_BOOKS",
+    "product_main_image_listed_as_usable": true,
+    "sample_small_listed_as_usable": true,
+    "sample_large_listed_as_usable": true,
+    "product_detail_page_permitted_images_only": true,
+    "resize_only": true,
+    "crop_or_overlay_allowed": false,
+    "product_description_or_user_review_text_quote_allowed": false,
+    "akaneshinsha_sample_and_trial_allowed": false,
+    "displayed_permission_snapshot": "2024-09",
+    "recheck_before_publication_required": true,
+    "hotlink_or_credit_requirements_explicitly_verified": false,
+    "x_image_permission_granted": false
+  },
+  "image_rule_sources": [
+    "https://affiliate.dmm.com/guide/diagram/ad/use",
+    "https://affiliate.dmm.com/guide/diagram/ad/restriction"
+  ],
+  "photo_book_scope_answered": false,
+  "doujin_scope_answered": false,
+  "raw_response_stored": false,
+  "personal_information_stored": false,
+  "compliance_approved": false,
+  "publication_allowed": false,
+  "affiliate_activation_allowed": false,
+  "production_write_allowed": false
+}
