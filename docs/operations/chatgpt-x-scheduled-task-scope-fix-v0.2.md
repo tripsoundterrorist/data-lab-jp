@@ -1,5 +1,9 @@
 # ChatGPT X Scheduled Task Scope Fix v0.2
 
+> 現行の統合指示は `chatgpt-x-scheduled-task-reader-outcome-v0.3.md`（2026-10-09）。
+> 本書の対象限定のBLOCKED解釈は維持し、下記の10/06適用履歴は過去記録として残す。
+> 新指示の外部保存完了をこの履歴から推測しない。
+
 更新日: 2026-10-06 JST
 
 ## 目的

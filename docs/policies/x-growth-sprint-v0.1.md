@@ -1,5 +1,14 @@
 # X Growth Sprint v0.1
 
+## Current operating plan — 2026-10-09
+
+The 90-day plan in `data-lab-90-day-operating-plan-20261009.md` supersedes this
+historical sprint's active planning assumptions. The observations and targets
+below are historical, not current analytics or approved volume targets. Current
+general drafts are reader-result-first, <=140 Japanese characters, text-only and
+PREVIEW_ONLY under the v0.3 scheduled-task prompt. No price/chart candidate is
+cleared by this update. Preserve the existing timing test through 10/25.
+
 ## Objective and boundary
 
 Run a 14-day learning sprint for `@datalab_jp` without weakening the current
