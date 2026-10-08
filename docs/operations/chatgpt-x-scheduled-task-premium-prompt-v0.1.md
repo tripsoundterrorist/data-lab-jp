@@ -1,5 +1,11 @@
 # ChatGPT X Scheduled Task Premium Prompt v0.1
 
+> Superseded for future configuration updates by
+> `chatgpt-x-scheduled-task-reader-outcome-v0.3.md` (2026-10-09).
+> The prompt below is historical; do not restore its long-form, media, commercial
+> theme rotation or file-upload instructions. External application is tracked
+> separately and must not be inferred from this file.
+
 ## Boundary
 
 This is the replacement prompt for the existing ChatGPT scheduled X draft

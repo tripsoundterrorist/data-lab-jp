@@ -1,0 +1,67 @@
+{
+  "version": "1.0",
+  "recorded_on_jst": "2026-10-09",
+  "status": "LOCAL_AND_CODEX_VERIFIED_CHATGPT_SETTINGS_REPORTED",
+  "authority": "Owner requested updating existing 00-05 and SNS operating settings based on the approved conversation plan.",
+  "repository": {
+    "operating_plan": "docs/policies/data-lab-90-day-operating-plan-20261009.md",
+    "sns_prompt": "docs/operations/chatgpt-x-scheduled-task-reader-outcome-v0.3.md",
+    "agents_reference_added": true,
+    "historical_sns_documents_marked_superseded": true,
+    "diff_check": "PASS",
+    "commit_performed": false,
+    "push_performed": false,
+    "github_main_contains_update": false
+  },
+  "department_chats": {
+    "codex": "00 is the calling chat; existing 01-05 received the instruction and each acknowledged it.",
+    "chatgpt": "Existing 0-05 received the instruction and each acknowledged it. 05 required one bounded resend after a systemError.",
+    "additional_existing_sns_chat": "DATA LAB X投稿案 acknowledged the updated candidate instructions.",
+    "new_chat_created": false,
+    "project_wide_custom_instructions_ui_changed": false,
+    "scope": "Messages establish latest operating directions in the existing chats; they are not proof of changing a project-wide settings panel or system prompt."
+  },
+  "codex_automations": {
+    "evidence": "Purpose-built automation update returned success; local persisted files were reread for prompts and invariant fields.",
+    "updated": [
+      {"name": "DATA LAB X週次レビュー", "schedule_preserved": "Monday 08:30", "status": "ACTIVE"},
+      {"name": "DATA LAB SEO週次レビュー", "schedule_preserved": "Wednesday 10:00", "status": "ACTIVE"},
+      {"name": "DATA LAB FANZA Compliance月次レビュー", "schedule_preserved": "Day 1 of month 11:00", "status": "ACTIVE"}
+    ],
+    "names_targets_status_and_recurrence_preserved": true,
+    "model_setting_changed": false,
+    "new_automation_created": false,
+    "manual_test_run_triggered": false,
+    "important_changes": [
+      "Reader-result-first SNS direction; remove old media and automatic Drive-upload instructions.",
+      "Do not propagate packet-specific BLOCKED decisions to unrelated general drafts.",
+      "Remove autonomous commit/push/PR permission from the monthly compliance review.",
+      "Require separate approval for Deep Research, agents, publication and other material actions."
+    ]
+  },
+  "chatgpt_scheduled_tasks": {
+    "status": "SAVE_AND_READBACK_REPORTED_BY_EXISTING_SETTINGS_CHAT",
+    "report_source": "Existing ChatGPT conversation 通知タスク設定; its final responses were retrieved through read_thread.",
+    "independent_settings_readback": false,
+    "raw_tool_execution_evidence_available_in_thread_read": false,
+    "limitation": "Direct browser verification failed with helper setup error and then a timeout after one reset. Do not present the reporting chat's confirmation as an independent UI verification.",
+    "reported_updated_tasks": [
+      {"name": "Xテスト 9:30", "days": ["MONDAY", "THURSDAY"], "time": "09:30", "timezone": "Asia/Tokyo", "status": "ACTIVE", "end_date": "2026-10-25", "prompt": "reader-outcome-v0.3"},
+      {"name": "Xテスト 12:30", "days": ["TUESDAY", "FRIDAY"], "time": "12:30", "timezone": "Asia/Tokyo", "status": "ACTIVE", "end_date": "2026-10-25", "prompt": "reader-outcome-v0.3"},
+      {"name": "Xテスト 19:30", "days": ["WEDNESDAY", "SUNDAY"], "time": "19:30", "timezone": "Asia/Tokyo", "status": "ACTIVE", "end_date": "2026-10-25", "prompt": "reader-outcome-v0.3"},
+      {"name": "X投稿候補を確認", "days": ["MONDAY"], "time": "08:35", "timezone": "Asia/Tokyo", "status": "ACTIVE", "end_date": null, "prompt": "Check existing manual text candidates or actionable weekly review; no assumption of media generation or Drive files; no automatic external action."}
+    ],
+    "reported_task_count_before_and_after": 10,
+    "paused_duplicate_reported_unchanged": "Xテスト P2 9:30",
+    "remaining_check": "Read the four actual saved task prompts and invariant fields directly when the browser or another read-only settings interface is available. Do not recreate or rerun them to verify."
+  },
+  "not_performed": [
+    "memory writes",
+    "public HTML or application code changes",
+    "Production, deployment, D1, Cloudflare or Publication Gate changes",
+    "X posting, replies, profile edits or publication scheduling",
+    "billing or contract changes",
+    "new tasks or new schedules",
+    "Git commit, push or merge"
+  ]
+}

@@ -1,5 +1,15 @@
 # SNS X Operations v0.1
 
+## Current override — 2026-10-09
+
+Use `data-lab-90-day-operating-plan-20261009.md` and
+`../operations/chatgpt-x-scheduled-task-reader-outcome-v0.3.md` for current planning
+and draft instructions. They supersede conflicting historical theme mixes,
+site-specific drafts, long-form/media distribution and broad all-post holds below.
+General text candidates remain PREVIEW_ONLY; links, product/affiliate promotion
+and images remain held. Existing slots/end date and manual approval are preserved.
+This local update does not attest that an external task was saved.
+
 ## Scope and current state
 
 This policy governs the X account `@datalab_jp` as a high-quality acquisition
