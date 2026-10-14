@@ -12,6 +12,7 @@ from typing import Any
 import affiliate_d1_production_state
 import affiliate_route_deployment_review
 import affiliate_runtime_deployment_preflight
+import revenue_mvp_price_display_transition as price_transition
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -480,6 +481,43 @@ def assess(
         )
     except Exception:
         return _failed("CURRENT_REVENUE_STATE_EVALUATION_ERROR")
+
+
+def assess_price_display_candidate(
+    receipt, baseline_bytes, candidate_bytes, preflight, route, d1,
+    historical_product_card_live_evidence, historical_surface_evidence,
+    *, observation=None, evaluated_at=None,
+) -> dict[str, Any]:
+    """Review display compatibility without transferring historical LIVE authority.
+
+    Explicit offline entry point: never capture HTTP, load new evidence, or alter
+    current_state(). Historical state is context only, not candidate eligibility.
+    """
+    historical = assess(
+        receipt, baseline_bytes, preflight, route, d1,
+        historical_product_card_live_evidence,
+    )
+    display = price_transition.review(
+        baseline_bytes, candidate_bytes, historical_surface_evidence,
+        observation=observation, evaluated_at=evaluated_at,
+    )
+    compatible = (
+        historical.status == PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE
+        and historical.edge_artifact_verified
+        and display.historical_binding_valid
+    )
+    return {
+        "status": "DISPLAY_COMPATIBILITY_REVIEW_ONLY" if compatible else "BLOCKED",
+        "historical_state_status": historical.status,
+        "historical_state_is_candidate_live_proof": False,
+        "display": asdict(display),
+        "candidate_live_eligibility_verified": False,
+        "publication_allowed": False,
+        "production_write_allowed": False,
+        "global_publication_gate_changed": False,
+        "next_action": "REVIEW_SEPARATE_DISPLAY_RELEASE_AND_CURRENT_ELIGIBILITY"
+            if compatible else "RECONCILE_DISPLAY_AND_HISTORICAL_BINDINGS",
+    }
 
 
 def current_state() -> CurrentRevenueState:

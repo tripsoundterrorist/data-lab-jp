@@ -69,6 +69,44 @@ class CurrentRevenueStateTests(unittest.TestCase):
         result = state.current_state()
         self.assertEqual(result.status, state.PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE)
 
+    def transition(self, candidate=None, history=None, live=None):
+        baseline = state.price_transition.canonical(self.artifact)
+        corrected = baseline.replace('円</p>'.encode(), '円〜</p>'.encode())
+        return state.assess_price_display_candidate(
+            self.receipt, baseline, corrected if candidate is None else candidate,
+            self.preflight, self.route, self.d1,
+            self.live if live is None else live,
+            {"items_artifact_sha256": state.REFRESHED_PRODUCT_CARD_SHA256}
+                if history is None else history,
+        )
+
+    def test_display_candidate_separates_history_from_live_authority(self):
+        previous = copy.deepcopy(self.live)
+        result = self.transition()
+        self.assertEqual(result["status"], "DISPLAY_COMPATIBILITY_REVIEW_ONLY")
+        self.assertEqual(result["display"]["status"],
+                         "CANDIDATE_PENDING_LIVE_DISPLAY_VERIFICATION")
+        for key in ("historical_state_is_candidate_live_proof",
+                    "candidate_live_eligibility_verified", "publication_allowed",
+                    "production_write_allowed", "global_publication_gate_changed"):
+            self.assertFalse(result[key])
+        self.assertEqual(self.live, previous)
+
+    def test_display_candidate_does_not_bypass_existing_assess(self):
+        candidate = state.price_transition.canonical(self.artifact).replace(
+            '円</p>'.encode(), '円〜</p>'.encode())
+        self.assertEqual(self.assess(artifact=candidate).status, state.FAIL_CLOSED)
+
+    def test_display_compatibility_blocks_unrelated_changes_and_relabelled_history(self):
+        self.assertEqual(self.transition(candidate=b"other")["status"], "BLOCKED")
+        self.assertEqual(self.transition(history={"items_artifact_sha256":
+            state.price_transition.CANDIDATE})["status"], "BLOCKED")
+
+    def test_display_compatibility_requires_valid_historical_scope(self):
+        live = copy.deepcopy(self.live)
+        live["production"]["cta_count"] = 99
+        self.assertEqual(self.transition(live=live)["status"], "BLOCKED")
+
 
 if __name__ == "__main__":
     unittest.main()
