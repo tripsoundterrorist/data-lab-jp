@@ -6,6 +6,7 @@ import sqlite3
 
 import revenue_mvp_price_label_correction as labels
 import revenue_mvp_price_display_transition as transition
+import revenue_mvp_fixed_scope_acquisition_evidence as acquisition
 
 
 @dataclass(frozen=True)
@@ -26,7 +27,8 @@ class DisplayReleaseReview:
 
 
 def assess(baseline, candidate, database: Path, expected_database_sha256,
-           historical_surface_evidence, *, observation=None, evaluated_at=None):
+           historical_surface_evidence, *, observation=None, evaluated_at=None,
+           acquisition_evidence=None):
     """Bind exact label delta to saved raw prices without refreshing their date.
 
     A saved snapshot proves label semantics, not current sale eligibility.
@@ -47,13 +49,21 @@ def assess(baseline, candidate, database: Path, expected_database_sha256,
             return blocked("PRICE_RAW_PROVENANCE_MISMATCH")
         if sha256(database.read_bytes()).hexdigest() != expected_database_sha256:
             return blocked("PRICE_DATABASE_CHANGED")
+        eligibility = False
+        if acquisition_evidence is not None:
+            eligibility = acquisition.review(acquisition_evidence,baseline,candidate,
+                                             evaluated_at=evaluated_at)
+            if (not eligibility or acquisition_evidence.database_sha256 != expected_database_sha256):
+                return blocked("CURRENT_ACQUISITION_EVIDENCE_INVALID")
         return DisplayReleaseReview(
-            "DISPLAY_MATCH_REQUIRES_CURRENT_ELIGIBILITY_REVIEW"
+            "DISPLAY_AND_ACQUISITION_REVIEW_READY_FOR_SEPARATE_APPROVAL" if eligibility
+                else "DISPLAY_MATCH_REQUIRES_CURRENT_ELIGIBILITY_REVIEW"
                 if display.current_display_match_observed
                 else "DISPLAY_CANDIDATE_READY_FOR_SEPARATE_RELEASE_REVIEW",
-            "SAVED_PRICE_SEMANTICS_ONLY_NOT_CURRENT_ELIGIBILITY_OR_APPROVAL",
+            "EXACT_ITEM_ACQUISITION_VALIDATED_NOT_PUBLICATION_APPROVAL" if eligibility
+                else "SAVED_PRICE_SEMANTICS_ONLY_NOT_CURRENT_ELIGIBILITY_OR_APPROVAL",
             display.candidate_sha256, new.count('円〜</p>'.encode()),
-            display.current_display_match_observed,
+            display.current_display_match_observed, eligibility,
         )
     except (OSError, ValueError, TypeError, AttributeError, UnicodeError, sqlite3.Error):
         return blocked("DISPLAY_RELEASE_INPUT_INVALID")
