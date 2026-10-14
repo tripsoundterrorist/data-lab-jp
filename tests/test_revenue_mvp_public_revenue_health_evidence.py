@@ -2,6 +2,7 @@ import hashlib
 import json
 from pathlib import Path
 import unittest
+from tests.revenue_mvp_historical_fixture import historical_artifact
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -9,9 +10,9 @@ EVIDENCE = ROOT / "runtime/evidence/revenue-mvp-public-revenue-health-20261002.j
 
 
 class PublicRevenueHealthEvidenceTests(unittest.TestCase):
-    def test_observation_is_aggregate_and_bound_to_current_artifact(self):
+    def test_observation_is_aggregate_and_bound_to_historical_artifact(self):
         value = json.loads(EVIDENCE.read_text(encoding="utf-8"))
-        digest = hashlib.sha256((ROOT / "items/index.html").read_bytes()).hexdigest()
+        digest = hashlib.sha256(historical_artifact((ROOT / "items/index.html").read_bytes())).hexdigest()
         self.assertEqual(value["version"], "0.1")
         self.assertEqual(value["status"], "PUBLIC_REVENUE_SURFACE_HEALTHY")
         self.assertEqual(value["source_domain"], "datalabx.jp")

@@ -9,12 +9,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import revenue_mvp_current_state as state
+from tests.revenue_mvp_historical_fixture import historical_artifact
 
 
 class CurrentRevenueStateTests(unittest.TestCase):
     def setUp(self):
         self.receipt = json.loads(state.RECEIPT_PATH.read_text(encoding="utf-8"))
-        self.artifact = state.ARTIFACT_PATH.read_bytes()
+        # Historical approval tests use pinned old bytes, not current LIVE status.
+        self.artifact = historical_artifact(state.ARTIFACT_PATH.read_bytes())
         self.preflight = state.affiliate_runtime_deployment_preflight.assess_preflight(
             state.affiliate_runtime_deployment_preflight.current_input()
         )
@@ -68,7 +70,18 @@ class CurrentRevenueStateTests(unittest.TestCase):
 
     def test_cli_current_state(self):
         result = state.current_state()
-        self.assertEqual(result.status, state.PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE)
+        from hashlib import sha256
+        actual=state.price_transition.canonical(state.ARTIFACT_PATH.read_bytes())
+        if sha256(actual).hexdigest()==state.price_transition.CANDIDATE:
+            self.assertEqual(result.status,state.PRICE_DISPLAY_PENDING)
+            self.assertFalse(result.limited_surface_live)
+            self.assertFalse(result.edge_artifact_verified)
+            self.assertFalse(result.cta_allowed)
+            self.assertFalse(result.affiliate_integration_allowed)
+            self.assertFalse(result.production_write_allowed)
+        else:
+            self.assertEqual(sha256(actual).hexdigest(),state.REFRESHED_PRODUCT_CARD_SHA256)
+            self.assertEqual(result.status, state.PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE)
 
     def transition(self, candidate=None, history=None, live=None):
         baseline = state.price_transition.canonical(self.artifact)

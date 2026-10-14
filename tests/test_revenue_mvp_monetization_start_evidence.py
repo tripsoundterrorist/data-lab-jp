@@ -7,6 +7,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import revenue_mvp_current_state as current_state  # noqa: E402
+from tests.revenue_mvp_historical_fixture import historical_artifact
 
 
 class MonetizationStartEvidenceTests(unittest.TestCase):
@@ -16,8 +17,11 @@ class MonetizationStartEvidenceTests(unittest.TestCase):
             .read_text(encoding="utf-8")
         )
 
-    def test_evidence_matches_current_live_surface(self):
-        state = current_state.current_state()
+    def test_evidence_matches_historical_approved_surface_not_current_display(self):
+        artifact=historical_artifact(current_state.ARTIFACT_PATH.read_bytes())
+        receipt=json.loads(current_state.RECEIPT_PATH.read_text(encoding='utf-8'))
+        live=json.loads(current_state.REFRESHED_PRODUCT_CARD_LIVE_EVIDENCE_PATH.read_text(encoding='utf-8'))
+        state=current_state.assess(receipt,artifact,None,None,None,live)
         surface = self.evidence["public_surface"]
         runtime = self.evidence["affiliate_runtime"]
         self.assertEqual(self.evidence["status"], "MONETIZATION_STARTED")
