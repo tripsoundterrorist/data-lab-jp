@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 import sys
 import unittest
@@ -47,6 +48,21 @@ class ExpansionResumeGateTests(unittest.TestCase):
         self.assertFalse(result.production_write_allowed)
         self.assertTrue(result.explicit_live_approval_required)
 
+    def test_stale_dashboard_remains_blocked_without_gate_relaxation(self):
+        payload = {
+            "version": "0.1", "observed_at": "2026-10-01T11:30:00Z",
+            "workers_requests_24h": 1, "workers_cpu_limit_errors_24h": 0,
+            "d1_rows_read_24h": 1, "d1_rows_written_24h": 1,
+            "d1_database_storage_bytes": 1, "d1_account_storage_bytes": 1,
+            "active_cron_triggers": [],
+        }
+        stale = dashboard.validate(payload, now=datetime(2026,10,14,tzinfo=timezone.utc))
+        self.assertIn("OBSERVATION_NOT_CURRENT", stale.reason_codes)
+        result = subject.assess(historical_cadence(), stale)
+        self.assertEqual(result.status, subject.BLOCKED)
+        self.assertFalse(result.next_batch_preparation_allowed)
+        self.assertFalse(result.live_execution_allowed)
+
     def test_missing_dashboard_observation_keeps_current_gate_blocked(self):
         result = subject.current_gate(observation_path=Path("missing-observation.json"))
         self.assertEqual(result.status, subject.BLOCKED)
@@ -73,6 +89,15 @@ class ExpansionResumeGateTests(unittest.TestCase):
             self.skipTest("private D1 export is not present")
         result = subject.current_gate()
         self.assertTrue(result.historical_cadence_detected)
+        # Live private inputs age; presence does not establish current evidence.
+        payload = json.loads(subject.DEFAULT_DASHBOARD_OBSERVATION.read_text(encoding="utf-8"))
+        observation = dashboard.validate(payload)
+        if observation.status != dashboard.VERIFIED:
+            self.assertEqual(result.status, subject.BLOCKED)
+            self.assertFalse(result.next_batch_preparation_allowed)
+            self.assertFalse(result.live_execution_allowed)
+            self.assertIn("CURRENT_CLOUDFLARE_OBSERVATION_UNVERIFIED", result.reason_codes)
+            return
         self.assertEqual(result.status, subject.READY)
         self.assertTrue(result.next_batch_preparation_allowed)
         self.assertFalse(result.live_execution_allowed)
