@@ -76,3 +76,15 @@ class DisplayReleaseTests(unittest.TestCase):
     def test_database_sidecar_blocks(self):
         Path(str(self.db)+"-wal").write_bytes(b"fixture")
         self.assertEqual(self.assess().status,"BLOCKED")
+
+    def test_handwritten_acquisition_evidence_cannot_unlock_release_review(self):
+        self.assertEqual(self.assess(acquisition_evidence={"verified":True,"count":100}).reason_code,
+                         "CURRENT_ACQUISITION_EVIDENCE_INVALID")
+
+    def test_valid_acquisition_review_still_requires_explicit_publication_approval(self):
+        from types import SimpleNamespace
+        with patch.object(subject.acquisition,"review",return_value=True):
+            result=self.assess(acquisition_evidence=SimpleNamespace(database_sha256=self.db_hash))
+        self.assertTrue(result.current_eligibility_verified)
+        self.assertFalse(result.publication_allowed)
+        self.assertTrue(result.explicit_release_approval_required)
