@@ -1,7 +1,8 @@
 """Process-owned, sanitized acquisition evidence. No durable storage or release.
 
 Only explicit capture calls HTTP; neither review nor serialization calls it.
-Serialized summaries are NOT accepted as trusted receipts in another process.
+Serialized summaries are NOT trusted; authenticated private archives require
+the separate archive verifier and an independently supplied protected key.
 """
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
@@ -32,6 +33,7 @@ class AcquisitionEvidence:
     candidate_sha256: str
     database_sha256: str
     _records: tuple = field(default=(), repr=False)
+    _archive_authenticated: bool = field(default=False, repr=False)
 
     def summary(self):
         return {"status":self.status,"reason_code":self.reason_code,
@@ -41,7 +43,8 @@ class AcquisitionEvidence:
                 "earliest_observed_at":min((r.observed_at.isoformat() for r in self._records),default=None),
                 "latest_observed_at":max((r.observed_at.isoformat() for r in self._records),default=None),
                 "raw_payload_persisted":False,"database_write_performed":False,
-                "publication_allowed":False,"durable_receipt_available":False}
+                "publication_allowed":False,"durable_receipt_available":False,
+                "authenticated_archive_loaded":self._archive_authenticated}
 
 
 def capture(source, database, environment, candidate_bytes, *,
