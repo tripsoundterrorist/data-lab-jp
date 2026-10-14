@@ -27,6 +27,7 @@ PRODUCT_CARD_LIVE_REVALIDATION_PAUSED = "REVENUE_SURFACE_PRODUCT_CARD_LIVE_REVAL
 PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY = "REVENUE_SURFACE_PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY_VERIFIED"
 PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE = "REVENUE_SURFACE_PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE"
 FAIL_CLOSED = "CURRENT_REVENUE_STATE_FAIL_CLOSED"
+PRICE_DISPLAY_PENDING = "REVENUE_PRICE_DISPLAY_CURRENT_ELIGIBILITY_REVIEW_REQUIRED"
 EXPECTED_SHA256 = "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d"
 APPROVED_CANARY_SHA256 = "62ad8f93cc91769b5c92854bc4ff2ccb6bb4e939d8791a8b36245d4c93878374"
 APPROVED_CANARY_CANONICAL_SHA256 = "bb65f1a2e8b437de4d1f26e224733c9341aa0d85d46752e12d0c857108d54c11"
@@ -92,11 +93,39 @@ def _canonical_sha256(value: bytes) -> str:
 def assess(
     receipt: Any, artifact_bytes: bytes, preflight: Any, route: Any, d1: Any,
     product_card_live_evidence: Any = None,
+    *, price_display_observation=None, evaluated_at=None,
 ) -> CurrentRevenueState:
     """Validate the live receipt and keep the separate affiliate Gate closed."""
     try:
         raw_artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()
         artifact_sha256 = _canonical_sha256(artifact_bytes)
+        if artifact_sha256 == price_transition.CANDIDATE:
+            # Recover only the exact reviewed display baseline in memory. Do not
+            # rename old approval hashes or treat old LIVE evidence as new proof.
+            baseline = price_transition.canonical(artifact_bytes).replace(
+                '円〜</p>'.encode(), '円</p>'.encode())
+            production = (product_card_live_evidence.get("production", {})
+                          if type(product_card_live_evidence) is dict else {})
+            historical_surface = {"items_artifact_sha256":
+                production.get("artifact_sha256") if type(production) is dict else None}
+            compatibility = assess_price_display_candidate(
+                receipt, baseline, artifact_bytes, preflight, route, d1,
+                product_card_live_evidence, historical_surface,
+                observation=price_display_observation, evaluated_at=evaluated_at,
+            )
+            if compatibility["status"] == "BLOCKED":
+                return _failed("PRICE_DISPLAY_TRANSITION_BINDING_INVALID")
+            display = compatibility["display"]
+            result = _failed("PRICE_DISPLAY_CURRENT_ELIGIBILITY_REVIEW_REQUIRED")
+            return CurrentRevenueState(
+                **{**result.to_dict(), "status": PRICE_DISPLAY_PENDING,
+                   "next_action": "REVIEW_EXACT_PRICE_DISPLAY_RELEASE_AND_CURRENT_ELIGIBILITY",
+                   "reason_codes": (
+                       "HISTORICAL_LIVE_AUTHORITY_NOT_TRANSFERRED",
+                       display["reason_code"],
+                       "GLOBAL_PUBLICATION_GATE_UNCHANGED",
+                   )}
+            )
         product_card_hashes = {
             PRODUCT_CARD_SHA256,
             DISCOVERY_PRODUCT_CARD_SHA256,
@@ -520,7 +549,7 @@ def assess_price_display_candidate(
     }
 
 
-def current_state() -> CurrentRevenueState:
+def current_state(*, price_display_observation=None, evaluated_at=None) -> CurrentRevenueState:
     try:
         receipt = json.loads(RECEIPT_PATH.read_text(encoding="utf-8"))
         artifact = ARTIFACT_PATH.read_bytes()
@@ -530,7 +559,8 @@ def current_state() -> CurrentRevenueState:
         }
         live_evidence_path = (
             REFRESHED_PRODUCT_CARD_LIVE_EVIDENCE_PATH
-            if REFRESHED_PRODUCT_CARD_SHA256 in artifact_hashes
+            if (REFRESHED_PRODUCT_CARD_SHA256 in artifact_hashes
+                or price_transition.CANDIDATE in artifact_hashes)
             else CACHE_BUSTED_PRODUCT_CARD_LIVE_EVIDENCE_PATH
             if CACHE_BUSTED_PRODUCT_CARD_SHA256 in artifact_hashes
             else LATEST_PRODUCT_CARD_LIVE_EVIDENCE_PATH
@@ -553,6 +583,8 @@ def current_state() -> CurrentRevenueState:
             affiliate_d1_production_state.current_evidence()
         ),
         product_card_live_evidence,
+        price_display_observation=price_display_observation,
+        evaluated_at=evaluated_at,
     )
 
 

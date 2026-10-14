@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -95,7 +96,13 @@ class CurrentRevenueStateTests(unittest.TestCase):
     def test_display_candidate_does_not_bypass_existing_assess(self):
         candidate = state.price_transition.canonical(self.artifact).replace(
             '円</p>'.encode(), '円〜</p>'.encode())
-        self.assertEqual(self.assess(artifact=candidate).status, state.FAIL_CLOSED)
+        result = self.assess(artifact=candidate)
+        self.assertEqual(result.status, state.PRICE_DISPLAY_PENDING)
+        self.assertFalse(result.limited_surface_live)
+        self.assertFalse(result.edge_artifact_verified)
+        self.assertFalse(result.cta_allowed)
+        self.assertFalse(result.affiliate_integration_allowed)
+        self.assertFalse(result.production_write_allowed)
 
     def test_display_compatibility_blocks_unrelated_changes_and_relabelled_history(self):
         self.assertEqual(self.transition(candidate=b"other")["status"], "BLOCKED")
@@ -106,6 +113,39 @@ class CurrentRevenueStateTests(unittest.TestCase):
         live = copy.deepcopy(self.live)
         live["production"]["cta_count"] = 99
         self.assertEqual(self.transition(live=live)["status"], "BLOCKED")
+
+    def test_current_state_routes_corrected_artifact_to_separate_pending_review(self):
+        candidate = state.price_transition.canonical(self.artifact).replace(
+            '円</p>'.encode(), '円〜</p>'.encode())
+        original_read = Path.read_bytes
+        def read(path):
+            return candidate if path == state.ARTIFACT_PATH else original_read(path)
+        with patch.object(Path, "read_bytes", read):
+            result = state.current_state()
+        self.assertEqual(result.status, state.PRICE_DISPLAY_PENDING)
+        self.assertFalse(result.edge_artifact_verified)
+        self.assertFalse(result.affiliate_integration_allowed)
+
+    def test_candidate_display_observation_cannot_open_existing_affiliate_state(self):
+        from tests.test_revenue_mvp_price_display_transition import Response
+        candidate = state.price_transition.canonical(self.artifact).replace(
+            '円</p>'.encode(), '円〜</p>'.encode())
+        with patch.object(state.price_transition.urllib.request, "urlopen",
+                          return_value=Response(candidate)):
+            observation = state.price_transition.capture_public_page()
+        result = state.assess(self.receipt,candidate,self.preflight,self.route,self.d1,
+                              self.live,price_display_observation=observation)
+        self.assertEqual(result.status,state.PRICE_DISPLAY_PENDING)
+        self.assertIn("DISPLAY_ONLY_NOT_ELIGIBILITY_OR_PUBLICATION_AUTHORITY",result.reason_codes)
+        self.assertFalse(result.cta_allowed)
+        self.assertFalse(result.edge_artifact_verified)
+
+    def test_forged_candidate_observation_blocks_current_state(self):
+        candidate = state.price_transition.canonical(self.artifact).replace(
+            '円</p>'.encode(), '円〜</p>'.encode())
+        result = state.assess(self.receipt,candidate,self.preflight,self.route,self.d1,
+                              self.live,price_display_observation={"verified":True})
+        self.assertEqual(result.status,state.FAIL_CLOSED)
 
 
 if __name__ == "__main__":
