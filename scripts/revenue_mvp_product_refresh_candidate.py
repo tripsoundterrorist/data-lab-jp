@@ -12,6 +12,7 @@ import sys
 from typing import Any
 
 import revenue_mvp_product_card_reconciliation as cards
+import revenue_mvp_price_label_correction as price_labels
 import revenue_mvp_product_refresh_rehearsal as rehearsal
 import revenue_mvp_unordered_publication_candidate as renderer
 import revenue_mvp_unordered_review_packet as packet_builder
@@ -81,6 +82,7 @@ def build_candidate(
         candidate = cards.enrich(
             base, database, frozenset(card.public_id for card in reconciled)
         )
+        candidate = price_labels.correct(candidate, database)
         image_count = candidate.count(b'class="card-image"')
         cta_count = candidate.count(b'class="affiliate-cta-block"')
         route_count = candidate.count(b'href="/go/itm_')

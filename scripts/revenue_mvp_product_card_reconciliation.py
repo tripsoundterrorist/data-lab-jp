@@ -65,7 +65,7 @@ class _CardParser(HTMLParser):
         if tag == "article" and self._in_card:
             if set(self._values) != {"title", "price", "observed_at"}:
                 raise ValueError("CARD_FIELDS_INVALID")
-            price_text = self._values["price"].removesuffix("円").replace(",", "")
+            price_text = self._values["price"].removesuffix("〜").removesuffix("円").replace(",", "")
             if not price_text.isdigit():
                 raise ValueError("CARD_PRICE_INVALID")
             self.cards.append(LiveCard(
@@ -167,6 +167,11 @@ def enrich(source: bytes, database: Path, cta_public_ids: frozenset[str]) -> byt
             '<h2>' + title + '</h2>'
             f'<p class="price">{card.price:,}円</p><time>{escape(card.observed_at)}</time>'
         )
+        lower_core = core.replace('円</p>', '円〜</p>')
+        if text.count(core) + text.count(lower_core) != 1:
+            raise ValueError("LIVE_CARD_HTML_NOT_EXACT")
+        if lower_core in text:
+            core = lower_core
         if text.count(core) != 1:
             raise ValueError("LIVE_CARD_HTML_NOT_EXACT")
         core_start = text.index(core)

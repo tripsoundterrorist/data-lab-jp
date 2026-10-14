@@ -48,8 +48,8 @@ class ProductRefreshCandidateTests(unittest.TestCase):
             connection.execute("""
                 INSERT INTO item_snapshots
                 (id,item_id,collection_run_id,observed_at,source_sort,
-                 source_offset,source_position,price_min,query_context_json)
-                VALUES (1,1,'run',?,'date',1,1,1200,'{}')
+                 source_offset,source_position,price_min,query_context_json,price_raw)
+                VALUES (1,1,'run',?,'date',1,1,1200,'{}','1200')
             """, (STAMP,))
             connection.execute("""
                 INSERT INTO item_snapshot_titles

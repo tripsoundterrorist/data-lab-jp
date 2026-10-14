@@ -62,8 +62,8 @@ class ProductRefreshPreapprovalTests(unittest.TestCase):
                 connection.execute(
                     """INSERT INTO item_snapshots
                        (id,item_id,collection_run_id,observed_at,source_sort,
-                        source_offset,source_position,price_min,query_context_json)
-                       VALUES (?,?,?,?,?,?,?,?,?)""",
+                        source_offset,source_position,price_min,query_context_json,price_raw)
+                       VALUES (?,?,?,?,?,?,?,?,?,'1000')""",
                     (item_id, item_id, run_id, stamp, "date", 1, 1, 1000, "{}"),
                 )
                 connection.execute(
