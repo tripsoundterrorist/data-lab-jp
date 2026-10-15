@@ -1,12 +1,13 @@
 from dataclasses import replace
 
 import revenue_mvp_current_state
+from tests.revenue_mvp_historical_fixture import historical_state_fixture
 
 
 def closed_revenue_state():
     """Historical closed state used by the inert pre-activation unit contracts."""
     return replace(
-        revenue_mvp_current_state.current_state(),
+        historical_state_fixture(),
         status=revenue_mvp_current_state.LIVE_AFFILIATE_CLOSED,
         edge_artifact_verified=True,
         affiliate_runtime_candidate_ready=True,
