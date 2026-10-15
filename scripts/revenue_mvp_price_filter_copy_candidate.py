@@ -4,6 +4,7 @@ from hashlib import sha256
 import re
 
 SOURCE_SHA256 = "07083ce28e1095ce75ea89fa453ecb8c3e6fc6626e679397ca046d167d59d88b"
+CANDIDATE_SHA256 = "fcdb686092f35840cf5a9aacf6a01ac27ed269045ec4caabf5ef05809c57f39d"
 NOTICE = (
     '<p class="notice" id="price-lower-bound-note">'
     '「円〜」は確認時点の最低価格です。購入金額を保証するものではありません。'
@@ -73,3 +74,24 @@ def build(source: bytes) -> tuple[bytes, CopyCandidateReceipt]:
     return candidate, CopyCandidateReceipt(
         digest, sha256(_canonical(candidate)).hexdigest(), len(cards), True,
     )
+
+
+def recover_source(candidate: bytes) -> bytes:
+    """Recognize only the exact copy delta; recovery is not LIVE evidence."""
+    if type(candidate) is not bytes or len(candidate) > 1024 * 1024:
+        raise ValueError("COPY_CANDIDATE_INVALID")
+    try:
+        if sha256(_canonical(candidate)).hexdigest() != CANDIDATE_SHA256:
+            raise ValueError("COPY_CANDIDATE_BINDING_INVALID")
+        text = candidate.decode("utf-8")
+        for old, new in reversed(REPLACEMENTS):
+            if text.count(new) != 1:
+                raise ValueError("COPY_DELTA_INVALID")
+            text = text.replace(new, old, 1)
+        source = text.encode("utf-8")
+        rebuilt, _ = build(source)
+        if rebuilt != candidate:
+            raise ValueError("COPY_REBUILD_MISMATCH")
+        return source
+    except UnicodeError as error:
+        raise ValueError("COPY_CANDIDATE_INVALID") from error
