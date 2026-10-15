@@ -51,7 +51,7 @@ class CandidateBundleTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 build_candidate_bundle(bad)
 
-    def test_normal_deployment_remains_excluded(self):
+    def test_source_allowlist_and_source_navigation_remain_unmodified(self):
         tree = ast.parse((ROOT / 'scripts/build-static-site.py').read_text(encoding='utf-8'))
         values = [ast.literal_eval(node.value) for node in tree.body
                   if isinstance(node, ast.Assign) and any(

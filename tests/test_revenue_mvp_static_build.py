@@ -48,7 +48,7 @@ class RevenueMvpStaticBuildTests(unittest.TestCase):
             (output / "stale-internal.txt").write_bytes(b"STALE_FIXTURE")
             process = subprocess.run(
                 [sys.executable, str(ROOT / "scripts/build-static-site.py"),
-                 "--repo-root", str(replica)],
+                 "--repo-root", str(replica), "--without-coupon-help"],
                 capture_output=True, text=True, check=False,
             )
             self.assertEqual(process.returncode, 0, process.stderr)
@@ -110,7 +110,7 @@ class RevenueMvpStaticBuildTests(unittest.TestCase):
                 shutil.copyfile(ROOT / relative, destination)
             process = subprocess.run(
                 [sys.executable, str(ROOT / "scripts/build-static-site.py"),
-                 "--repo-root", str(replica), "--dry-run"],
+                 "--repo-root", str(replica), "--dry-run", "--without-coupon-help"],
                 capture_output=True, text=True, check=False,
             )
             self.assertEqual(process.returncode, 0, process.stderr)

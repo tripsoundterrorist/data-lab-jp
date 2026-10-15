@@ -191,8 +191,8 @@ def collect_sources(repo_root: Path) -> dict[str, bytes]:
     return files
 
 
-def validate_files(files: dict[str, bytes], secrets: tuple[bytes, ...], *, coupon_review: bool = False) -> None:
-    expected = set(ALLOWLIST) | ({"coupon-help.html"} if coupon_review else set())
+def validate_files(files: dict[str, bytes], secrets: tuple[bytes, ...], *, coupon_review: bool = False, coupon_public: bool = False) -> None:
+    expected = set(ALLOWLIST) | ({"coupon-help.html"} if coupon_review or coupon_public else set())
     if set(files) != expected:
         raise ValidationError("OUTPUT_SET_MISMATCH")
     for name, content in files.items():
@@ -208,7 +208,7 @@ def validate_files(files: dict[str, bytes], secrets: tuple[bytes, ...], *, coupo
             raise ValidationError("KNOWN_SECRET_VALUE_FOUND")
 
 
-def validate_staging(staging: Path, files: dict[str, bytes], *, coupon_review: bool = False) -> None:
+def validate_staging(staging: Path, files: dict[str, bytes], *, coupon_review: bool = False, coupon_public: bool = False) -> None:
     found: dict[str, Path] = {}
     try:
         entries = list(staging.rglob("*"))
@@ -226,7 +226,7 @@ def validate_staging(staging: Path, files: dict[str, bytes], *, coupon_review: b
             raise ValidationError("STAGING_NON_FILE_FOUND")
         validate_relative_name(relative)
         found[relative] = entry
-    expected = set(ALLOWLIST) | ({"coupon-help.html"} if coupon_review else set())
+    expected = set(ALLOWLIST) | ({"coupon-help.html"} if coupon_review or coupon_public else set())
     if set(found) != expected:
         raise ValidationError("STAGING_SET_MISMATCH")
     for name, expected in files.items():
@@ -238,7 +238,7 @@ def validate_staging(staging: Path, files: dict[str, bytes], *, coupon_review: b
             raise ValidationError("STAGING_CONTENT_MISMATCH")
 
 
-def atomic_publish(output: Path, files: dict[str, bytes], *, coupon_review: bool = False) -> None:
+def atomic_publish(output: Path, files: dict[str, bytes], *, coupon_review: bool = False, coupon_public: bool = False) -> None:
     if output.is_symlink() or (output.exists() and not output.is_dir()):
         raise UnsafeOutputError("OUTPUT_NOT_SAFE_DIRECTORY")
     parent = output.parent
@@ -253,7 +253,7 @@ def atomic_publish(output: Path, files: dict[str, bytes], *, coupon_review: bool
             destination = staging / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(content)
-        validate_staging(staging, files, coupon_review=coupon_review)
+        validate_staging(staging, files, coupon_review=coupon_review, coupon_public=coupon_public)
         if output.exists():
             previous = output.with_name(f".{output.name}.previous-{uuid.uuid4().hex}")
             os.replace(output, previous)
@@ -309,7 +309,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--repo-root", type=Path, default=ROOT)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--coupon-review-candidate", action="store_true",
+    coupon_mode = parser.add_mutually_exclusive_group()
+    coupon_mode.add_argument("--without-coupon-help", action="store_true",
+                            help="Rollback article, price link and sitemap entry together.")
+    coupon_mode.add_argument("--coupon-review-candidate", action="store_true",
                         help="Local noindex review only; requires a new output outside repo under OS temp.")
     return parser.parse_args(argv)
 
@@ -333,7 +336,8 @@ def main(argv: list[str] | None = None) -> int:
         files = collect_sources(repo_root)
         secrets = read_known_secret_values(repo_root)
         validate_files(files, secrets)
-        if args.coupon_review_candidate:
+        coupon_public = not args.coupon_review_candidate and not args.without_coupon_help
+        if args.coupon_review_candidate or coupon_public:
             sys.path.insert(0, str(ROOT))
             from scripts.coupon_help_candidate_bundle import build_candidate_bundle, REQUIRED_INPUTS
             draft_path = repo_root / "preview" / "coupon-help.html"
@@ -344,15 +348,20 @@ def main(argv: list[str] | None = None) -> int:
             sources = {name: files[name] for name in REQUIRED_INPUTS if name in files}
             sources['preview/coupon-help.html'] = draft_path.read_bytes()
             try:
-                bundle = build_candidate_bundle(sources)
+                if coupon_public:
+                    from scripts.coupon_help_public_release import build_public_release
+                    bundle = build_public_release(sources)
+                else:
+                    bundle = build_candidate_bundle(sources)
             except ValueError as error:
                 raise ValidationError("REVIEW_TEMPLATE_INVALID") from error
             # Preserve every existing security header and add noindex everywhere.
-            bundle['_headers'] = files['_headers'] + b'\n/*\n  X-Robots-Tag: noindex, nofollow\n'
+            if args.coupon_review_candidate:
+                bundle['_headers'] = files['_headers'] + b'\n/*\n  X-Robots-Tag: noindex, nofollow\n'
             files.update(bundle)
-            validate_files(files, secrets, coupon_review=True)
+            validate_files(files, secrets, coupon_review=args.coupon_review_candidate, coupon_public=coupon_public)
         if not args.dry_run:
-            atomic_publish(output, files, coupon_review=args.coupon_review_candidate)
+            atomic_publish(output, files, coupon_review=args.coupon_review_candidate, coupon_public=coupon_public)
         summary = build_summary(repo_root, output, files, args.dry_run)
         if args.coupon_review_candidate:
             summary["mode"] = "coupon-review-dry-run" if args.dry_run else "coupon-review-generated"
