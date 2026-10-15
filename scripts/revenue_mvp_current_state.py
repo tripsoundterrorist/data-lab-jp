@@ -13,6 +13,7 @@ import affiliate_d1_production_state
 import affiliate_route_deployment_review
 import affiliate_runtime_deployment_preflight
 import revenue_mvp_price_display_transition as price_transition
+import revenue_mvp_price_filter_copy_candidate as price_copy
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +29,7 @@ PRODUCT_CARD_LIVE_LOCAL_REVALIDATION_CANARY = "REVENUE_SURFACE_PRODUCT_CARD_LIVE
 PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE = "REVENUE_SURFACE_PRODUCT_CARD_LIVE_LOCAL_SCHEDULER_ACTIVE"
 FAIL_CLOSED = "CURRENT_REVENUE_STATE_FAIL_CLOSED"
 PRICE_DISPLAY_PENDING = "REVENUE_PRICE_DISPLAY_CURRENT_ELIGIBILITY_REVIEW_REQUIRED"
+PRICE_COPY_PENDING = "REVENUE_PRICE_COPY_DISPLAY_AND_ELIGIBILITY_REVIEW_REQUIRED"
 EXPECTED_SHA256 = "862a2c275d0134856ecc9b095f9fe689903337c3c56c90e138dbb4a1e8a4022d"
 APPROVED_CANARY_SHA256 = "62ad8f93cc91769b5c92854bc4ff2ccb6bb4e939d8791a8b36245d4c93878374"
 APPROVED_CANARY_CANONICAL_SHA256 = "bb65f1a2e8b437de4d1f26e224733c9341aa0d85d46752e12d0c857108d54c11"
@@ -99,6 +101,24 @@ def assess(
     try:
         raw_artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()
         artifact_sha256 = _canonical_sha256(artifact_bytes)
+        if artifact_sha256 == price_copy.CANDIDATE_SHA256:
+            # Recognize the exact copy delta, without transferring LIVE/CTA proof.
+            source = price_copy.recover_source(artifact_bytes)
+            prior = assess(receipt, source, preflight, route, d1,
+                           product_card_live_evidence, evaluated_at=evaluated_at)
+            if prior.status != PRICE_DISPLAY_PENDING:
+                return _failed("PRICE_COPY_SOURCE_CONTEXT_INVALID")
+            result = _failed("PRICE_COPY_DISPLAY_AND_ELIGIBILITY_REVIEW_REQUIRED")
+            return CurrentRevenueState(
+                **{**result.to_dict(), "status": PRICE_COPY_PENDING,
+                   "next_action": "REVIEW_EXACT_COPY_DISPLAY_AND_CURRENT_ELIGIBILITY",
+                   "reason_codes": (
+                       "EXACT_PRICE_COPY_DELTA_RECOGNIZED_ONLY",
+                       "HISTORICAL_LIVE_AUTHORITY_NOT_TRANSFERRED",
+                       "CURRENT_DISPLAY_AND_ELIGIBILITY_NOT_VERIFIED",
+                       "GLOBAL_PUBLICATION_GATE_UNCHANGED",
+                   )}
+            )
         if artifact_sha256 == price_transition.CANDIDATE:
             # Recover only the exact reviewed display baseline in memory. Do not
             # rename old approval hashes or treat old LIVE evidence as new proof.
@@ -560,7 +580,8 @@ def current_state(*, price_display_observation=None, evaluated_at=None) -> Curre
         live_evidence_path = (
             REFRESHED_PRODUCT_CARD_LIVE_EVIDENCE_PATH
             if (REFRESHED_PRODUCT_CARD_SHA256 in artifact_hashes
-                or price_transition.CANDIDATE in artifact_hashes)
+                or price_transition.CANDIDATE in artifact_hashes
+                or price_copy.CANDIDATE_SHA256 in artifact_hashes)
             else CACHE_BUSTED_PRODUCT_CARD_LIVE_EVIDENCE_PATH
             if CACHE_BUSTED_PRODUCT_CARD_SHA256 in artifact_hashes
             else LATEST_PRODUCT_CARD_LIVE_EVIDENCE_PATH
