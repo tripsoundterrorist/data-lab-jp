@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from html.parser import HTMLParser
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +28,62 @@ EXPECTED_PUBLIC_FILES = {
 
 
 class RevenueMvpStaticBuildTests(unittest.TestCase):
+    def test_real_build_preserves_public_bytes_and_excludes_internal_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            replica = Path(temporary) / "repo"
+            replica.mkdir()
+            for relative in build.ALLOWLIST:
+                destination = replica / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / relative, destination)
+            for relative in (
+                "preview/coupon-help.html", "docs/internal.md", "tests/internal.py",
+                "data/private.db", "runtime/private/audit.json", "wrangler.toml",
+            ):
+                destination = replica / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(b"INTERNAL_FIXTURE_NOT_FOR_PUBLICATION")
+            output = replica / "dist"
+            output.mkdir()
+            (output / "stale-internal.txt").write_bytes(b"STALE_FIXTURE")
+            process = subprocess.run(
+                [sys.executable, str(ROOT / "scripts/build-static-site.py"),
+                 "--repo-root", str(replica)],
+                capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(process.returncode, 0, process.stderr)
+            actual = {path.relative_to(output).as_posix(): path.read_bytes()
+                      for path in output.rglob("*") if path.is_file()}
+            self.assertEqual(set(actual), EXPECTED_PUBLIC_FILES)
+            for relative, content in actual.items():
+                self.assertEqual(content, (ROOT / relative).read_bytes(), relative)
+                self.assertNotIn(b"INTERNAL_FIXTURE_NOT_FOR_PUBLICATION", content)
+                self.assertNotIn(b"STALE_FIXTURE", content)
+
+    def test_current_catalog_is_static_and_preserved_in_allowlist(self):
+        class CatalogParser(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.cards = 0
+                self.scripts = []
+
+            def handle_starttag(self, tag, attrs):
+                values = dict(attrs)
+                if tag == "article":
+                    self.cards += 1
+                if tag == "script":
+                    self.scripts.append(values.get("src", ""))
+
+        files = build.collect_sources(ROOT)
+        catalog = CatalogParser()
+        catalog.feed(files["items/index.html"].decode("utf-8"))
+        self.assertEqual(catalog.cards, 100)
+        self.assertIn("discovery.js?v=20260930", catalog.scripts)
+        self.assertFalse(any(src.split("?")[0].endswith("items.js")
+                             for src in catalog.scripts))
+        self.assertIn("items/discovery.js", files)
+        self.assertIn("items/items.css", files)
+
     def test_allowlist_contains_complete_current_public_shell(self):
         self.assertEqual(set(build.ALLOWLIST), EXPECTED_PUBLIC_FILES)
         self.assertEqual(len(build.ALLOWLIST), len(set(build.ALLOWLIST)))
