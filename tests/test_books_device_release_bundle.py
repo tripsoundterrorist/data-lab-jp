@@ -59,6 +59,9 @@ class ReleaseBundleTests(unittest.TestCase):
                     build_release_bundle(bad, self.source, enabled=True)
         self.assertEqual(self.baseline, before)
 
-    def test_no_deployment_connection(self):
-        build = (ROOT / 'scripts/build-static-site.py').read_text(encoding='utf-8')
-        self.assertNotIn('books_device_release_bundle', build)
+    def test_public_build_requires_explicit_opt_in(self):
+        from scripts.books_device_local_build import load_builder
+        builder = load_builder()
+        self.assertFalse(builder.parse_args([]).books_device_enabled)
+        self.assertFalse(builder.parse_args(['--without-books-device']).books_device_enabled)
+        self.assertTrue(builder.parse_args(['--with-books-device']).books_device_enabled)

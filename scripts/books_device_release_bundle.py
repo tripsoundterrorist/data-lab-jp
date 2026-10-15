@@ -1,4 +1,4 @@
-"""In-memory release/rollback rehearsal; NOT connected to deployment builds.
+"""In-memory release/rollback transform; ordinary build is disabled by default.
 
 Always supply the pristine baseline output. enabled=False rebuilds that baseline,
 removing article/link/sitemap changes together. Never patch deployed output in
