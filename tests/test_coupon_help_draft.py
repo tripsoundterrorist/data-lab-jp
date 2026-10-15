@@ -78,6 +78,17 @@ class ArticleTests(unittest.TestCase):
         self.assertNotIn('img', self.page.tags)
         self.assertIn('未公開の下書き', self.text)
 
+    def test_description_and_review_date_preserve_draft_scope(self):
+        descriptions = [meta['content'] for meta in self.page.meta
+                        if meta.get('name') == 'description']
+        self.assertEqual(len(descriptions), 1)
+        self.assertIn('表示されない・選べない・値引きされない', descriptions[0])
+        self.assertIn('利用可否は公式画面でご確認ください', descriptions[0])
+        self.assertIn('datetime="2026-10-16">2026年10月16日</time>', self.text)
+        self.assertIn('購入画面の動作確認日ではありません', self.text)
+        self.assertIn('DATA LAB ローカル案</title>', self.text)
+        self.assertNotIn('rel="canonical"', self.text)
+
     def test_links_and_anchors(self):
         self.assertEqual(len(self.page.ids), len(set(self.page.ids)))
         expected = {
