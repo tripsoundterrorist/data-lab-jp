@@ -54,6 +54,16 @@ class DiscoveryControlsTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_populated_cards_runtime_boundary(self):
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js is not installed or is not available on PATH")
+        result = subprocess.run(
+            [node, str(ROOT / "tests" / "discovery_cards_runtime_harness.js")],
+            check=False, capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_image_failure_has_one_shot_safe_fallback(self):
         for required in (
             'document.querySelectorAll(".card-image")',
