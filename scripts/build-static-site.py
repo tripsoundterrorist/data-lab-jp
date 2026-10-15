@@ -191,8 +191,9 @@ def collect_sources(repo_root: Path) -> dict[str, bytes]:
     return files
 
 
-def validate_files(files: dict[str, bytes], secrets: tuple[bytes, ...]) -> None:
-    if len(files) != len(ALLOWLIST) or set(files) != set(ALLOWLIST):
+def validate_files(files: dict[str, bytes], secrets: tuple[bytes, ...], *, coupon_review: bool = False) -> None:
+    expected = set(ALLOWLIST) | ({"coupon-help.html"} if coupon_review else set())
+    if set(files) != expected:
         raise ValidationError("OUTPUT_SET_MISMATCH")
     for name, content in files.items():
         validate_relative_name(name)
@@ -207,7 +208,7 @@ def validate_files(files: dict[str, bytes], secrets: tuple[bytes, ...]) -> None:
             raise ValidationError("KNOWN_SECRET_VALUE_FOUND")
 
 
-def validate_staging(staging: Path, files: dict[str, bytes]) -> None:
+def validate_staging(staging: Path, files: dict[str, bytes], *, coupon_review: bool = False) -> None:
     found: dict[str, Path] = {}
     try:
         entries = list(staging.rglob("*"))
@@ -225,7 +226,8 @@ def validate_staging(staging: Path, files: dict[str, bytes]) -> None:
             raise ValidationError("STAGING_NON_FILE_FOUND")
         validate_relative_name(relative)
         found[relative] = entry
-    if len(found) != len(ALLOWLIST) or set(found) != set(ALLOWLIST):
+    expected = set(ALLOWLIST) | ({"coupon-help.html"} if coupon_review else set())
+    if set(found) != expected:
         raise ValidationError("STAGING_SET_MISMATCH")
     for name, expected in files.items():
         try:
@@ -236,7 +238,7 @@ def validate_staging(staging: Path, files: dict[str, bytes]) -> None:
             raise ValidationError("STAGING_CONTENT_MISMATCH")
 
 
-def atomic_publish(output: Path, files: dict[str, bytes]) -> None:
+def atomic_publish(output: Path, files: dict[str, bytes], *, coupon_review: bool = False) -> None:
     if output.is_symlink() or (output.exists() and not output.is_dir()):
         raise UnsafeOutputError("OUTPUT_NOT_SAFE_DIRECTORY")
     parent = output.parent
@@ -251,7 +253,7 @@ def atomic_publish(output: Path, files: dict[str, bytes]) -> None:
             destination = staging / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(content)
-        validate_staging(staging, files)
+        validate_staging(staging, files, coupon_review=coupon_review)
         if output.exists():
             previous = output.with_name(f".{output.name}.previous-{uuid.uuid4().hex}")
             os.replace(output, previous)
@@ -276,7 +278,7 @@ def build_summary(
         "mode": "dry-run" if dry_run else "generated",
         "source": str(repo_root),
         "output": str(output),
-        "files": list(ALLOWLIST),
+        "files": list(files),
         "file_count": len(files),
         "sha256": {
             name: hashlib.sha256(content).hexdigest() for name, content in files.items()
@@ -289,6 +291,8 @@ def build_summary(
 def print_summary(summary: dict[str, Any]) -> None:
     print("STATIC SITE STAGING v0.1")
     print(f"Mode: {summary['mode']}")
+    if summary.get("local_review_only"):
+        print("Local review only: noindex retained; publication not authorized.")
     print(f"Source: {summary['source']}")
     print(f"Output: {summary['output']}")
     print(f"Files: {summary['file_count']}")
@@ -305,6 +309,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--repo-root", type=Path, default=ROOT)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--coupon-review-candidate", action="store_true",
+                        help="Local noindex review only; requires a new output outside repo under OS temp.")
     return parser.parse_args(argv)
 
 
@@ -312,13 +318,45 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         repo_root = resolve_repo_root(args.repo_root)
-        output = resolve_output(repo_root, args.output)
+        if args.coupon_review_candidate:
+            if args.output is None or not args.output.is_absolute():
+                raise UnsafeOutputError("REVIEW_REQUIRES_ABSOLUTE_TEMP_OUTPUT")
+            temp_root = Path(tempfile.gettempdir()).resolve(strict=True)
+            output = args.output.resolve()
+            if (output == temp_root or temp_root not in output.parents
+                    or output == repo_root or repo_root in output.parents
+                    or output.exists() or args.output.is_symlink()
+                    or any(parent.is_symlink() for parent in args.output.parents)):
+                raise UnsafeOutputError("REVIEW_OUTPUT_NOT_NEW_ISOLATED_TEMP")
+        else:
+            output = resolve_output(repo_root, args.output)
         files = collect_sources(repo_root)
         secrets = read_known_secret_values(repo_root)
         validate_files(files, secrets)
+        if args.coupon_review_candidate:
+            sys.path.insert(0, str(ROOT))
+            from scripts.coupon_help_candidate_bundle import build_candidate_bundle, REQUIRED_INPUTS
+            draft_path = repo_root / "preview" / "coupon-help.html"
+            if draft_path.is_symlink() or draft_path.parent.is_symlink():
+                raise SourceError("REVIEW_SOURCE_SYMLINK_FORBIDDEN")
+            if not draft_path.is_file():
+                raise SourceError("REVIEW_DRAFT_MISSING")
+            sources = {name: files[name] for name in REQUIRED_INPUTS if name in files}
+            sources['preview/coupon-help.html'] = draft_path.read_bytes()
+            try:
+                bundle = build_candidate_bundle(sources)
+            except ValueError as error:
+                raise ValidationError("REVIEW_TEMPLATE_INVALID") from error
+            # Preserve every existing security header and add noindex everywhere.
+            bundle['_headers'] = files['_headers'] + b'\n/*\n  X-Robots-Tag: noindex, nofollow\n'
+            files.update(bundle)
+            validate_files(files, secrets, coupon_review=True)
         if not args.dry_run:
-            atomic_publish(output, files)
+            atomic_publish(output, files, coupon_review=args.coupon_review_candidate)
         summary = build_summary(repo_root, output, files, args.dry_run)
+        if args.coupon_review_candidate:
+            summary["mode"] = "coupon-review-dry-run" if args.dry_run else "coupon-review-generated"
+            summary["local_review_only"] = True
     except SourceError as error:
         print(f"static site build failed: {error}", file=sys.stderr)
         return 2
