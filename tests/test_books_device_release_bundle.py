@@ -23,7 +23,7 @@ class ReleaseBundleTests(unittest.TestCase):
                          {'column-price.html', 'sitemap.xml'})
         self.assertEqual(self.baseline, before)
         article = result[ARTICLE].decode('utf-8')
-        for forbidden in ('noindex', '未公開', 'ローカルレビュー', '<script', '/go/'):
+        for forbidden in ('noindex', '未公開', 'ローカルレビュー', '/go/'):
             self.assertNotIn(forbidden, article)
         self.assertEqual(result['column-price.html'].count(f'href="{ROUTE}"'.encode()), 1)
         self.assertEqual(result['sitemap.xml'].count(f'https://datalabx.jp{ROUTE}'.encode()), 1)
@@ -65,3 +65,37 @@ class ReleaseBundleTests(unittest.TestCase):
         self.assertFalse(builder.parse_args([]).books_device_enabled)
         self.assertFalse(builder.parse_args(['--without-books-device']).books_device_enabled)
         self.assertTrue(builder.parse_args(['--with-books-device']).books_device_enabled)
+
+    def test_only_existing_local_consent_bootstrap_added(self):
+        from html.parser import HTMLParser
+        class Tags(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.scripts = []
+                self.styles = []
+            def handle_starttag(self, tag, attrs):
+                values = dict(attrs)
+                if tag == 'script':
+                    self.scripts.append(values)
+                if tag == 'link' and values.get('rel') == 'stylesheet':
+                    self.styles.append(values.get('href'))
+        bundle = build_release_bundle(self.baseline, self.source, enabled=True)
+        article = bundle[ARTICLE].decode('utf-8')
+        parser = Tags()
+        parser.feed(article)
+        self.assertEqual(parser.scripts, [{'src': '/analytics-consent.js', 'defer': None}])
+        self.assertEqual(parser.styles, ['/analytics-consent.css'])
+        for asset in ('analytics-consent.js', 'analytics-consent.css', '_headers'):
+            self.assertEqual(bundle[asset], self.baseline[asset])
+        self.assertIn("script-src 'self' https://www.googletagmanager.com", article)
+        self.assertIn('href="/privacy"', article)
+        self.assertNotIn('gtag(', article)
+        self.assertNotIn('G-ZPBQJ6137L', article)
+
+    def test_missing_consent_assets_fail_closed_when_enabled(self):
+        for asset in ('analytics-consent.js', 'analytics-consent.css'):
+            baseline = dict(self.baseline)
+            del baseline[asset]
+            with self.assertRaisesRegex(ValueError, 'CONSENT_ASSETS_MISSING'):
+                build_release_bundle(baseline, self.source, enabled=True)
+            self.assertEqual(build_release_bundle(baseline, b''), baseline)

@@ -5,6 +5,7 @@ removing article/link/sitemap changes together. Never patch deployed output in
 place. Returned public-form HTML is a local artifact, not publication authority.
 """
 from scripts.books_device_candidate import render_candidate, PROPOSED_CANONICAL
+from scripts.coupon_help_candidate_bundle import CONSENT_CSP
 
 ARTICLE = 'books-device-check.html'
 ROUTE = '/books-device-check'
@@ -30,6 +31,8 @@ def build_release_bundle(baseline: dict[str, bytes], source: bytes,
     result = dict(baseline)
     if not enabled:
         return result
+    if not {'analytics-consent.js', 'analytics-consent.css'} <= baseline.keys():
+        raise ValueError('CONSENT_ASSETS_MISSING')
     article = render_candidate(source)
     replacements = (
         ('<meta name="robots" content="noindex, nofollow">\n', ''),
@@ -41,6 +44,12 @@ def build_release_bundle(baseline: dict[str, bytes], source: bytes,
     )
     for old, new in replacements:
         article = replace_once(article, old, new)
+    article = replace_once(article,
+        "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'",
+        CONSENT_CSP)
+    article = replace_once(article, '</head>',
+        '<link rel="stylesheet" href="/analytics-consent.css">\n'
+        '<script src="/analytics-consent.js" defer></script>\n</head>')
     price = replace_once(baseline['column-price.html'].decode('utf-8'),
                          '        <a class="back" href="/">',
                          '        ' + LINK + '        <a class="back" href="/">')
