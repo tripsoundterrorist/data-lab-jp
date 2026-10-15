@@ -10,11 +10,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import revenue_mvp_current_state as state
 import revenue_mvp_price_filter_copy_candidate as subject
+from tests.revenue_mvp_historical_fixture import price_display_artifact
 
 
 class PriceFilterCopyStateTests(unittest.TestCase):
     def setUp(self):
-        self.source = state.ARTIFACT_PATH.read_bytes()
+        self.actual = state.ARTIFACT_PATH.read_bytes()
+        self.source = price_display_artifact(self.actual)
         self.candidate, _ = subject.build(self.source)
         self.receipt = json.loads(state.RECEIPT_PATH.read_text(encoding="utf-8"))
         self.live = json.loads(state.REFRESHED_PRODUCT_CARD_LIVE_EVIDENCE_PATH.read_text(encoding="utf-8"))
@@ -42,7 +44,7 @@ class PriceFilterCopyStateTests(unittest.TestCase):
         self.assertIn("CURRENT_DISPLAY_AND_ELIGIBILITY_NOT_VERIFIED", result.reason_codes)
         self.assert_no_authority(result)
         self.assertEqual(before, (self.receipt, self.live))
-        self.assertEqual(state.ARTIFACT_PATH.read_bytes(), self.source)
+        self.assertEqual(state.ARTIFACT_PATH.read_bytes(), self.actual)
 
     def test_forged_observation_cannot_grant_copy_live_authority(self):
         result = self.assess(price_display_observation={"verified": True})

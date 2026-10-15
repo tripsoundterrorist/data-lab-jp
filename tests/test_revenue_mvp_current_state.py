@@ -72,8 +72,11 @@ class CurrentRevenueStateTests(unittest.TestCase):
         result = state.current_state()
         from hashlib import sha256
         actual=state.price_transition.canonical(state.ARTIFACT_PATH.read_bytes())
-        if sha256(actual).hexdigest()==state.price_transition.CANDIDATE:
-            self.assertEqual(result.status,state.PRICE_DISPLAY_PENDING)
+        digest = sha256(actual).hexdigest()
+        if digest in (state.price_transition.CANDIDATE, state.price_copy.CANDIDATE_SHA256):
+            expected = (state.PRICE_COPY_PENDING if digest == state.price_copy.CANDIDATE_SHA256
+                        else state.PRICE_DISPLAY_PENDING)
+            self.assertEqual(result.status, expected)
             self.assertFalse(result.limited_surface_live)
             self.assertFalse(result.edge_artifact_verified)
             self.assertFalse(result.cta_allowed)

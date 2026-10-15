@@ -1,7 +1,7 @@
 """Test-only exact historical baseline fixture; never a production authority.
 
-Recover the old bytes only from either pinned baseline or pinned display-only
-candidate. Unknown/currently changed artifacts cannot become historical proof.
+Recover old test bytes only from pinned baseline/display/copy identities.
+Unknown/currently changed artifacts cannot become historical proof.
 No receipt, approval, timestamp, or production file is altered.
 """
 from hashlib import sha256
@@ -9,11 +9,25 @@ from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 import revenue_mvp_price_display_transition as display
+import revenue_mvp_price_filter_copy_candidate as price_copy
+
+
+def price_display_artifact(artifact_bytes):
+    """Pinned pre-copy fixture only, not current display or eligibility evidence."""
+    canonical = display.canonical(artifact_bytes)
+    if sha256(canonical).hexdigest() == price_copy.CANDIDATE_SHA256:
+        canonical = display.canonical(price_copy.recover_source(canonical))
+    if sha256(canonical).hexdigest() != display.CANDIDATE:
+        raise ValueError('UNKNOWN_ARTIFACT_NOT_PRICE_DISPLAY_FIXTURE')
+    return canonical
 
 
 def historical_artifact(artifact_bytes):
     canonical=display.canonical(artifact_bytes)
     digest=sha256(canonical).hexdigest()
+    if digest == price_copy.CANDIDATE_SHA256:
+        canonical = price_display_artifact(canonical)
+        digest = sha256(canonical).hexdigest()
     if digest == display.BASELINE:
         return canonical
     if digest != display.CANDIDATE:

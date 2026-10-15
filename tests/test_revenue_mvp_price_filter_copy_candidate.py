@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import revenue_mvp_price_filter_copy_candidate as subject
 import revenue_mvp_price_display_transition as transition
+from tests.revenue_mvp_historical_fixture import price_display_artifact
 
 
 class PriceFilterCopyCandidateTests(unittest.TestCase):
@@ -98,7 +99,8 @@ class PriceFilterCopyCandidateTests(unittest.TestCase):
 
     def test_current_source_integration_does_not_inherit_old_display_receipt(self):
         self.binding.stop()
-        source = (ROOT / "items/index.html").read_bytes()
+        actual = (ROOT / "items/index.html").read_bytes()
+        source = price_display_artifact(actual)
         candidate, receipt = subject.build(source)
         # Fixed output identity is a regression expectation, never publication authority.
         self.assertEqual(receipt.candidate_sha256,
@@ -107,7 +109,7 @@ class PriceFilterCopyCandidateTests(unittest.TestCase):
         history = {"items_artifact_sha256": transition.BASELINE}
         self.assertEqual(transition.review(old, candidate, history).status, "BLOCKED")
         self.assertFalse(receipt.live_display_verified)
-        self.assertEqual((ROOT / "items/index.html").read_bytes(), source)
+        self.assertEqual((ROOT / "items/index.html").read_bytes(), actual)
         self.assertIn(subject.NOTICE.encode(), candidate)
 
 
