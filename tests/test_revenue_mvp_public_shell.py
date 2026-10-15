@@ -67,12 +67,26 @@ class RevenueMvpPublicShellTests(unittest.TestCase):
     def test_home_links_to_fail_closed_product_catalog(self):
         document = (ROOT / "index.html").read_text(encoding="utf-8")
         self.assertIn('href="/items/"', document)
-        self.assertIn("作品データの公開状況を見る", document)
-        self.assertIn("確認済みのFANZA動画100作品", document)
-        self.assertIn("公式商品ページへのリンクを公開しています", document)
+        self.assertIn("作品一覧を見る", document)
+        self.assertIn("FANZA動画100作品の確認時点の商品情報", document)
+        self.assertIn("公式商品ページへのリンクを掲載しています", document)
         self.assertNotIn("作品データページは「公開準備中」", document)
         self.assertNotIn("作品データ A", document)
         self.assertNotIn("実データ取得前の表示確認用", document)
+
+    def test_home_prioritizes_available_functions_without_freshness_guarantee(self):
+        document = (ROOT / "index.html").read_text(encoding="utf-8")
+        hero = re.search(r'<div class="hero">(.*?)</a>\s*</div>', document, re.S)
+        self.assertIsNotNone(hero)
+        self.assertIn("気になる作品を、<br>", hero[1])
+        self.assertIn("価格と確認日時から探す。", hero[1])
+        self.assertIn("商品名や表示価格で絞り込み", hero[1])
+        self.assertIn("現在の価格・販売状況を保証するものではありません", hero[1])
+        self.assertIn("分析機能は準備中です", hero[1])
+        self.assertNotIn("価格・人気・レビュー・ランキング", hero[1])
+        self.assertEqual(document.count('href="/items/">作品一覧を見る'), 2)
+        self.assertEqual(document.count("COMING SOON"), 2)
+        self.assertEqual(document.count("IN DEVELOPMENT"), 1)
 
     def test_home_analytics_copy_matches_explicit_consent_behavior(self):
         document = (ROOT / "index.html").read_text(encoding="utf-8")
