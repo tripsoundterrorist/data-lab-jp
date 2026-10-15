@@ -79,7 +79,7 @@ class RevenueMvpPublicShellTests(unittest.TestCase):
         hero = re.search(r'<div class="hero">(.*?)</a>\s*</div>', document, re.S)
         self.assertIsNotNone(hero)
         self.assertIn("気になる作品を、<br>", hero[1])
-        self.assertIn("価格と確認日時から探す。", hero[1])
+        self.assertIn("価格と日時で探す。", hero[1])
         self.assertIn("商品名や表示価格で絞り込み", hero[1])
         self.assertIn("現在の価格・販売状況を保証するものではありません", hero[1])
         self.assertIn("分析機能は準備中です", hero[1])
