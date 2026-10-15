@@ -54,8 +54,8 @@ class ArticleParser(HTMLParser):
 def assert_example_table(case, text):
     page = ArticleParser()
     page.feed(text)
-    case.assertEqual(len(page.tables), 2)
-    case.assertEqual(page.tables[1], [
+    case.assertEqual(len(page.tables), 3)
+    case.assertEqual(page.tables[2], [
         ['項目', 'クーポンなし', '500円分を利用'],
         ['商品価格', '2,000円', '2,000円'],
         ['支払額', '2,000円', '1,500円'],
@@ -100,6 +100,17 @@ class ArticleTests(unittest.TestCase):
         self.assertIn('.points-table-wrap table{min-width:360px}', self.text)
         self.assertIn('.points-table-wrap:focus-visible', self.text)
 
+    def test_symptom_checks_and_points_scope(self):
+        self.assertEqual(self.page.tables[0], [
+            ['困っていること', '最初に確認する場所'],
+            ['獲得したのに表示されない', '利用期限・先着人数・利用回数の上限'],
+            ['表示されるが選べない', '対象サービス・対象商品・会員条件・最低利用金額'],
+            ['値引きされない', '購入確認画面のクーポン選択と値引額'],
+        ])
+        self.assertIn('すべてのサービス・キャンペーンに共通する計算方法ではありません', self.text)
+        self.assertIn('最終的な還元ポイントは購入確認画面で確かめてください', self.text)
+        self.assertLess(self.text.index('すべてのサービス・キャンペーン'), self.text.index('税込2,000円'))
+
     def test_links_and_anchors(self):
         self.assertEqual(len(self.page.ids), len(set(self.page.ids)))
         expected = {
@@ -107,6 +118,7 @@ class ArticleTests(unittest.TestCase):
             'https://support.dmm.co.jp/payment/article/47433',
             'https://guidance.payment.dmm.co.jp/common/coupon/index.html',
             'https://support.dmm.co.jp/payment/article/47509',
+            'https://support.dmm.co.jp/book/article/47745',
         }
         self.assertEqual({x for x in self.page.links if not x.startswith('#')}, expected)
         for link in self.page.links:
@@ -115,7 +127,7 @@ class ArticleTests(unittest.TestCase):
 
     def test_semantics(self):
         self.assertEqual(self.page.tags.count('h1'), 1)
-        self.assertEqual(self.page.tags.count('caption'), 2)
+        self.assertEqual(self.page.tags.count('caption'), 3)
         self.assertIn('name="viewport"', self.text)
         self.assertIn('説明用の仮の条件', self.text)
         self.assertIn('1ポイント未満は切り捨て', self.text)
