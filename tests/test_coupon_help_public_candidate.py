@@ -41,7 +41,7 @@ class CouponPublicCandidateTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     render_candidate(bad)
 
-    def test_candidate_route_not_in_deployment_allowlist_or_sitemap(self):
+    def test_generated_route_not_added_to_source_allowlist_or_source_navigation(self):
         tree = ast.parse((ROOT / 'scripts/build-static-site.py').read_text(encoding='utf-8'))
         assignments = [node for node in tree.body if isinstance(node, ast.Assign)
                        and any(isinstance(t, ast.Name) and t.id == 'ALLOWLIST' for t in node.targets)]
