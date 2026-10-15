@@ -89,6 +89,17 @@ class ArticleTests(unittest.TestCase):
         self.assertIn('DATA LAB ローカル案</title>', self.text)
         self.assertNotIn('rel="canonical"', self.text)
 
+    def test_narrow_points_table_has_named_keyboard_scroll_region(self):
+        regions = [attrs for tag, attrs in self.page.elements
+                   if tag == 'div' and 'points-table-wrap' in attrs.get('class', '').split()]
+        self.assertEqual(len(regions), 1)
+        self.assertEqual(regions[0]['role'], 'region')
+        self.assertEqual(regions[0]['tabindex'], '0')
+        self.assertEqual(regions[0]['aria-label'], '支払額と還元ポイントの比較表')
+        self.assertIn(regions[0]['aria-describedby'], self.page.ids)
+        self.assertIn('.points-table-wrap table{min-width:360px}', self.text)
+        self.assertIn('.points-table-wrap:focus-visible', self.text)
+
     def test_links_and_anchors(self):
         self.assertEqual(len(self.page.ids), len(set(self.page.ids)))
         expected = {

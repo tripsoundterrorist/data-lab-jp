@@ -13,7 +13,8 @@
     main{padding:40px 0 70px}article{max-width:760px}h1{font-size:clamp(1.65rem,4vw,2.5rem);line-height:1.5}h2{font-size:1.35rem;margin-top:2.5rem}p,li,td,th{overflow-wrap:anywhere}
     a{color:#9bcaff;text-underline-offset:.2em}a:focus-visible{outline:3px solid #f6d365;outline-offset:4px}.status,.note{padding:16px 20px;border:1px solid #59616e;border-radius:10px;background:#151a21}
     .status{color:#f6d365}.meta{color:#b8c0cc;font-size:.9rem}nav ul{padding-left:1.3rem}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.95rem}caption{text-align:left;margin-bottom:10px}th,td{border:1px solid #59616e;padding:12px;text-align:left;vertical-align:top}thead{background:#1e2631}code{white-space:normal}.formula{padding:16px;background:#1e2631;border-radius:8px}footer{border-top:1px solid #2b3037;padding:24px 0;color:#b8c0cc}
-    @media(max-width:480px){main{padding-top:24px}th,td{padding:8px}ul{padding-left:1.3rem}.status,.note{padding:12px}}
+    .points-table-wrap:focus-visible{outline:3px solid #f6d365;outline-offset:4px}
+    @media(max-width:480px){main{padding-top:24px}th,td{padding:8px}ul{padding-left:1.3rem}.status,.note{padding:12px}.points-table-wrap table{min-width:360px}}
   </style>
 </head>
 <body>
@@ -54,7 +55,8 @@
     <section aria-labelledby="points"><h2 id="points">支払額と還元ポイントは別々に確認する</h2>
       <p>クーポンを使うと、商品購入による還元ポイントも変わります。支払額と還元ポイントは、分けて確認しましょう。</p>
       <p class="note">以下は説明用の仮の条件です。実際の商品・クーポン・キャンペーンの価格や特典を示すものではありません。</p>
-      <div class="table-wrap"><table><caption>税込2,000円・通常200ポイント還元と仮定した例</caption><thead><tr><th scope="col">項目</th><th scope="col">クーポンなし</th><th scope="col">500円分を利用</th></tr></thead><tbody>
+      <p class="meta" id="points-scroll-help">表が画面に収まらない場合は、表を左右にスクロールして確認できます。</p>
+      <div class="table-wrap points-table-wrap" role="region" aria-label="支払額と還元ポイントの比較表" aria-describedby="points-scroll-help" tabindex="0"><table><caption>税込2,000円・通常200ポイント還元と仮定した例</caption><thead><tr><th scope="col">項目</th><th scope="col">クーポンなし</th><th scope="col">500円分を利用</th></tr></thead><tbody>
         <tr><th scope="row">商品価格</th><td>2,000円</td><td>2,000円</td></tr>
         <tr><th scope="row">支払額</th><td>2,000円</td><td>1,500円</td></tr>
         <tr><th scope="row">還元ポイント</th><td>200ポイント</td><td>150ポイント</td></tr>
