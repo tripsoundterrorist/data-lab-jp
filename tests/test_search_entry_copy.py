@@ -24,7 +24,7 @@ class SearchEntryCopyTests(unittest.TestCase):
         text = (ROOT / "column-price.html").read_text(encoding="utf-8")
         self.assertEqual(text.count('href="/items/"'), 1)
         self.assertIn("掲載情報は確認時点の記録です。現在の価格・条件は公式ページでご確認ください。", text)
-        self.assertIn('<a href="/items/" style="color:#ffffff; text-decoration:underline;">作品一覧を見る</a>', text)
+        self.assertIn('<a href="/items/" style="color:#ffffff; text-decoration:underline;">FANZA動画の作品一覧を見る</a>', text)
         self.assertNotIn("coupon-help", text)
 
 
