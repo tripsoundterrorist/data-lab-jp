@@ -45,6 +45,7 @@ class DeviceBuildIntegrationTests(unittest.TestCase):
         self.assertEqual({n for n in baseline if baseline[n] != release[n]},
                          {'column-price.html', 'sitemap.xml'})
         self.assertNotIn(b'noindex', release[ARTICLE])
+        self.assertEqual(release[ARTICLE].count(b'href="/column-price"'), 1)
         self.assertEqual(release['_headers'], baseline['_headers'])
         self.assertEqual(release['coupon-help.html'], baseline['coupon-help.html'])
         self.assertEqual(self.run_build('--without-books-device'), 0)
