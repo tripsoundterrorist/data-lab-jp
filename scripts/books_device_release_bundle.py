@@ -11,6 +11,11 @@ ARTICLE = 'books-device-check.html'
 ROUTE = '/books-device-check'
 LINK = ('<p>購入前に、<a href="/books-device-check">'
         'スマホ・PCで読むための確認ポイント</a>もご覧ください。</p>\n')
+RELATED_PRICE_LINK = (
+    '<p class="related">端末の確認が済んだら、'
+    '<a href="/column-price">価格を比較するときの確認ポイント</a>'
+    'もご覧ください。</p>\n'
+)
 
 
 def replace_once(text: str, old: str, new: str) -> str:
@@ -50,6 +55,7 @@ def build_release_bundle(baseline: dict[str, bytes], source: bytes,
     article = replace_once(article, '</head>',
         '<link rel="stylesheet" href="/analytics-consent.css">\n'
         '<script src="/analytics-consent.js" defer></script>\n</head>')
+    article = replace_once(article, '<footer>', RELATED_PRICE_LINK + '<footer>')
     price = replace_once(baseline['column-price.html'].decode('utf-8'),
                          '        <a class="back" href="/">',
                          '        ' + LINK + '        <a class="back" href="/">')

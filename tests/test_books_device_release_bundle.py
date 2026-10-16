@@ -99,3 +99,20 @@ class ReleaseBundleTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'CONSENT_ASSETS_MISSING'):
                 build_release_bundle(baseline, self.source, enabled=True)
             self.assertEqual(build_release_bundle(baseline, b''), baseline)
+
+    def test_one_related_price_link_between_checklist_and_footer(self):
+        article = build_release_bundle(self.baseline, self.source, enabled=True)[ARTICLE].decode('utf-8')
+        self.assertEqual(article.count('href="/column-price"'), 1)
+        self.assertIn('価格を比較するときの確認ポイント</a>', article)
+        self.assertLess(article.index('<section id="check"'), article.index('<p class="related">'))
+        self.assertLess(article.index('<p class="related">'), article.index('<footer>'))
+        self.assertNotIn('href="/items/"', article)
+        self.assertNotIn('href="/go/', article)
+
+    def test_related_link_does_not_change_source_or_disabled_output(self):
+        before = dict(self.baseline)
+        first = build_release_bundle(self.baseline, self.source, enabled=True)
+        self.assertEqual(first, build_release_bundle(self.baseline, self.source, enabled=True))
+        self.assertEqual(self.baseline, before)
+        self.assertEqual((ROOT / 'preview/books-device-review.html').read_bytes(), self.source)
+        self.assertEqual(build_release_bundle(self.baseline, self.source), before)
