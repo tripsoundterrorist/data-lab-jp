@@ -37,6 +37,7 @@ class DeviceBuildIntegrationTests(unittest.TestCase):
         self.assertEqual(self.run_build(), 0)
         baseline = self.outputs()
         self.assertEqual(len(baseline), 22)
+        self.assertEqual(baseline['coupon-help.html'].count(b'href="/column-price"'), 1)
         self.assertNotIn(ARTICLE, baseline)
         self.assertEqual(self.run_build('--with-books-device'), 0)
         release = self.outputs()
