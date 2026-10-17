@@ -19,8 +19,10 @@ export function installArticleNavigationAdapter(root, getPathname, readConsent, 
             event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
         const element = event.target?.nodeType === 3 ? event.target.parentElement : event.target;
         const anchor = element?.closest?.("a[href]");
-        if (!anchor || !root.contains(anchor) || !anchor.closest("article") ||
-            anchor.hasAttribute("download")) return;
+        if (!anchor || !root.contains(anchor) || anchor.hasAttribute("download")) return;
+        if (!anchor.closest("article") &&
+            !(anchor.getAttribute("data-datalab-article-navigation") === "true" &&
+              anchor.closest("main") && !anchor.closest("footer"))) return;
         const target = anchor.getAttribute("target");
         if (target !== null && target !== "" && target !== "_self") return;
         // Raw href and exact pathname only: no URL parsing, queries or referrers.
