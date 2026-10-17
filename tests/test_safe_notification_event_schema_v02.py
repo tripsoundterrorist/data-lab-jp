@@ -73,18 +73,63 @@ class SafeNotificationSchemaTests(unittest.TestCase):
         self.assertIsNotNone(queue.create_event(**canary.canary_event()))
         self.assertEqual(adapter.adapt_notification(canary.canary_event()).notification_status, "READY")
 
+    def assert_read_only_canary_compatibility(self, store):
+        # Validate the snapshot, not the historically observed number of rows.
+        before = store.path.read_bytes()
+        rows = json.loads(before.decode("utf-8"), object_pairs_hook=ledger._unique_keys)
+        self.assertIs(type(rows), list)
+        state = recovery.inspect_ledger(store)
+        self.assertEqual(state.recovery_status, "HEALTHY")
+        self.assertEqual(state.record_count, len(rows))
+        self.assertTrue(any(row.get("event_identity") == CANARY_ID for row in rows),
+                        "CANARY_RECORD_REQUIRED")
+        with mock.patch.object(store, "_replace", side_effect=AssertionError("WRITE_FORBIDDEN")) as write:
+            result = runtime.process_notification(
+                canary.canary_event(), mode="DRY_RUN", ledger=store,
+                credential_loader=self.loader, transport=self.transport)
+            write.assert_not_called()
+        self.assertEqual(result.runtime_status, "NOTIFICATION_DUPLICATE_SUPPRESSED")
+        self.loader.assert_not_called()
+        self.transport.assert_not_called()
+        # Do not expose private rows in failure diagnostics.
+        self.assertTrue(before == store.path.read_bytes(), "LEDGER_CHANGED")
+
     @unittest.skipUnless(ledger.DEFAULT_PATH.is_file(),
                          "production notification ledger is not present")
     def test_production_record_read_compatibility(self):
-        # Read-only: no bootstrap, transaction writes, transport or LIVE invocation.
-        before = ledger.DEFAULT_PATH.read_bytes()
-        state = recovery.inspect_ledger(ledger.NotificationLedger())
-        self.assertEqual(state.recovery_status, "HEALTHY")
-        self.assertEqual(state.record_count, 1)
-        self.assertIn(CANARY_ID, before.decode("utf-8"))
-        result = runtime.process_notification(canary.canary_event(), mode="DRY_RUN")
-        self.assertEqual(result.runtime_status, "NOTIFICATION_DUPLICATE_SUPPRESSED")
-        self.assertEqual(before, ledger.DEFAULT_PATH.read_bytes())
+        self.assert_read_only_canary_compatibility(ledger.NotificationLedger())
+
+    def compatibility_fixture(self, count, *, include_canary=True):
+        rows = [
+            dict(ledger_version="0.1",
+                 event_identity=CANARY_ID if index == 0 and include_canary else f"{index:064x}",
+                 event_type="JOB_COMPLETED", delivery_status="NOTIFICATION_DELIVERED",
+                 recorded_at_utc="2026-08-31T05:00:00Z")
+            for index in range(count)
+        ]
+        self.path.write_text(json.dumps(rows) + "\n", encoding="utf-8")
+        return rows
+
+    def test_read_compatibility_accepts_growing_fixture_without_writes_or_sends(self):
+        for count in (1, 2, 3):
+            with self.subTest(count=count):
+                self.compatibility_fixture(count)
+                self.assert_read_only_canary_compatibility(self.store)
+
+    def test_read_compatibility_rejects_missing_canary(self):
+        self.compatibility_fixture(2, include_canary=False)
+        with self.assertRaisesRegex(AssertionError, "CANARY_RECORD_REQUIRED"):
+            self.assert_read_only_canary_compatibility(self.store)
+        self.loader.assert_not_called()
+        self.transport.assert_not_called()
+
+    def test_read_compatibility_rejects_duplicate_rows(self):
+        rows = self.compatibility_fixture(1)
+        self.path.write_text(json.dumps(rows + rows) + "\n", encoding="utf-8")
+        with self.assertRaises(AssertionError):
+            self.assert_read_only_canary_compatibility(self.store)
+        self.loader.assert_not_called()
+        self.transport.assert_not_called()
 
     def test_identity_deterministic(self):
         source = queue_event()
