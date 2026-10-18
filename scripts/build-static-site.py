@@ -191,8 +191,21 @@ def collect_sources(repo_root: Path) -> dict[str, bytes]:
     return files
 
 
-def validate_files(files: dict[str, bytes], secrets: tuple[bytes, ...], *, coupon_review: bool = False, coupon_public: bool = False, books_device: bool = False) -> None:
-    expected = set(ALLOWLIST) | ({"coupon-help.html"} if coupon_review or coupon_public else set()) | ({"books-device-check.html"} if books_device else set())
+def expected_output_files(*, coupon_review=False, coupon_public=False,
+                          books_device=False, article_navigation=False):
+    if type(article_navigation) is not bool:
+        raise ValidationError("EXPLICIT_NAVIGATION_BOOLEAN_REQUIRED")
+    expected = (set(ALLOWLIST) | ({"coupon-help.html"} if coupon_review or coupon_public else set()) | ({"books-device-check.html"} if books_device else set()))
+    if article_navigation:
+        sys.path.insert(0, str(ROOT))
+        from scripts.article_navigation_release_bundle import ASSETS
+        expected.update(ASSETS)
+    return expected
+
+
+def validate_files(files: dict[str, bytes], secrets: tuple[bytes, ...], *, coupon_review: bool = False, coupon_public: bool = False, books_device: bool = False, article_navigation: bool = False) -> None:
+    expected = expected_output_files(coupon_review=coupon_review, coupon_public=coupon_public,
+                                     books_device=books_device, article_navigation=article_navigation)
     if set(files) != expected:
         raise ValidationError("OUTPUT_SET_MISMATCH")
     for name, content in files.items():
@@ -208,7 +221,7 @@ def validate_files(files: dict[str, bytes], secrets: tuple[bytes, ...], *, coupo
             raise ValidationError("KNOWN_SECRET_VALUE_FOUND")
 
 
-def validate_staging(staging: Path, files: dict[str, bytes], *, coupon_review: bool = False, coupon_public: bool = False, books_device: bool = False) -> None:
+def validate_staging(staging: Path, files: dict[str, bytes], *, coupon_review: bool = False, coupon_public: bool = False, books_device: bool = False, article_navigation: bool = False) -> None:
     found: dict[str, Path] = {}
     try:
         entries = list(staging.rglob("*"))
@@ -219,14 +232,15 @@ def validate_staging(staging: Path, files: dict[str, bytes], *, coupon_review: b
             raise ValidationError("STAGING_SYMLINK_FORBIDDEN")
         relative = entry.relative_to(staging).as_posix()
         if entry.is_dir():
-            if relative != "items":
+            if relative != "items" and not (article_navigation and relative == "article-navigation"):
                 raise ValidationError("STAGING_UNEXPECTED_DIRECTORY")
             continue
         if not entry.is_file():
             raise ValidationError("STAGING_NON_FILE_FOUND")
         validate_relative_name(relative)
         found[relative] = entry
-    expected = set(ALLOWLIST) | ({"coupon-help.html"} if coupon_review or coupon_public else set()) | ({"books-device-check.html"} if books_device else set())
+    expected = expected_output_files(coupon_review=coupon_review, coupon_public=coupon_public,
+                                     books_device=books_device, article_navigation=article_navigation)
     if set(found) != expected:
         raise ValidationError("STAGING_SET_MISMATCH")
     for name, expected in files.items():
@@ -238,7 +252,7 @@ def validate_staging(staging: Path, files: dict[str, bytes], *, coupon_review: b
             raise ValidationError("STAGING_CONTENT_MISMATCH")
 
 
-def atomic_publish(output: Path, files: dict[str, bytes], *, coupon_review: bool = False, coupon_public: bool = False, books_device: bool = False) -> None:
+def atomic_publish(output: Path, files: dict[str, bytes], *, coupon_review: bool = False, coupon_public: bool = False, books_device: bool = False, article_navigation: bool = False) -> None:
     if output.is_symlink() or (output.exists() and not output.is_dir()):
         raise UnsafeOutputError("OUTPUT_NOT_SAFE_DIRECTORY")
     parent = output.parent
@@ -253,7 +267,7 @@ def atomic_publish(output: Path, files: dict[str, bytes], *, coupon_review: bool
             destination = staging / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(content)
-        validate_staging(staging, files, coupon_review=coupon_review, coupon_public=coupon_public, books_device=books_device)
+        validate_staging(staging, files, coupon_review=coupon_review, coupon_public=coupon_public, books_device=books_device, article_navigation=article_navigation)
         if output.exists():
             previous = output.with_name(f".{output.name}.previous-{uuid.uuid4().hex}")
             os.replace(output, previous)
@@ -319,7 +333,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                            help="Explicitly generate device article, internal link and sitemap entry; publication requires separate approval.")
     books_mode.add_argument("--without-books-device", dest="books_device_enabled", action="store_false",
                            help="Rebuild without device article, internal link and sitemap entry (default).")
-    parser.set_defaults(books_device_enabled=False)
+    navigation_mode = parser.add_mutually_exclusive_group()
+    navigation_mode.add_argument("--with-article-navigation", dest="article_navigation_enabled", action="store_true",
+                                 help="Explicit opt-in only; publication and event transmission need separate approval.")
+    navigation_mode.add_argument("--without-article-navigation", dest="article_navigation_enabled", action="store_false",
+                                 help="Rebuild without navigation assets and consent integration (default).")
+    parser.set_defaults(books_device_enabled=False, article_navigation_enabled=False)
     return parser.parse_args(argv)
 
 
@@ -329,6 +348,9 @@ def main(argv: list[str] | None = None) -> int:
         repo_root = resolve_repo_root(args.repo_root)
         if args.books_device_enabled and args.coupon_review_candidate:
             raise ValidationError("DEVICE_PUBLIC_AND_COUPON_REVIEW_INCOMPATIBLE")
+        if args.article_navigation_enabled and (
+                not args.books_device_enabled or args.without_coupon_help or args.coupon_review_candidate):
+            raise ValidationError("NAVIGATION_REQUIRES_THREE_PUBLIC_ARTICLES")
         if args.coupon_review_candidate:
             if args.output is None or not args.output.is_absolute():
                 raise UnsafeOutputError("REVIEW_REQUIRES_ABSOLUTE_TEMP_OUTPUT")
@@ -380,10 +402,22 @@ def main(argv: list[str] | None = None) -> int:
                 files = build_release_bundle(files, device_draft.read_bytes(), enabled=True)
             except ValueError as error:
                 raise ValidationError('DEVICE_TEMPLATE_INVALID') from error
+        if args.article_navigation_enabled:
+            sys.path.insert(0, str(ROOT))
+            from scripts.article_navigation_release_bundle import build_navigation_bundle, collect_assets
+            try:
+                assets = collect_assets(repo_root)
+            except (ValueError, OSError) as error:
+                raise SourceError("NAVIGATION_SOURCE_INVALID") from error
+            try:
+                files = build_navigation_bundle(files, assets, enabled=True)
+            except (ValueError, UnicodeError) as error:
+                raise ValidationError("NAVIGATION_TEMPLATE_INVALID") from error
         validate_files(files, secrets, coupon_review=args.coupon_review_candidate,
-                       coupon_public=coupon_public, books_device=args.books_device_enabled)
+                       coupon_public=coupon_public, books_device=args.books_device_enabled,
+                       article_navigation=args.article_navigation_enabled)
         if not args.dry_run:
-            atomic_publish(output, files, coupon_review=args.coupon_review_candidate, coupon_public=coupon_public, books_device=args.books_device_enabled)
+            atomic_publish(output, files, coupon_review=args.coupon_review_candidate, coupon_public=coupon_public, books_device=args.books_device_enabled, article_navigation=args.article_navigation_enabled)
         summary = build_summary(repo_root, output, files, args.dry_run)
         if args.coupon_review_candidate:
             summary["mode"] = "coupon-review-dry-run" if args.dry_run else "coupon-review-generated"

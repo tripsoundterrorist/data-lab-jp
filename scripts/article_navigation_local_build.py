@@ -11,58 +11,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scripts.books_device_local_build import check_output, collect_rehearsal, load_builder
 
-PAGES = ('coupon-help.html', 'books-device-check.html', 'column-price.html')
-MODULES = (
-    'article-navigation-analytics-candidate.mjs',
-    'article-navigation-dom-adapter-candidate.mjs',
-    'article-navigation-ga4-bridge-candidate.mjs',
-)
-ASSETS = {f'article-navigation/{name}': name for name in MODULES}
-ASSETS['article-navigation/bootstrap.mjs'] = 'article-navigation-bootstrap-candidate.mjs'
-TAG = '<script type="module" src="/article-navigation/bootstrap.mjs"></script>\n'
-CONSENT_OLD = 'window.dataLabAnalytics = Object.freeze({ trackEvent });'
-CONSENT_NEW = 'window.dataLabAnalytics = Object.freeze({ trackEvent, readConsent: readChoice });'
-
-
-def replace_once(text, old, new):
-    if text.count(old) != 1:
-        raise ValueError('NAVIGATION_TEMPLATE_CHANGED')
-    return text.replace(old, new, 1)
-
-
-def build_local_bundle(baseline, assets, *, enabled=False):
-    if type(enabled) is not bool:
-        raise ValueError('EXPLICIT_BOOLEAN_REQUIRED')
-    result = dict(baseline)
-    if not enabled:
-        return result
-    if set(assets) != set(ASSETS) or not set(PAGES + ('analytics-consent.js',)) <= set(baseline):
-        raise ValueError('NAVIGATION_INPUTS_MISSING')
-    if any(name.startswith('article-navigation/') for name in baseline):
-        raise ValueError('PRISTINE_BASELINE_REQUIRED')
-    if any(b'/article-navigation/' in baseline[name] for name in PAGES):
-        raise ValueError('PRISTINE_BASELINE_REQUIRED')
-    consent = baseline['analytics-consent.js'].decode('utf-8')
-    result['analytics-consent.js'] = replace_once(consent, CONSENT_OLD, CONSENT_NEW).encode('utf-8')
-    for name in PAGES:
-        html = replace_once(baseline[name].decode('utf-8'), '</head>', TAG + '</head>')
-        if name == 'books-device-check.html':
-            html = replace_once(html, '<a href="/column-price">',
-                                '<a data-datalab-article-navigation="true" href="/column-price">')
-        result[name] = html.encode('utf-8')
-    result.update(assets)
-    return result
+from scripts.article_navigation_release_bundle import (
+    PAGES, ASSETS, TAG, CONSENT_NEW,
+    build_navigation_bundle as build_local_bundle, collect_assets)
 
 
 def collect_local_bundle(*, enabled=False):
     baseline = collect_rehearsal('release')
-    assets = {}
-    if enabled:
-        for output_name, filename in ASSETS.items():
-            path = ROOT / 'runtime-candidates' / filename
-            if path.is_symlink() or any(parent.is_symlink() for parent in path.parents):
-                raise ValueError('SOURCE_SYMLINK_FORBIDDEN')
-            assets[output_name] = path.read_bytes()
+    assets = collect_assets(ROOT) if enabled else {}
     files = build_local_bundle(baseline, assets, enabled=enabled)
     builder = load_builder()
     secrets = builder.read_known_secret_values(ROOT)
