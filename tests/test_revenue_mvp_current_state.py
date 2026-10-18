@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import revenue_mvp_current_state as state
-from tests.revenue_mvp_historical_fixture import historical_artifact
+from tests.revenue_mvp_historical_fixture import historical_artifact, ENTRY_NOTICE_SHA256
 
 
 class CurrentRevenueStateTests(unittest.TestCase):
@@ -73,7 +73,13 @@ class CurrentRevenueStateTests(unittest.TestCase):
         from hashlib import sha256
         actual=state.price_transition.canonical(state.ARTIFACT_PATH.read_bytes())
         digest = sha256(actual).hexdigest()
-        if digest in (state.price_transition.CANDIDATE, state.price_copy.CANDIDATE_SHA256):
+        if digest == ENTRY_NOTICE_SHA256:
+            # Test fixture recovery never turns current entry copy into LIVE proof.
+            self.assertEqual(result.status, state.FAIL_CLOSED)
+            for field in ('limited_surface_live', 'edge_artifact_verified', 'cta_allowed',
+                          'affiliate_integration_allowed', 'production_write_allowed'):
+                self.assertFalse(getattr(result, field))
+        elif digest in (state.price_transition.CANDIDATE, state.price_copy.CANDIDATE_SHA256):
             expected = (state.PRICE_COPY_PENDING if digest == state.price_copy.CANDIDATE_SHA256
                         else state.PRICE_DISPLAY_PENDING)
             self.assertEqual(result.status, expected)

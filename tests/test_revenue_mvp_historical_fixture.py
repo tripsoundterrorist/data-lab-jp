@@ -7,6 +7,7 @@ import revenue_mvp_price_display_transition as display
 from tests.revenue_mvp_historical_fixture import historical_artifact
 from tests.revenue_mvp_historical_fixture import price_display_artifact
 import revenue_mvp_price_filter_copy_candidate as price_copy
+from tests import revenue_mvp_historical_fixture as fixture
 
 
 class HistoricalFixtureTests(unittest.TestCase):
@@ -21,6 +22,49 @@ class HistoricalFixtureTests(unittest.TestCase):
         self.assertEqual(sha256(self.candidate).hexdigest(),display.CANDIDATE)
         self.assertEqual(historical_artifact(self.candidate),self.baseline)
         self.assertEqual(historical_artifact(self.baseline),self.baseline)
+
+    def entry_copy(self):
+        anchor = b'<main id="main-content">'
+        self.assertEqual(self.candidate.count(anchor), 1)
+        return self.candidate.replace(anchor, anchor + fixture.ENTRY_NOTICE, 1)
+
+    def test_exact_entry_notice_recovers_test_history_without_writes(self):
+        before = self.actual
+        entry = self.entry_copy()
+        self.assertEqual(sha256(entry).hexdigest(), fixture.ENTRY_NOTICE_SHA256)
+        for data in (entry, entry.replace(b'\n', b'\r\n')):
+            self.assertEqual(historical_artifact(data), self.baseline)
+            self.assertEqual(price_display_artifact(data), self.candidate)
+        self.assertEqual((Path(__file__).resolve().parents[1]/'items/index.html').read_bytes(), before)
+
+    def test_changed_or_duplicate_entry_notice_is_not_test_history(self):
+        entry = self.entry_copy()
+        for data in (entry + b'other', entry.replace(b'/go/', b'/xx/', 1),
+                     entry.replace(fixture.ENTRY_NOTICE, fixture.ENTRY_NOTICE * 2, 1),
+                     entry.replace(fixture.ENTRY_NOTICE, fixture.ENTRY_NOTICE.replace(b'</p>', b'changed</p>'), 1)):
+            with self.subTest(length=len(data)):
+                for recover in (historical_artifact, price_display_artifact):
+                    with self.assertRaises(ValueError):
+                        recover(data)
+
+    def test_entry_recovery_also_pins_source_and_exact_delta(self):
+        from unittest.mock import patch
+        entry = self.entry_copy()
+        for data in (entry + b'other', entry.replace(fixture.ENTRY_NOTICE, fixture.ENTRY_NOTICE * 2, 1)):
+            with patch.object(fixture, 'ENTRY_NOTICE_SHA256', sha256(data).hexdigest()):
+                with self.assertRaises(ValueError):
+                    historical_artifact(data)
+
+    def test_entry_fixture_does_not_grant_production_authority(self):
+        import revenue_mvp_current_state as state
+        from unittest.mock import patch
+        with patch.object(state, 'ARTIFACT_PATH') as artifact:
+            artifact.read_bytes.return_value = self.entry_copy()
+            result = state.current_state()
+        self.assertEqual(result.status, state.FAIL_CLOSED)
+        for field in ('limited_surface_live', 'edge_artifact_verified', 'cta_allowed',
+                      'affiliate_integration_allowed', 'production_write_allowed'):
+            self.assertFalse(getattr(result, field))
 
     def test_unrelated_change_cannot_be_normalized_into_approval(self):
         for data in (self.baseline+b'other',self.candidate+b'other',b'unknown'):
