@@ -7,7 +7,7 @@ const path = require("path");
 const vm = require("vm");
 const source = fs.readFileSync(path.resolve(__dirname, "..", "items", "discovery.js"), "utf8");
 
-function setup({ mode = "absent", href = "/go/itm_0123456789abcdef01234567", params = "" } = {}) {
+function setup({ mode = "absent", href = "/go/itm_0123456789abcdef01234567", params = "", extraRows = [], rowsOverride = null } = {}) {
   const events = [];
   const listeners = {};
   const control = (value) => ({ value, handlers: {}, addEventListener(n, f) { this.handlers[n] = f; } });
@@ -22,8 +22,8 @@ function setup({ mode = "absent", href = "/go/itm_0123456789abcdef01234567", par
     ["E", "Epsilon", "2,999\u5186\u301c", "2026-10-08T00:00:00Z"],
     ["F", "Zeta", "3,000\u5186\u301c", "2026-10-07T00:00:00Z"],
     ["G", "Alpha tie", "999\u5186\u301c", "2026-10-12T00:00:00Z"],
-  ];
-  const cards = rows.map(([id, title, amount, time]) => ({
+  ].concat(extraRows);
+  const cards = (rowsOverride || rows).map(([id, title, amount, time]) => ({
     id, hidden: false,
     querySelector(s) {
       const values = { h2: title, ".price": amount, time };
@@ -128,3 +128,59 @@ for (const href of ["https://example.invalid/", "/go/not-an-id", "/go/itm_012345
   assert.strictEqual(s.click(), false);
   assert.strictEqual(s.events.length, 1);
 }
+
+// Missing price is not zero: keep it in "all", exclude it from numeric bands.
+const missingRows = [
+  ["H", "Unknown amount", "価格データなし", "2026-10-12T00:00:00Z"],
+  ["I", "Unknown blank", "", "2026-10-12T00:00:00Z"],
+  ["J", "Known zero", "0円", "2026-10-12T00:00:00Z"],
+];
+const unknown = setup({ extraRows: missingRows });
+const allIds = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+assert.deepStrictEqual(unknown.visible(), allIds);
+assert.strictEqual(unknown.resultCount.textContent, "10件");
+assert.strictEqual(unknown.pageStatus.textContent, "全商品を表示");
+for (const [band, expected] of [
+  ["under-1000", ["A", "G", "J"]], ["1000-1999", ["B", "C"]],
+  ["2000-2999", ["D", "E"]], ["3000-plus", ["F"]],
+]) {
+  unknown.change("price", band);
+  assert.deepStrictEqual(unknown.visible(), expected);
+  assert.strictEqual(unknown.resultCount.textContent, `${expected.length}件`);
+  assert.strictEqual(unknown.pageStatus.textContent, `10件中${expected.length}件を表示`);
+}
+unknown.change("price", "all");
+assert.deepStrictEqual(unknown.visible(), allIds);
+unknown.change("search", "unknown");
+assert.deepStrictEqual(unknown.visible(), ["H", "I"]);
+unknown.change("price", "under-1000");
+assert.deepStrictEqual(unknown.visible(), []);
+unknown.change("price", "all");
+assert.deepStrictEqual(unknown.visible(), ["H", "I"]);
+unknown.change("search", "");
+assert.deepStrictEqual(unknown.visible(), allIds);
+assert.deepStrictEqual(unknown.events, []);
+assert.deepStrictEqual(setup({ extraRows: missingRows, params: "?price_band=all" }).visible(), allIds);
+assert.deepStrictEqual(setup({ extraRows: missingRows, params: "?price_band=under-1000" }).visible(), ["A", "G", "J"]);
+
+const mixedRows = [
+  ["U1", "Missing first", "価格データなし", "2026-10-12T00:00:00Z"],
+  ["K1", "One thousand", "1,000円", "2026-10-11T00:00:00Z"],
+  ["U2", "Missing middle", "", "2026-10-10T00:00:00Z"],
+  ["K2", "Nine ninety nine", "999円", "2026-10-09T00:00:00Z"],
+  ["K3", "One thousand tie", "1,000円", "2026-10-08T00:00:00Z"],
+  ["K0", "Zero", "0円", "2026-10-07T00:00:00Z"],
+  ["U3", "Missing last", "価格データなし", "2026-10-06T00:00:00Z"],
+];
+const mixed = setup({ rowsOverride: mixedRows });
+for (const [sort, expected] of [
+  ["price-asc", ["K0", "K2", "K1", "K3", "U1", "U2", "U3"]],
+  ["price-desc", ["K1", "K3", "K2", "K0", "U1", "U2", "U3"]],
+  ["observed-desc", ["U1", "K1", "U2", "K2", "K3", "K0", "U3"]],
+  ["observed-asc", ["U3", "K0", "K3", "K2", "U2", "K1", "U1"]],
+  ["original", mixedRows.map(row => row[0])],
+]) {
+  mixed.change("sort", sort);
+  assert.deepStrictEqual(mixed.visible(), expected);
+}
+assert.deepStrictEqual(mixed.events, []);

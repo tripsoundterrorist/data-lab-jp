@@ -45,6 +45,7 @@
   });
 
   const inPriceBand = (price, band) => {
+    if (band === "all") return true;
     if (!Number.isFinite(price)) return false;
     if (band === "under-1000") return price < 1000;
     if (band === "1000-1999") return price >= 1000 && price < 2000;
@@ -54,6 +55,11 @@
   };
 
   const compare = (left, right) => {
+    if (sort.value === "price-asc" || sort.value === "price-desc") {
+      const leftKnown = Number.isFinite(left.price);
+      const rightKnown = Number.isFinite(right.price);
+      if (leftKnown !== rightKnown) return leftKnown ? -1 : 1;
+    }
     if (sort.value === "price-asc") return left.price - right.price || left.index - right.index;
     if (sort.value === "price-desc") return right.price - left.price || left.index - right.index;
     if (sort.value === "observed-desc") return right.observed - left.observed || left.index - right.index;
