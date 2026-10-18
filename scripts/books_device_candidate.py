@@ -6,7 +6,7 @@ The proposed canonical is review metadata, not a published route.
 from hashlib import sha256
 from html import escape
 
-SOURCE_SHA256 = 'e9f84f28fc0e34be07ef5e3372adbfafd2706a2a2e066b093a8722ed49100e63'
+SOURCE_SHA256 = 'aef8d229cd5f4b471be7b2b42ce97e8fa9e891e66aa0353428e8206166cbf1fd'
 PROPOSED_CANONICAL = 'https://datalabx.jp/books-device-check'
 SITE_LINKS = (
     ('/', 'DATA LABトップ'), ('/about', 'DATA LABについて'),

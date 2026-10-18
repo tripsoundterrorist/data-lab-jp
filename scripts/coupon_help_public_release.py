@@ -3,7 +3,7 @@ from scripts.coupon_help_candidate_bundle import build_candidate_bundle, _replac
 
 
 RELATED_PRICE_LINK = (
-    '<p class="related">支払額や還元ポイントを比較するときは、'
+    '<p class="related">支払額や利用条件を比較するときは、'
     '<a href="/column-price">価格を比較するときの確認ポイント</a>'
     'もご覧ください。</p>\n'
 )

@@ -19,6 +19,14 @@ class Tags(HTMLParser):
 
 
 class BooksDeviceDraftTests(unittest.TestCase):
+    def test_device_contents_and_section_label_describe_checks(self):
+        source = (ROOT / 'preview/books-device-review.html').read_text(encoding='utf-8')
+        label = 'ブラウザ・アプリそれぞれで確認すること'
+        self.assertIn(f'<a href="#device">{label}</a>', source)
+        self.assertIn(f'<section id="device"><h2>{label}</h2>', source)
+        self.assertNotIn('ブラウザとアプリの選び方', source)
+        self.assertNotIn('ブラウザとアプリ、どちらで読むか決める', source)
+
     def test_passive_unpublished_document(self):
         source = (ROOT / 'preview/books-device-review.html').read_text(encoding='utf-8')
         parser = Tags()
