@@ -11,6 +11,13 @@ class CouponPublicReleaseTests(unittest.TestCase):
     def setUp(self):
         self.sources = {name: (ROOT / name).read_bytes() for name in REQUIRED_INPUTS}
 
+    def test_related_link_describes_destination_scope(self):
+        article = build_public_release(self.sources)['coupon-help.html'].decode('utf-8')
+        self.assertIn('支払額や利用条件を比較するときは、', RELATED_PRICE_LINK)
+        self.assertNotIn('還元ポイント', RELATED_PRICE_LINK)
+        self.assertEqual(article.count(RELATED_PRICE_LINK), 1)
+        self.assertIn('支払額と還元ポイントは別々に確認する', article)
+
     def test_single_related_link_after_final_note_before_article_end(self):
         article = build_public_release(self.sources)['coupon-help.html'].decode('utf-8')
         self.assertEqual(article.count('href="/column-price"'), 1)
