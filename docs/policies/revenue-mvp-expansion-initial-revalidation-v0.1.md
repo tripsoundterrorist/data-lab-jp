@@ -23,7 +23,32 @@ parameterized statements to the documented D1 query endpoint in one in-memory
 JSON request, without subprocess arguments or temporary SQL files. It disables
 redirects and retries, validates response shape/counts, and clears its cached
 credential after use. Credentials are supplied by an explicitly approved caller;
-no environment/cache discovery, login or credential integration is added here.
+the query client does not discover credentials or perform login.
+
+### Optional existing-Wrangler credential provider
+
+`affiliate_wrangler_credential_provider.WranglerCredentialProvider` is a separate,
+one-shot, explicitly approved callable for injecting an existing bearer token.
+Construction does not access credentials. Invocation requires pinned Node,
+Wrangler entrypoint and bundle hashes plus the expected package version, rejects
+linked/reparse paths and endpoint/runtime overrides, and uses the fixed command
+`auth token --json` with captured in-memory pipes. It accepts only OAuth/API-token
+JSON, never API-key/email output, and does not automatically log in or retry.
+
+Child-process-only settings disable Wrangler disk logs, metrics and error reports,
+keep log sanitization and TLS verification enabled, and remove an inherited log
+path. Parent settings are unchanged. Secret output and exception/timeout buffers
+are not printed, persisted or included in representations. Credential references
+have a short lifetime; this is not a guarantee of memory erasure.
+
+The official command may refresh an expired OAuth session and update its existing
+credential store. Actual invocation therefore needs separate explicit approval;
+it must not be described as a guaranteed read-only operation. Missing auth stops
+for user login. The provider is not wired into the ordinary CLI, DRY_RUN or a
+scheduler. Local synthetic tests do not establish real credentials or permissions.
+
+Official authentication command:
+https://developers.cloudflare.com/workers/wrangler/commands/general/#auth-token
 
 The result includes actual provider attempt counts. An uncertain write response
 sets `database_write_performed=null` and `write_outcome=UNKNOWN`; it must not be
