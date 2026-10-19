@@ -24,6 +24,7 @@ class LiveCard:
     title: str
     price: int
     observed_at: str
+    has_image: bool = False
 
 
 @dataclass(frozen=True)
@@ -33,7 +34,7 @@ class ReconciledCard:
     title: str
     price: int
     observed_at: str
-    image_url: str
+    image_url: str | None
 
 
 class _CardParser(HTMLParser):
@@ -43,6 +44,7 @@ class _CardParser(HTMLParser):
         self._in_card = False
         self._field: str | None = None
         self._values: dict[str, str] = {}
+        self._has_image = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
@@ -52,6 +54,9 @@ class _CardParser(HTMLParser):
                 raise ValueError("NESTED_CARD")
             self._in_card = True
             self._values = {}
+            self._has_image = False
+        elif self._in_card and tag == "img":
+            self._has_image = True
         elif self._in_card and tag == "h2":
             self._field = "title"
         elif self._in_card and tag == "p" and "price" in classes:
@@ -72,6 +77,7 @@ class _CardParser(HTMLParser):
                 unescape(self._values["title"]).strip(),
                 int(price_text),
                 self._values["observed_at"].strip(),
+                self._has_image,
             ))
             self._in_card = False
             self._values = {}
@@ -97,7 +103,9 @@ def _utc_timestamp(value: Any) -> str:
     return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def reconcile(source: bytes, database: Path) -> list[ReconciledCard]:
+def reconcile(source: bytes, database: Path, *, allow_missing_images: bool = False) -> list[ReconciledCard]:
+    if type(allow_missing_images) is not bool:
+        raise ValueError("IMAGE_MODE_INVALID")
     parser = _CardParser()
     parser.feed(source.decode("utf-8"))
     if not parser.cards:
@@ -141,12 +149,16 @@ def reconcile(source: bytes, database: Path) -> list[ReconciledCard]:
         if not all(type(value) is str and value for value in values):
             raise ValueError("SOURCE_IDENTITY_INVALID")
         opaque_id = public_item_id(*values)
-        if opaque_id in seen or not _valid_image_url(row["image_url_large"]):
+        missing_image = row["image_url_large"] is None or row["image_url_large"] == ""
+        if allow_missing_images and missing_image and card.has_image:
+            raise ValueError("EXISTING_IMAGE_BINDING_MISMATCH")
+        if opaque_id in seen or (not _valid_image_url(row["image_url_large"])
+                                and not (allow_missing_images and missing_image)):
             raise ValueError("PRODUCT_CARD_ASSET_INVALID")
         seen.add(opaque_id)
         reconciled.append(ReconciledCard(
             opaque_id, row["content_id"], card.title, card.price,
-            card.observed_at, row["image_url_large"],
+            card.observed_at, None if missing_image else row["image_url_large"],
         ))
     if missing or ambiguous or len(reconciled) != len(parser.cards):
         raise ValueError(
@@ -155,8 +167,8 @@ def reconcile(source: bytes, database: Path) -> list[ReconciledCard]:
     return reconciled
 
 
-def enrich(source: bytes, database: Path, cta_public_ids: frozenset[str]) -> bytes:
-    cards = reconcile(source, database)
+def enrich(source: bytes, database: Path, cta_public_ids: frozenset[str], *, allow_missing_images: bool = False) -> bytes:
+    cards = reconcile(source, database, allow_missing_images=allow_missing_images)
     known = {card.public_id for card in cards}
     if not cta_public_ids or not cta_public_ids <= known:
         raise ValueError("CTA_SCOPE_INVALID")
@@ -180,12 +192,15 @@ def enrich(source: bytes, database: Path, cta_public_ids: frozenset[str]) -> byt
             raise ValueError("LIVE_CARD_HTML_NOT_EXACT")
         end = text.index("</article>", start) + len("</article>")
         article = text[start:end]
-        image = (
+        image = "" if card.image_url is None else (
             '<div class="card-image-wrap"><img class="card-image" src="'
             + escape(card.image_url, quote=True) + '" alt="' + title
             + '" loading="lazy" decoding="async"></div>'
         )
-        if 'class="card-image"' in article:
+        if card.image_url is None:
+            if 'class="card-image"' in article:
+                raise ValueError("EXISTING_IMAGE_BINDING_MISMATCH")
+        elif 'class="card-image"' in article:
             if article.count('class="card-image"') != 1 or image not in article:
                 raise ValueError("EXISTING_IMAGE_BINDING_MISMATCH")
         else:
@@ -206,7 +221,7 @@ def enrich(source: bytes, database: Path, cta_public_ids: frozenset[str]) -> byt
         elif not selected and has_cta:
             raise ValueError("UNSELECTED_CTA_PRESENT")
         text = text[:start] + article + text[end:]
-    if text.count('class="card-image"') != len(cards):
+    if text.count('class="card-image"') != sum(card.image_url is not None for card in cards):
         raise ValueError("IMAGE_COUNT_MISMATCH")
     if text.count('class="affiliate-cta-block"') != len(cta_public_ids):
         raise ValueError("CTA_COUNT_MISMATCH")

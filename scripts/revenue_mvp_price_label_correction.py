@@ -9,11 +9,11 @@ from revenue_mvp_lifecycle_receipt import public_item_id
 from revenue_mvp_product_card_reconciliation import reconcile, _utc_timestamp
 
 
-def correct(source: bytes, database: Path) -> bytes:
+def correct(source: bytes, database: Path, *, allow_missing_images: bool = False) -> bytes:
     if database.is_symlink() or any(Path(str(database)+s).exists() for s in ("-wal","-shm","-journal")):
         raise ValueError("PRICE_DATABASE_BOUNDARY_INVALID")
     before = sha256(database.read_bytes()).hexdigest()
-    cards = reconcile(source, database)
+    cards = reconcile(source, database, allow_missing_images=allow_missing_images)
     connection = sqlite3.connect(f"{database.resolve().as_uri()}?mode=ro", uri=True)
     try:
         connection.execute("PRAGMA query_only=ON")
