@@ -172,13 +172,16 @@ def assess(
             connection.close()
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", required=True, type=Path)
     parser.add_argument("--db", required=True, type=Path)
     parser.add_argument("--expected-count", type=int, default=100)
-    args = parser.parse_args()
-    result = assess(args.source, args.db, expected_count=args.expected_count)
+    parser.add_argument("--allow-missing-images", action="store_true",
+                        help="Allow absent images during offline assessment only.")
+    args = parser.parse_args(argv)
+    result = assess(args.source, args.db, expected_count=args.expected_count,
+                    allow_missing_images=args.allow_missing_images)
     print(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
     return 0 if result.status == "READY_FOR_SEPARATE_REFRESH_CANDIDATE" else 1
 

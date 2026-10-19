@@ -137,10 +137,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--evaluated-at", required=True, type=packet_builder.parse_timestamp)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--expected-count", type=int, default=100)
+    parser.add_argument("--allow-missing-images", action="store_true",
+                        help="Omit absent images in the offline review candidate only.")
     args = parser.parse_args(argv)
     result = build_candidate(
         args.db, args.expected_db_sha256, args.evaluated_at, args.output,
         expected_count=args.expected_count,
+        allow_missing_images=args.allow_missing_images,
     )
     print(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
     return 0 if result.status == READY else 1

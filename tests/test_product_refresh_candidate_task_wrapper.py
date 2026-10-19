@@ -25,6 +25,7 @@ class ProductRefreshCandidateTaskWrapperTests(unittest.TestCase):
         self.assertNotIn("Start-Sleep", self.source)
 
     def test_requires_all_write_boundaries_to_remain_closed(self):
+        self.assertNotIn("--allow-missing-images", self.source)
         for expected in (
             "$parsed.publication_allowed -eq $false",
             "$parsed.production_write_performed -eq $false",

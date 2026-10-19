@@ -117,11 +117,13 @@ def assess(
     expected_d1_sha256: str,
     evaluated_at: datetime,
     expected_count: int = 100,
+    allow_missing_images: bool = False,
 ) -> PreapprovalResult:
     connection: sqlite3.Connection | None = None
     try:
         if (
             evaluated_at.tzinfo is None or expected_count <= 0
+            or type(allow_missing_images) is not bool
             or any(path.is_symlink() for path in (source, database, d1_export, output))
             or not _outside_repository(d1_export) or not _outside_repository(output)
             or output.exists()
@@ -137,19 +139,23 @@ def assess(
         rotation = rehearsal.assess(
             source, database, evaluated_at=evaluated_at,
             expected_count=expected_count,
+            allow_missing_images=allow_missing_images,
         )
         if rotation.status != "READY_FOR_SEPARATE_REFRESH_CANDIDATE":
             return _blocked("REFRESH_REHEARSAL_BLOCKED")
         build = candidate_builder.build_candidate(
             database, expected_db_sha256, evaluated_at, output,
             expected_count=expected_count,
+            allow_missing_images=allow_missing_images,
         )
         if build.status != candidate_builder.READY or not output.is_file():
             return _blocked("CANDIDATE_BUILD_BLOCKED")
 
         candidate_bytes = output.read_bytes()
         candidate_ids = {value.decode("ascii") for value in ROUTE_PATTERN.findall(candidate_bytes)}
-        current_ids = {card.public_id for card in cards.reconcile(source.read_bytes(), database)}
+        current_ids = {card.public_id for card in cards.reconcile(
+            source.read_bytes(), database, allow_missing_images=allow_missing_images,
+        )}
         if len(candidate_ids) != expected_count or len(current_ids) != expected_count:
             raise GateBlocked("SURFACE_IDENTITY_INVALID")
         added_ids = candidate_ids - current_ids
@@ -238,6 +244,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--expected-d1-sha256", required=True)
     parser.add_argument("--evaluated-at", required=True, type=parse_timestamp)
     parser.add_argument("--expected-count", type=int, default=100)
+    parser.add_argument("--allow-missing-images", action="store_true",
+                        help="Omit absent images in offline review; grants no publication authority.")
     args = parser.parse_args(argv)
     result = assess(
         args.source, args.db, args.d1_export, args.output,
@@ -245,6 +253,7 @@ def main(argv: list[str] | None = None) -> int:
         expected_d1_sha256=args.expected_d1_sha256,
         evaluated_at=args.evaluated_at,
         expected_count=args.expected_count,
+        allow_missing_images=args.allow_missing_images,
     )
     print(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
     return 0 if result.status == READY else 2
