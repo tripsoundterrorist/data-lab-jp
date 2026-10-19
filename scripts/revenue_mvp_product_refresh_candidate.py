@@ -61,6 +61,7 @@ def build_candidate(
     output: Path,
     *,
     expected_count: int = 100,
+    allow_missing_images: bool = False,
 ) -> RefreshCandidateReceipt:
     """Write one review-only candidate outside the repository."""
 
@@ -76,18 +77,19 @@ def build_candidate(
         base, base_receipt = renderer.render(
             packet, evaluated_at=evaluated_at, target_route="/items/"
         )
-        reconciled = cards.reconcile(base, database)
+        reconciled = cards.reconcile(base, database, allow_missing_images=allow_missing_images)
         if len(reconciled) != expected_count:
             return _blocked("CARD_RECONCILIATION_COUNT_INVALID")
         candidate = cards.enrich(
-            base, database, frozenset(card.public_id for card in reconciled)
+            base, database, frozenset(card.public_id for card in reconciled),
+            allow_missing_images=allow_missing_images,
         )
-        candidate = price_labels.correct(candidate, database)
+        candidate = price_labels.correct(candidate, database, allow_missing_images=allow_missing_images)
         image_count = candidate.count(b'class="card-image"')
         cta_count = candidate.count(b'class="affiliate-cta-block"')
         route_count = candidate.count(b'href="/go/itm_')
         if (image_count, cta_count, route_count) != (
-            expected_count, expected_count, expected_count,
+            sum(card.image_url is not None for card in reconciled), expected_count, expected_count,
         ):
             return _blocked("CANDIDATE_SURFACE_COUNT_INVALID")
         if base_receipt.artifact_sha256 != hashlib.sha256(base).hexdigest():
@@ -96,7 +98,7 @@ def build_candidate(
         renderer.write_candidate(output, candidate)
         final_check = rehearsal.assess(
             output, database, evaluated_at=evaluated_at,
-            expected_count=expected_count,
+            expected_count=expected_count, allow_missing_images=allow_missing_images,
         )
         if (
             final_check.status != "READY_FOR_SEPARATE_REFRESH_CANDIDATE"

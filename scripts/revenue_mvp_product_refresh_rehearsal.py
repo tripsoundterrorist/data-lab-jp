@@ -16,7 +16,7 @@ import sqlite3
 from typing import Any
 
 from revenue_mvp_lifecycle_receipt import public_item_id
-from revenue_mvp_product_card_reconciliation import reconcile
+from revenue_mvp_product_card_reconciliation import reconcile, _valid_image_url
 
 
 VERSION = "0.1"
@@ -71,12 +71,13 @@ def assess(
     *,
     evaluated_at: datetime | None = None,
     expected_count: int = 100,
+    allow_missing_images: bool = False,
 ) -> RefreshRehearsal:
     connection: sqlite3.Connection | None = None
     try:
         if source.is_symlink() or database.is_symlink() or expected_count <= 0:
             return _blocked("INPUT_INVALID")
-        current = reconcile(source.read_bytes(), database)
+        current = reconcile(source.read_bytes(), database, allow_missing_images=allow_missing_images)
         if len(current) != expected_count:
             return _blocked("CURRENT_CARD_COUNT_INVALID")
 
@@ -130,8 +131,9 @@ def assess(
             if (
                 type(row["title"]) is not str or not row["title"]
                 or type(row["price_min"]) is not int or row["price_min"] < 0
-                or type(row["image_url_large"]) is not str
-                or not row["image_url_large"].startswith("https://pics.dmm.co.jp/")
+                or (not _valid_image_url(row["image_url_large"])
+                    and not (allow_missing_images and
+                             (row["image_url_large"] is None or row["image_url_large"] == "")))
                 or row["affiliate_link_observed"] != 1
                 or row["source_status_code"] != 200
             ):

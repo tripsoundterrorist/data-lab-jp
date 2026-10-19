@@ -98,5 +98,55 @@ class ProductRefreshRehearsalTests(unittest.TestCase):
         self.assertEqual(result.status, "BLOCKED")
 
 
+
+    def test_missing_new_image_requires_opt_in_without_changing_authority(self):
+        with sqlite3.connect(self.db) as connection:
+            connection.execute("UPDATE items SET image_url_large=NULL WHERE id=2")
+        self.assertEqual(self.assess().status, "BLOCKED")
+        before = self.db.read_bytes()
+        result = subject.assess(
+            self.source, self.db, expected_count=1,
+            evaluated_at=datetime(2026, 9, 30, 1, tzinfo=timezone.utc),
+            allow_missing_images=True,
+        )
+        self.assertEqual(result.status, "READY_FOR_SEPARATE_REFRESH_CANDIDATE")
+        self.assertEqual(result.affiliate_eligible_count, 1)
+        self.assertFalse(result.publication_allowed)
+        self.assertFalse(result.production_write_performed)
+        self.assertEqual(self.db.read_bytes(), before)
+
+    def test_current_markup_cannot_reuse_missing_master_image(self):
+        with sqlite3.connect(self.db) as connection:
+            connection.execute("UPDATE items SET image_url_large=NULL WHERE id=1")
+        source = self.source.read_text(encoding="utf-8").replace(
+            '<h2>', '<img class="card-image" src="https://pics.dmm.co.jp/old.jpg"><h2>', 1
+        )
+        self.source.write_text(source, encoding="utf-8")
+        result = subject.assess(
+            self.source, self.db, expected_count=1,
+            evaluated_at=datetime(2026, 9, 30, 1, tzinfo=timezone.utc),
+            allow_missing_images=True,
+        )
+        self.assertEqual(result.status, "BLOCKED")
+        self.assertFalse(result.publication_allowed)
+        self.assertFalse(result.production_write_performed)
+
+    def test_image_opt_in_keeps_candidate_image_and_affiliate_checks(self):
+        for value, affiliate in (("https://example.invalid/image.jpg", 1), (None, 0)):
+            with self.subTest(image=value, affiliate=affiliate):
+                with sqlite3.connect(self.db) as connection:
+                    connection.execute("UPDATE items SET image_url_large=? WHERE id=2", (value,))
+                    connection.execute(
+                        "UPDATE item_lifecycle_observations SET affiliate_link_observed=? WHERE snapshot_id=2",
+                        (affiliate,),
+                    )
+                result = subject.assess(
+                    self.source, self.db, expected_count=1,
+                    evaluated_at=datetime(2026, 9, 30, 1, tzinfo=timezone.utc),
+                    allow_missing_images=True,
+                )
+                self.assertEqual(result.status, "BLOCKED")
+
+
 if __name__ == "__main__":
     unittest.main()

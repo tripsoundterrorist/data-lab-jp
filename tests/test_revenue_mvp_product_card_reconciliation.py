@@ -92,5 +92,47 @@ class ProductCardReconciliationTests(unittest.TestCase):
                 subject.enrich(self.source(), self.db, selected)
 
 
+
+    def test_missing_images_require_explicit_opt_in(self):
+        for value in (None, ""):
+            with self.subTest(image=value):
+                with sqlite3.connect(self.db) as connection:
+                    connection.execute("UPDATE items SET image_url_large=?", (value,))
+                before = self.db.read_bytes()
+                with self.assertRaisesRegex(ValueError, "PRODUCT_CARD_ASSET_INVALID"):
+                    subject.reconcile(self.source(), self.db)
+                card = subject.reconcile(self.source(), self.db, allow_missing_images=True)[0]
+                self.assertIsNone(card.image_url)
+                rendered = subject.enrich(self.source(), self.db, frozenset({card.public_id}),
+                                          allow_missing_images=True)
+                self.assertNotIn(b"<img", rendered)
+                self.assertIn('架空の商品', rendered.decode())
+                self.assertIn(f'href="/go/{card.public_id}"', rendered.decode())
+                self.assertEqual(self.db.read_bytes(), before)
+
+    def test_opt_in_does_not_accept_invalid_images_or_modes(self):
+        for value in ("https://example.invalid/image.jpg",
+                      "https://pics.dmm.co.jp/unsafe image.jpg", 123):
+            with self.subTest(image=value):
+                with sqlite3.connect(self.db) as connection:
+                    connection.execute("UPDATE items SET image_url_large=?", (value,))
+                with self.assertRaisesRegex(ValueError, "PRODUCT_CARD_ASSET_INVALID"):
+                    subject.reconcile(self.source(), self.db, allow_missing_images=True)
+        for mode in ("false", "true", 1, None):
+            with self.subTest(mode=mode), self.assertRaisesRegex(ValueError, "IMAGE_MODE_INVALID"):
+                subject.reconcile(self.source(), self.db, allow_missing_images=mode)
+
+    def test_missing_image_rejects_existing_image_markup(self):
+        with sqlite3.connect(self.db) as connection:
+            connection.execute("UPDATE items SET image_url_large=NULL")
+        for image in ('<img class="card-image" src="https://pics.dmm.co.jp/old.jpg">',
+                      '<img src="https://pics.dmm.co.jp/old.jpg"/>'):
+            source = self.source().replace(b'<h2>', image.encode() + b'<h2>', 1)
+            with self.subTest(image=image), self.assertRaisesRegex(
+                ValueError, "EXISTING_IMAGE_BINDING_MISMATCH"
+            ):
+                subject.reconcile(source, self.db, allow_missing_images=True)
+
+
 if __name__ == "__main__":
     unittest.main()

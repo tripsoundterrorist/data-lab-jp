@@ -80,5 +80,19 @@ class PriceLabelTests(unittest.TestCase):
             subject.correct(self.source,self.db)
 
 
+
+    def test_missing_image_opt_in_preserves_snapshot_price_and_database(self):
+        with sqlite3.connect(self.db) as connection:
+            connection.execute("UPDATE items SET image_url_large=NULL")
+        original = self.db.read_bytes()
+        with self.assertRaises(ValueError):
+            subject.correct(self.source, self.db)
+        corrected = subject.correct(self.source, self.db, allow_missing_images=True)
+        self.assertIn("1,200円〜", corrected.decode())
+        self.assertNotIn(b"<img", corrected)
+        self.assertEqual(subject.correct(corrected, self.db, allow_missing_images=True), corrected)
+        self.assertEqual(self.db.read_bytes(), original)
+
+
 if __name__=="__main__":
     unittest.main()
