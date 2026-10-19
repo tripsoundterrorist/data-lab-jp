@@ -93,12 +93,13 @@ class ProductRefreshPreapprovalTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-    def assess(self):
+    def assess(self, **options):
         return subject.assess(
             self.source, self.db, self.d1, self.output,
             expected_db_sha256=hashlib.sha256(self.db.read_bytes()).hexdigest(),
             expected_d1_sha256=hashlib.sha256(self.d1.read_bytes()).hexdigest(),
             evaluated_at=NOW, expected_count=1,
+            **options,
         )
 
     def test_builds_only_a_fully_covered_preapproval_candidate(self):
@@ -126,6 +127,57 @@ class ProductRefreshPreapprovalTests(unittest.TestCase):
         result = self.assess()
         self.assertEqual(result.status, subject.BLOCKED)
         self.assertEqual(result.reason_codes, ("D1_RUNTIME_COVERAGE_INCOMPLETE",))
+        self.assertFalse(self.output.exists())
+
+    def omit_new_image(self):
+        with sqlite3.connect(self.db) as connection:
+            connection.execute("UPDATE items SET image_url_large=NULL WHERE id=2")
+
+    def test_missing_image_still_requires_explicit_opt_in(self):
+        self.omit_new_image()
+        result = self.assess()
+        self.assertEqual(result.status, subject.BLOCKED)
+        self.assertFalse(self.output.exists())
+
+    def test_optional_image_candidate_keeps_approval_and_database_boundaries(self):
+        self.omit_new_image()
+        db_before = self.db.read_bytes()
+        d1_before = self.d1.read_bytes()
+        result = self.assess(allow_missing_images=True)
+        self.assertEqual(result.status, subject.READY)
+        self.assertNotIn(b"<img", self.output.read_bytes())
+        self.assertEqual(result.d1_runtime_redirect_matches, 1)
+        self.assertEqual(result.new_routes_freshly_revalidated, 1)
+        self.assertFalse(result.publication_allowed)
+        self.assertFalse(result.production_write_performed)
+        self.assertFalse(result.d1_write_performed)
+        self.assertTrue(result.explicit_user_approval_required)
+        self.assertEqual(self.db.read_bytes(), db_before)
+        self.assertEqual(self.d1.read_bytes(), d1_before)
+
+    def test_optional_images_do_not_bypass_runtime_coverage(self):
+        self.omit_new_image()
+        self.d1.write_text("\n".join(
+            line for line in self.d1.read_text(encoding="utf-8").splitlines()
+            if "affiliate_redirect_target" not in line and "example.invalid" not in line
+        ), encoding="utf-8")
+        result = self.assess(allow_missing_images=True)
+        self.assertEqual(result.reason_codes, ("D1_RUNTIME_COVERAGE_INCOMPLETE",))
+        self.assertFalse(self.output.exists())
+
+    def test_optional_images_do_not_bypass_new_route_freshness(self):
+        self.omit_new_image()
+        self.d1.write_text(self.d1.read_text(encoding="utf-8").replace(
+            "2026-09-30T00:30:00Z','VALID'", "2026-09-20T00:30:00Z','VALID'"
+        ), encoding="utf-8")
+        result = self.assess(allow_missing_images=True)
+        self.assertEqual(result.status, subject.BLOCKED)
+        self.assertIn("NEW_ROUTE_REVALIDATION_STALE", result.reason_codes)
+        self.assertFalse(self.output.exists())
+
+    def test_invalid_image_mode_fails_before_output(self):
+        result = self.assess(allow_missing_images="yes")
+        self.assertEqual(result.reason_codes, ("INPUT_BOUNDARY_INVALID",))
         self.assertFalse(self.output.exists())
 
     def test_identity_mismatch_fails_before_output(self):
