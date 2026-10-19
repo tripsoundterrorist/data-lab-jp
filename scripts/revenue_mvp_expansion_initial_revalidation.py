@@ -5,14 +5,13 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 import json
-import os
 from pathlib import Path
 import subprocess
-import tempfile
 from typing import Any, Callable, Mapping
 
 import affiliate_local_lifecycle_revalidation as shared
 from affiliate_runtime_dmm_connector import AffiliateRuntimeConnectorError, fetch_item_response
+from affiliate_d1_sensitive_query import D1QueryClient, build_queries
 
 
 VERSION = "0.1"
@@ -28,9 +27,11 @@ class Result:
     valid: int
     unavailable: int
     unconfirmed: int
-    database_write_performed: bool
+    database_write_performed: bool | None
     temporary_sql_deleted: bool
     reason_codes: tuple[str, ...]
+    provider_attempts: int = 0
+    write_outcome: str = "NOT_ATTEMPTED"
 
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
@@ -75,51 +76,26 @@ def _select(public_ids: tuple[str, ...], runner: Callable[..., Any]) -> list[dic
     return rows
 
 
-def _statements(rows: list[dict[str, str]], outcomes: list[tuple[str, str | None]], checked: str) -> str:
-    statements: list[str] = []
-    for row, (outcome, url) in zip(rows, outcomes, strict=True):
-        public_id = shared._quote(row["public_id"])
-        content_id = shared._quote(row["content_id"])
-        timestamp = shared._quote(checked)
-        if outcome == "VALID" and url is not None:
-            statements.extend((
-                "INSERT INTO affiliate_redirect_target (public_id,content_id,affiliate_url,verified_at) "
-                f"VALUES ({public_id},{content_id},{shared._quote(url)},{timestamp});",
-                "INSERT INTO affiliate_lifecycle_revalidation_event "
-                "(public_id,checked_at,outcome,affiliate_enabled_after,reason_code) "
-                f"VALUES ({public_id},{timestamp},'VALID',1,'OFFICIAL_API_EXACT_MATCH');",
-                "UPDATE affiliate_item_lookup SET rights_status='CONDITIONALLY_APPROVED',"
-                "lifecycle_status='RESOLVED',verification_status='PASS',affiliate_enabled=1,"
-                f"updated_at={timestamp} WHERE public_id={public_id} AND content_id={content_id} "
-                "AND rights_status='PENDING_SEPARATE_POLICY' "
-                "AND lifecycle_status='PENDING_OFFICIAL_CONFIRMATION' "
-                "AND verification_status='PENDING' AND affiliate_enabled=0;",
-            ))
-        else:
-            verification = "FAILED" if outcome == "NOT_AVAILABLE" else "PENDING"
-            reason = "OFFICIAL_API_ITEM_UNAVAILABLE" if outcome == "NOT_AVAILABLE" else "LOCAL_UPSTREAM_UNCONFIRMED"
-            statements.extend((
-                f"UPDATE affiliate_item_lookup SET verification_status='{verification}',affiliate_enabled=0,"
-                f"updated_at={timestamp} WHERE public_id={public_id} AND content_id={content_id};",
-                "INSERT INTO affiliate_lifecycle_revalidation_event "
-                "(public_id,checked_at,outcome,affiliate_enabled_after,reason_code) "
-                f"VALUES ({public_id},{timestamp},{shared._quote(outcome)},0,{shared._quote(reason)});",
-            ))
-    return "\n".join(statements) + "\n"
-
-
 def run(*, public_ids: tuple[str, ...], execute: bool = False, confirmed: bool = False,
         runner: Callable[..., Any] = subprocess.run, fetcher: Callable[..., Any] = fetch_item_response,
-        checked_at: str | None = None) -> Result:
+        checked_at: str | None = None, query_client: D1QueryClient | None = None) -> Result:
     mode = "LIVE" if execute else "DRY_RUN"
-    temporary: Path | None = None
     selected_count = 0
+    provider_attempts = 0
     stage = "SELECTION"
     try:
-        if execute and not confirmed:
+        if execute and confirmed is not True:
             return _result("BLOCKED", mode, "EXPLICIT_CONFIRMATION_REQUIRED")
-        if not 1 <= len(public_ids) <= 5 or len(set(public_ids)) != len(public_ids):
+        if (type(public_ids) is not tuple or not 1 <= len(public_ids) <= 5
+                or any(type(v) is not str or shared.PUBLIC_ID.fullmatch(v) is None for v in public_ids)
+                or len(set(public_ids)) != len(public_ids)):
             return _result("BLOCKED", mode, "SELECTION_INVALID")
+        if execute and (not isinstance(query_client, D1QueryClient) or not query_client.ready()):
+            return _result("BLOCKED", mode, "SECURE_QUERY_CLIENT_REQUIRED")
+        timestamp = checked_at or datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        if (type(timestamp) is not str or not timestamp.endswith("Z")
+                or datetime.fromisoformat(timestamp.replace("Z", "+00:00")).tzinfo is None):
+            return _result("BLOCKED", mode, "CHECKED_AT_INVALID")
         rows = _select(public_ids, runner)
         selected_count = len(rows)
         if not execute:
@@ -128,6 +104,7 @@ def run(*, public_ids: tuple[str, ...], execute: bool = False, confirmed: bool =
         outcomes: list[tuple[str, str | None]] = []
         for row in rows:
             try:
+                provider_attempts += 1
                 payload = fetcher(content_id=row["content_id"], env_path=shared.ENV_PATH)
                 result = payload.get("result") if isinstance(payload, Mapping) else None
                 items = result.get("items") if isinstance(result, Mapping) else None
@@ -142,38 +119,30 @@ def run(*, public_ids: tuple[str, ...], execute: bool = False, confirmed: bool =
                     outcomes.append(("UNCONFIRMED", None))
             except (AffiliateRuntimeConnectorError, AttributeError, TypeError, ValueError):
                 outcomes.append(("UNCONFIRMED", None))
-        timestamp = checked_at or datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-        if not isinstance(timestamp, str) or not timestamp.endswith("Z"):
-            return _result("BLOCKED", mode, "CHECKED_AT_INVALID", selected=selected_count)
-        stage = "TEMPORARY_SQL"
-        descriptor, name = tempfile.mkstemp(prefix="data-lab-expansion-initial-", suffix=".sql")
-        temporary = Path(name)
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(_statements(rows, outcomes, timestamp))
-        stage = "D1_WRITE"
-        process = shared._wrangler(
-            ["d1", "execute", shared.DATABASE_NAME, "--remote", "--json", "--file", str(temporary)], runner
-        )
-        success = shared._write_succeeded(process)
-        temporary.unlink()
-        if not success:
-            return _result("FAILED_SAFE", mode, "D1_WRITE_FAILED", selected=len(rows))
+        queries = build_queries(rows, outcomes, timestamp)
+        stage = "D1_QUERY_WRITE"
+        write = query_client.write(queries, confirmed=True)
+        if write.state != "APPLIED":
+            return _result("FAILED_SAFE", mode, write.reason_code, selected=len(rows),
+                           provider_attempts=provider_attempts, write_outcome=write.state,
+                           database_write_performed=None if write.state == "UNKNOWN" else False)
         return _result(
-            "COMPLETED", mode, "BOUNDED_INITIAL_REVALIDATION_COMPLETED",
+            "COMPLETED", mode, "QUERY_ACKNOWLEDGED_POSTCHECK_REQUIRED",
             selected=len(rows), valid=sum(x[0] == "VALID" for x in outcomes),
             unavailable=sum(x[0] == "NOT_AVAILABLE" for x in outcomes),
             unconfirmed=sum(x[0] == "UNCONFIRMED" for x in outcomes),
             database_write_performed=True,
+            provider_attempts=provider_attempts, write_outcome="APPLIED",
         )
     except Exception:
-        if temporary is not None and temporary.exists():
-            try:
-                temporary.unlink()
-            except OSError:
-                pass
         return _result("FAILED_SAFE", mode, f"INITIAL_REVALIDATION_{stage}_FAILED",
                        selected=selected_count,
-                       temporary_sql_deleted=temporary is None or not temporary.exists())
+                       provider_attempts=provider_attempts,
+                       database_write_performed=None if stage == "D1_QUERY_WRITE" else False,
+                       write_outcome="UNKNOWN" if stage == "D1_QUERY_WRITE" else "NOT_ATTEMPTED")
+    finally:
+        if isinstance(query_client, D1QueryClient):
+            query_client.clear()
 
 
 def main(argv: list[str] | None = None) -> int:

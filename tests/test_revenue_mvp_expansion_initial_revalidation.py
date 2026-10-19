@@ -6,6 +6,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import revenue_mvp_expansion_initial_revalidation as subject  # noqa: E402
+from affiliate_d1_sensitive_query import D1QueryClient
 
 IDS = ("itm_" + "a" * 24, "itm_" + "b" * 24)
 ROWS = [{"public_id": IDS[0], "content_id": "content-a"}, {"public_id": IDS[1], "content_id": "content-b"}]
@@ -17,6 +18,25 @@ class Process:
 
 def selection(): return json.dumps([{"success": True, "results": ROWS}])
 def success(): return "progress\n" + json.dumps([{"success": True, "results": []}])
+
+
+def client(sql=None):
+    class Response:
+        status = 200
+        def __init__(self, count): self.count = count
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+        def read(self, size):
+            return json.dumps({"success": True, "errors": [], "result": [
+                {"success": True, "results": [], "meta": {"changes": 1}}
+                for _ in range(self.count)]}).encode()
+    def open_request(request, **kwargs):
+        batch = json.loads(request.data)["batch"]
+        if sql is not None:
+            sql.extend(row["sql"] for row in batch)
+        return Response(len(batch))
+    return D1QueryClient("a"*32,"00000000-0000-0000-0000-000000000001",
+                         lambda: "synthetic-not-a-real-token", opener=open_request)
 
 
 class InitialRevalidationTests(unittest.TestCase):
@@ -43,12 +63,15 @@ class InitialRevalidationTests(unittest.TestCase):
             cid = kwargs["content_id"]
             return {"result": {"items": [{"content_id": cid, "affiliateURL": "https://example.fanza.co.jp/x/" + cid}]}}
         result = subject.run(public_ids=IDS, execute=True, confirmed=True, runner=runner,
-                             fetcher=fetcher, checked_at="2026-10-01T00:00:00Z")
+                             fetcher=fetcher, checked_at="2026-10-01T00:00:00Z", query_client=client(sql))
         self.assertEqual(result.status, "COMPLETED")
         self.assertEqual(result.valid, 2)
         self.assertTrue(result.database_write_performed)
-        self.assertLess(sql[0].index("affiliate_redirect_target"), sql[0].index("affiliate_enabled=1"))
-        self.assertNotIn("BEGIN TRANSACTION", sql[0])
+        self.assertIn("affiliate_redirect_target", sql[0])
+        self.assertIn("affiliate_lifecycle_revalidation_event", sql[1])
+        self.assertIn("affiliate_enabled=1", sql[2])
+        self.assertTrue(all("--file" not in command for command in calls))
+        self.assertEqual(result.provider_attempts, 2)
 
     def test_upstream_error_stays_disabled(self):
         calls = []
@@ -57,7 +80,7 @@ class InitialRevalidationTests(unittest.TestCase):
             return Process(selection()) if len(calls) == 1 else Process(success())
         def fail(**kwargs): raise subject.AffiliateRuntimeConnectorError("private")
         result = subject.run(public_ids=IDS, execute=True, confirmed=True, runner=runner,
-                             fetcher=fail, checked_at="2026-10-01T00:00:00Z")
+                             fetcher=fail, checked_at="2026-10-01T00:00:00Z", query_client=client())
         self.assertEqual(result.unconfirmed, 2)
         self.assertEqual(result.valid, 0)
 
@@ -69,7 +92,7 @@ class InitialRevalidationTests(unittest.TestCase):
         result = subject.run(
             public_ids=IDS, execute=True, confirmed=True, runner=runner,
             fetcher=lambda **kwargs: {"result": {"items": [None]}},
-            checked_at="2026-10-01T00:00:00Z",
+            checked_at="2026-10-01T00:00:00Z", query_client=client(),
         )
         self.assertEqual(result.status, "COMPLETED")
         self.assertEqual(result.unconfirmed, 2)
