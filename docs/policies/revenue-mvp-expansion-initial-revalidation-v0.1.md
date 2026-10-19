@@ -7,7 +7,10 @@ public IDs. The selected D1 rows must still be disabled and in the original
 pending rights, lifecycle, and verification state.
 
 The default mode is read-only `DRY_RUN`. LIVE requires both `--execute` and the
-exact confirmation token `LIVE_EXPANSION_INITIAL_REVALIDATION`. Each selected
+exact confirmation token `LIVE_EXPANSION_INITIAL_REVALIDATION`, plus an explicitly
+injected `affiliate_d1_sensitive_query.D1QueryClient`. The ordinary CLI does not
+configure this client and therefore blocks LIVE before selection or provider
+access. There is no fallback to the former `--file`/import transport. Each selected
 item is queried once; there is no automatic retry. A single exact API result
 with an allowlisted HTTPS affiliate URL writes the redirect target and audit
 event before conditionally approving, resolving, and enabling that lookup row.
@@ -15,7 +18,25 @@ Missing, mismatched, malformed, or URL-absent results remain disabled. Upstream
 errors remain pending and disabled for a separately approved bounded retry.
 
 Output is aggregate-only. IDs, content IDs, URLs, credentials, response bodies,
-SQL, and exceptions are not emitted. Temporary SQL is deleted after execution.
+SQL, and exceptions are not emitted. The initial-revalidation write path sends
+parameterized statements to the documented D1 query endpoint in one in-memory
+JSON request, without subprocess arguments or temporary SQL files. It disables
+redirects and retries, validates response shape/counts, and clears its cached
+credential after use. Credentials are supplied by an explicitly approved caller;
+no environment/cache discovery, login or credential integration is added here.
+
+The result includes actual provider attempt counts. An uncertain write response
+sets `database_write_performed=null` and `write_outcome=UNKNOWN`; it must not be
+reported as no write or retried automatically. An acknowledged query response
+still requires separate live post-write verification and does not authorize
+publication. Missing/invalid credentials or secure client block before provider
+access. The local transport tests use synthetic responses only; they do not
+establish production authentication, permissions or execution success.
+
+Official request/response contract:
+https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/query/
+
+Historical executions described below used the transport available at that time.
 The operation does not alter the public artifact, Publication Gate, sitemap,
 deployment, scheduler, or billing. Every LIVE batch requires separate explicit
 approval and post-write aggregate verification.
