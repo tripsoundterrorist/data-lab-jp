@@ -38,13 +38,21 @@ class GitHubActionsCIContractTests(unittest.TestCase):
         self.assertEqual(self.content.count("persist-credentials: false"), 2)
         self.assertEqual(self.content.count("fetch-depth: 1"), 2)
 
-    def test_tier_commands_are_exact_and_dependency_free(self):
+    def test_tier_commands_allow_only_pinned_isolated_auth_dependency(self):
         self.assertIn("run: python3 --version", self.content)
         self.assertIn("run: python3 -m compileall -q scripts tests", self.content)
         self.assertIn("run: python3 scripts/run_test_tier.py fast", self.content)
         self.assertIn("run: python3 scripts/run_test_tier.py regression", self.content)
         self.assertIn("run: python3 scripts/run_test_tier.py full", self.content)
-        for forbidden in ("pip install", "curl ", "wget ", "npm ", "docker "):
+        install = "npm ci --prefix runtime-candidates/admin-auth-only-jose --ignore-scripts --no-audit --no-fund"
+        self.assertEqual(self.content.count(install), 1)
+        fast, validation = self.content.split("  validation:", 1)
+        self.assertNotIn("npm ", fast)
+        self.assertIn(install, validation)
+        self.assertIn("(major===22 && minor>=12)||major===24", validation)
+        remaining = self.content.replace(install, "")
+        self.assertNotIn("npm ", remaining)
+        for forbidden in ("pip install", "curl ", "wget ", "npx ", "docker "):
             self.assertNotIn(forbidden, self.content)
 
     def test_fast_gates_event_specific_broad_validation(self):
