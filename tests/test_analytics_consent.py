@@ -83,6 +83,38 @@ class AnalyticsConsentTests(unittest.TestCase):
         self.assertIn("localStorage", privacy)
         self.assertIn("アクセス解析設定", privacy)
 
+    def assert_event_notice_matches_implementation(self, privacy):
+        notice = (
+            "同意後は、ページ表示や商品・記事の導線利用を計測します。"
+            "商品用イベントには当サイトの商品管理IDと表示場所を、"
+            "記事間クリックには導線区分を付加します。"
+            "商品名、外部商品URL、検索語、価格は、"
+            "これらの独自イベントの追加項目として付加しません。"
+        )
+        self.assertIn(notice, privacy)
+        self.assertNotIn("商品名、商品URL、商品ID、検索語、価格を付加しません", privacy)
+        self.assertIn("return { item_id: value.public_id, funnel_surface: value.surface };", self.script)
+        bridge = (ROOT / "runtime-candidates" / "article-navigation-ga4-bridge-candidate.mjs").read_text(encoding="utf-8")
+        self.assertIn("navigation_route: label", bridge)
+        self.assertIn('readConsent() !== "granted"', bridge)
+
+    def test_privacy_event_notice_discloses_management_id_surface_and_navigation(self):
+        privacy = (ROOT / "privacy.html").read_text(encoding="utf-8")
+        self.assert_event_notice_matches_implementation(privacy)
+
+    def test_privacy_event_notice_rejects_old_or_incomplete_description(self):
+        privacy = (ROOT / "privacy.html").read_text(encoding="utf-8")
+        for old, replacement in (
+            ("当サイトの商品管理IDと表示場所", "表示場所"),
+            ("記事間クリックには導線区分を付加します。", ""),
+            ("これらの独自イベントの追加項目として", "一切"),
+            ("</main>", "<p>商品名、商品URL、商品ID、検索語、価格を付加しません。</p></main>"),
+        ):
+            with self.subTest(description=old):
+                self.assertIn(old, privacy)
+                with self.assertRaises(AssertionError):
+                    self.assert_event_notice_matches_implementation(privacy.replace(old, replacement, 1))
+
     def test_funnel_events_and_product_context_are_strictly_allowlisted(self):
         for event in (
             "view_item_list", "select_item", "view_item",
