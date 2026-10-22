@@ -1,0 +1,13 @@
+{
+  "name": "data-lab-admin-auth-only-jose-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Isolated offline prototype. Not deployed or production approved.",
+  "scripts": {
+    "test": "node --test --test-reporter=tap admin_auth_only_jose_local_harness.mjs"
+  },
+  "dependencies": {
+    "jose": "6.2.13"
+  }
+}

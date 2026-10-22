@@ -40,6 +40,11 @@ jobs:
           persist-credentials: false
       - name: Show Python version
         run: python3 --version
+      # Use the runner's supported Node; do not skip checks or upgrade runtimes.
+      - name: Verify supported Node for isolated authentication tests
+        run: node -e "const [major,minor]=process.versions.node.split('.').map(Number); if (!((major===22 && minor>=12)||major===24)) process.exit(1)"
+      - name: Prepare pinned isolated authentication dependency
+        run: npm ci --prefix runtime-candidates/admin-auth-only-jose --ignore-scripts --no-audit --no-fund
       - name: Compile Python for PR regression
         if: github.event_name == 'pull_request'
         run: python3 -m compileall -q scripts tests
