@@ -62,6 +62,9 @@ class AdminAuthOnlyJoseLocalWorkerTests(unittest.TestCase):
     def test_no_deployment_or_execution_wiring(self):
         source = CANDIDATE.read_text(encoding="utf-8")
         self.assertEqual(re.findall(r"(?m)^import .*", source),
+                         ["import {validAccessIdentityConfig,verifyAccessAssertion} from './access-assertion-verifier.mjs';"])
+        core = (PACKAGE / "access-assertion-verifier.mjs").read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r"(?m)^import .*", core),
                          ["import {jwtVerify,createLocalJWKSet} from 'jose';"])
         self.assertNotRegex(source, r"export\s+default")
         for forbidden in ("onRequest", "process.env", "console.", "createRemoteJWKSet",
