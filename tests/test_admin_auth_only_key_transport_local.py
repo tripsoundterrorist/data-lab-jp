@@ -69,7 +69,8 @@ class AdminAuthOnlyKeyTransportLocalTests(unittest.TestCase):
         self.assertEqual(set(lock["packages"]), {"", "node_modules/jose"})
         source = TRANSPORT.read_text(encoding="utf-8")
         self.assertEqual(re.findall(r"(?m)^import .*", source),
-                         ["import {createAuthOnlyLocalWorker} from './admin-auth-only-jose-local-worker.mjs';"])
+                         ["import {createAuthOnlyLocalWorker} from './admin-auth-only-jose-local-worker.mjs';",
+                          "import {createBoundedPublicKeyLoader} from './access-public-key-loader.mjs';"])
 
     def test_local_only_injected_transport_without_execution_wiring(self):
         source = TRANSPORT.read_text(encoding="utf-8")
@@ -77,7 +78,11 @@ class AdminAuthOnlyKeyTransportLocalTests(unittest.TestCase):
         for forbidden in ("onRequest", "process.env", "console.", "createRemoteJWKSet",
                           "gtag(", "sendBeacon(", "DMM_API", "AFFILIATE_ITEM_LOOKUP"):
             self.assertNotIn(forbidden, source)
-        for required in ("mode==='LOCAL_ONLY'", "typeof fetchPublicKeys==='function'",
+        self.assertIn("options.mode!=='LOCAL_ONLY'", source)
+        self.assertIn("createBoundedPublicKeyLoader(settings)", source)
+        source = (PACKAGE / "access-public-key-loader.mjs").read_text(encoding="utf-8")
+        self.assertNotRegex(source, r"export\s+default|globalThis\.fetch|console\.")
+        for required in ("typeof fetchPublicKeys==='function'",
                          "url!==endpoint", "issuer+'/cdn-cgi/access/certs'",
                          "redirect:'error'", "credentials:'omit'", "cache:'no-store'",
                          "new AbortController()", "structuredClone"):

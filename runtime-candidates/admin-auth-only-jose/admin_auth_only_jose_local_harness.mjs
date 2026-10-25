@@ -136,7 +136,10 @@ test('invalid clock and loader output are fail-closed',async()=>{
 });
 test('candidate only imports jose and has no executor env default handler or network transport',()=>{
   const source=readFileSync(new URL('./admin-auth-only-jose-local-worker.mjs',import.meta.url),'utf8');
-  assert.deepEqual(source.match(/^import .*$/gmu),["import {jwtVerify,createLocalJWKSet} from 'jose';"]);assert.equal(/export\s+default/u.test(source),false);
+  assert.deepEqual(source.match(/^import .*$/gmu),["import {validAccessIdentityConfig,verifyAccessAssertion} from './access-assertion-verifier.mjs';"]);assert.equal(/export\s+default/u.test(source),false);
+  const core=readFileSync(new URL('./access-assertion-verifier.mjs',import.meta.url),'utf8');
+  assert.deepEqual(core.match(/^import .*$/gmu),["import {jwtVerify,createLocalJWKSet} from 'jose';"]);
+  assert.equal(/export\s+default|globalThis\.fetch|console\./u.test(core),false);
   assert.equal(/globalThis\.fetch|\bfetch\s*\(/u.test(source.replace('async fetch(request)','async handler(request)')),false);
   assert.equal(/\.env\b|\benv\s*[,.=)]/u.test(source),false);
 });
