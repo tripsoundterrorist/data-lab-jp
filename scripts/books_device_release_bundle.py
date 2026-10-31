@@ -9,12 +9,12 @@ from scripts.coupon_help_candidate_bundle import CONSENT_CSP
 
 ARTICLE = 'books-device-check.html'
 ROUTE = '/books-device-check'
-LINK = ('<p>購入前に、<a href="/books-device-check">'
-        'スマホ・PCで読むための確認ポイント</a>もご覧ください。</p>\n')
+LINK = ('<p>電子書籍を購入する方へ：<a href="/books-device-check">'
+        'FANZAブックスをスマホ・PCで読むための確認ポイント</a>もご覧ください。</p>\n')
 RELATED_PRICE_LINK = (
-    '<p class="related">端末の確認が済んだら、'
-    '<a href="/column-price">価格を比較するときの確認ポイント</a>'
-    'もご覧ください。</p>\n'
+    '<p class="related">動画も購入する方へ：'
+    '<a href="/column-price">FANZA動画の価格・視聴条件の確認ポイント</a>'
+    'をまとめています。BOOKSの価格比較は扱っていません。</p>\n'
 )
 
 
