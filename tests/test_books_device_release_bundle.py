@@ -103,7 +103,7 @@ class ReleaseBundleTests(unittest.TestCase):
     def test_one_related_price_link_between_checklist_and_footer(self):
         article = build_release_bundle(self.baseline, self.source, enabled=True)[ARTICLE].decode('utf-8')
         self.assertEqual(article.count('href="/column-price"'), 1)
-        self.assertIn('価格を比較するときの確認ポイント</a>', article)
+        self.assertIn('FANZA動画の価格・視聴条件の確認ポイント</a>', article)
         self.assertLess(article.index('<section id="check"'), article.index('<p class="related">'))
         self.assertLess(article.index('<p class="related">'), article.index('<footer>'))
         self.assertNotIn('href="/items/"', article)

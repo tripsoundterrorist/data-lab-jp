@@ -22,7 +22,7 @@ class PriceColumnReaderChecksTests(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertEqual(re.findall(r'<li>(.*?)</li>', match[1], re.S), [
             "自分が選んだ内容の支払額",
-            "利用条件や割引の適用条件",
+            "再生方法・画質・視聴期限と対応端末",
             "価格の確認日時と、公式ページの現在の表示",
         ])
 
