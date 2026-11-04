@@ -9,7 +9,7 @@ from scripts.coupon_help_candidate_bundle import CONSENT_CSP
 
 ARTICLE = 'books-device-check.html'
 ROUTE = '/books-device-check'
-LINK = ('<p>電子書籍を購入する方へ：<a href="/books-device-check">'
+LINK = ('<p>電子書籍を購入する方へ：<a href="/books-device-check" style="color:#ffffff; text-decoration:underline;">'
         'FANZAブックスをスマホ・PCで読むための確認ポイント</a>もご覧ください。</p>\n')
 RELATED_PRICE_LINK = (
     '<p class="related">動画も購入する方へ：'
