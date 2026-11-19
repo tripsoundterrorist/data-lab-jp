@@ -1,0 +1,27 @@
+<section id="datalab-coupon-calculator" aria-label="クーポン計算補助">
+
+<h3>クーポンを使うと、<br>支払額と戻るポイントはどう変わる？</h3>
+<p>数字を入れて、このページで説明する計算式を確かめられます。実際に使えるクーポンや、購入時の金額を調べる機能ではありません。</p>
+<section aria-labelledby="calc-scope-title"><h4 id="calc-scope-title">最初に、計算の対象を確認</h4>
+<p>対象は、FANZA公式ヘルプ「クーポン利用時のポイントバック」の式が適用される<strong>商品購入による還元ポイント</strong>です。</p>
+<p><strong>FANZAブックス、別キャンペーンの特典、計算ルールが分からない場合には使えません。</strong>この試作は、対象になるかを自動で判断しません。</p>
+<p class="muted">公式根拠：support.fanza.jp/payment/article/47509<br>本文照合：2026年11月19日。購入画面の動作確認ではありません。</p></section>
+<form novalidate>
+<fieldset><legend>対象の確認</legend><label class="check"><input type="checkbox" id="calc-scope"><span>上記の公式の式が適用され、FANZAブックスや別キャンペーンの計算ではないことを確認しました。</span></label><p id="calc-scope-error" class="error"></p></fieldset>
+<fieldset><legend>比較する数字</legend>
+<p class="muted">最初の数字は説明用の例です。実際の商品や特典を示すものではありません。</p>
+<div class="field"><label for="calc-total"><strong>税込購入金額合計（円）</strong></label><input id="calc-total" type="text" inputmode="numeric" value="2000" maxlength="8" aria-describedby="calc-total-help calc-total-error"><small id="calc-total-help">クーポンを適用する前の金額。1〜9,999,999の半角整数。</small><p id="calc-total-error" class="error"></p></div>
+<div class="field"><label for="calc-discount"><strong>実際に適用される値引額（円）</strong></label><input id="calc-discount" type="text" inputmode="numeric" value="500" maxlength="8" aria-describedby="calc-discount-help calc-discount-error"><small id="calc-discount-help">割引率ではなく、円の金額。0〜購入金額合計まで。</small><p id="calc-discount-error" class="error"></p></div>
+<div class="field"><label for="calc-points"><strong>クーポンを使わない場合の還元ポイント</strong></label><input id="calc-points" type="text" inputmode="numeric" value="200" maxlength="8" aria-describedby="calc-points-help calc-points-error"><small id="calc-points-help">商品購入によるポイントのみ。0〜9,999,999の半角整数。</small><p id="calc-points-error" class="error"></p></div>
+</fieldset>
+<div class="actions"><button type="submit">計算例を確かめる</button><button class="secondary" type="reset">例の数字に戻す</button></div>
+<p id="calc-message" role="status" aria-live="polite" aria-atomic="true"></p>
+<section id="calc-result" hidden aria-labelledby="calc-result-title"><h4 id="calc-result-title">入力した条件での計算結果</h4><dl>
+<div><dt>支払額</dt><dd id="calc-payment-result"></dd></div>
+<div><dt>計算上の還元ポイント</dt><dd id="calc-points-result"></dd></div>
+<div><dt>使わない場合より減る還元ポイント</dt><dd id="calc-difference-result"></dd></div>
+</dl><p>1ポイント未満を切り捨てています。実際の支払額・還元ポイントは、購入を確定する前に公式の購入確認画面で確かめましょう。</p><p class="muted">この計算では、ポイントを現金と同じ価値として扱っていません。購入やクーポン利用を勧める判定はしません。</p></section>
+</form>
+<details><summary>計算のしかた</summary><p>支払額 ＝ 税込購入金額合計 − 値引額</p><p>還元ポイント ＝ 適用前の還元ポイント ×（購入金額合計 − 値引額）÷ 購入金額合計。最後に1ポイント未満を切り捨てます。</p></details>
+<p class="muted">入力は保存・外部送信しません。未公開の組込み候補です。</p>
+</section>
