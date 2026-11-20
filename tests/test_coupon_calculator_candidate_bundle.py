@@ -107,8 +107,15 @@ class CouponCalculatorBundleTests(unittest.TestCase):
         with mock.patch.object(Path, 'is_symlink', lambda p: p == linked or real_check(p)):
             with self.assertRaisesRegex(ValueError, 'LINKED_SOURCE'):calc.collect_assets(ROOT)
 
-    def test_no_public_hook_and_network_storage_or_tracking(self):
-        for name in ('scripts/build-static-site.py', 'scripts/coupon_help_public_release.py',
+    def test_review_transform_is_not_public_hook_and_has_no_transport(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('calculator_build_default_check', ROOT / 'scripts/build-static-site.py')
+        builder = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(builder)
+        self.assertFalse(builder.parse_args([]).coupon_calculator_enabled)
+        self.assertNotIn('coupon_calculator_candidate_bundle',
+                         (ROOT / 'scripts/build-static-site.py').read_text(encoding='utf-8'))
+        for name in ('scripts/coupon_help_public_release.py',
                      'preview/coupon-help.html', 'analytics-consent.js'):
             self.assertNotIn('coupon-calculator', (ROOT / name).read_text(encoding='utf-8'))
         js = self.assets['js'].decode('utf-8')
